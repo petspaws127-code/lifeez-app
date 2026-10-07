@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 import 'package:uuid/uuid.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'supabase_client.dart';
 import 'command_parser.dart';
 import 'notification_service.dart';
@@ -60,14 +63,122 @@ class AppState extends ChangeNotifier {
 
   String? get _uid => SupabaseService.currentUserId;
 
+  // ------------------------------------------------- local persistence
+  // Root fix for data loss: every change auto-saves to the phone's
+  // local storage (debounced), and loads back on startup. Works fully
+  // offline — Supabase sync is best-effort on top of this.
+  Timer? _saveTimer;
+  static const _localKey = 'lifeez_local_data_v1';
+
+  @override
+  void notifyListeners() {
+    // Debounced auto-save: any state change persists locally within 1s.
+    _saveTimer?.cancel();
+    _saveTimer = Timer(const Duration(seconds: 1), () => _saveLocal());
+    super.notifyListeners();
+  }
+
+  Future<void> _saveLocal() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final data = <String, dynamic>{
+        'profile': profile?.toJson(),
+        'tasks': tasks.map((e) => e.toJson()).toList(),
+        'expenses': expenses.map((e) => e.toJson()).toList(),
+        'bills': bills.map((e) => e.toJson()).toList(),
+        'subscriptions': subscriptions.map((e) => e.toJson()).toList(),
+        'shoppingItems': shoppingItems.map((e) => e.toJson()).toList(),
+        'reminders': reminders.map((e) => e.toJson()).toList(),
+        'documents': documents.map((e) => e.toJson()).toList(),
+        'vehicles': vehicles.map((e) => e.toJson()).toList(),
+        'maintenanceItems':
+            maintenanceItems.map((e) => e.toJson()).toList(),
+        'familyMembers': familyMembers.map((e) => e.toJson()).toList(),
+        'habits': habits.map((e) => e.toJson()).toList(),
+        'pets': pets.map((e) => e.toJson()).toList(),
+        'vaccinations': vaccinations.map((e) => e.toJson()).toList(),
+        'petMemories': petMemories.map((e) => e.toJson()).toList(),
+        'brainDumps': brainDumps.map((e) => e.toJson()).toList(),
+        'savingsEntries':
+            savingsEntries.map((e) => e.toJson()).toList(),
+        'lentBorrowed': lentBorrowed.map((e) => e.toJson()).toList(),
+      };
+      await prefs.setString(_localKey, jsonEncode(data));
+    } catch (_) {
+      // Local save must never crash the app.
+    }
+  }
+
+  /// Loads data from the phone's local storage. Returns true if found.
+  Future<bool> _loadLocal() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_localKey);
+      if (raw == null || raw.isEmpty) return false;
+      final data = jsonDecode(raw) as Map<String, dynamic>;
+      List<Map<String, dynamic>> list(dynamic v) => v == null
+          ? []
+          : List<Map<String, dynamic>>.from(v as List);
+
+      final p = data['profile'];
+      profile = p == null
+          ? null
+          : Profile.fromJson(Map<String, dynamic>.from(p as Map));
+      tasks = list(data['tasks']).map(TaskItem.fromJson).toList();
+      expenses = list(data['expenses']).map(Expense.fromJson).toList();
+      bills = list(data['bills']).map(Bill.fromJson).toList();
+      subscriptions =
+          list(data['subscriptions']).map(Subscription.fromJson).toList();
+      shoppingItems = list(data['shoppingItems'])
+          .map(ShoppingItem.fromJson)
+          .toList();
+      reminders =
+          list(data['reminders']).map(Reminder.fromJson).toList();
+      documents =
+          list(data['documents']).map(DocumentItem.fromJson).toList();
+      vehicles =
+          list(data['vehicles']).map(Vehicle.fromJson).toList();
+      maintenanceItems = list(data['maintenanceItems'])
+          .map(MaintenanceItem.fromJson)
+          .toList();
+      familyMembers = list(data['familyMembers'])
+          .map(FamilyMember.fromJson)
+          .toList();
+      habits = list(data['habits']).map(Habit.fromJson).toList();
+      pets = list(data['pets']).map(PetProfile.fromJson).toList();
+      vaccinations = list(data['vaccinations'])
+          .map(PetVaccination.fromJson)
+          .toList();
+      petMemories =
+          list(data['petMemories']).map(PetMemory.fromJson).toList();
+      brainDumps =
+          list(data['brainDumps']).map(BrainDump.fromJson).toList();
+      savingsEntries = list(data['savingsEntries'])
+          .map(SavingsEntry.fromJson)
+          .toList();
+      lentBorrowed =
+          list(data['lentBorrowed']).map(LentBorrowed.fromJson).toList();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   // ------------------------------------------------------------- loading
   Future<void> loadAll() async {
     loading = true;
     error = null;
+    // Load local data first so the UI shows instantly, then refresh
+    // from Supabase when available.
+    await _loadLocal();
     notifyListeners();
     try {
       final uid = _uid;
-      if (uid == null) return;
+      if (uid == null) {
+        loading = false;
+        notifyListeners();
+        return;
+      }
       final c = SupabaseService.client;
       final results = await Future.wait([
         c.from('profiles').select().eq('id', uid).maybeSingle(),
@@ -161,6 +272,10 @@ class AppState extends ChangeNotifier {
     notifications = [];
     notificationsSeenAt = null;
     _pinUnlocked = false;
+    // Also wipe the persisted local copy so a deleted account
+    // doesn't reload old data.
+    SharedPreferences.getInstance()
+        .then((p) => p.remove(_localKey));
     notifyListeners();
   }
 
