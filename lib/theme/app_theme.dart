@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// Brand palette: ivory background, light fresh green + gold accents.
@@ -23,8 +24,14 @@ class AppColors {
 class AppTheme {
   /// Set by the app root whenever the active [ThemeMode] resolves;
   /// keeps static card helpers in sync with the theme.
-  static bool _dark = false;
-  static void setDark(bool v) => _dark = v;
+  /// Uses an explicit override when set via [setDark]; otherwise falls back
+  /// to the actual system brightness so cards are never out of sync.
+  static bool? _darkOverride;
+  static void setDark(bool v) => _darkOverride = v;
+  static bool get _dark =>
+      _darkOverride ??
+      SchedulerBinding.instance.platformDispatcher.platformBrightness ==
+          Brightness.dark;
   static bool get isDark => _dark;
 
   /// Card surface color that follows the active theme.
