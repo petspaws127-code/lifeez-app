@@ -10,7 +10,6 @@ import '../widgets/ui_kit.dart';
 import '../services/app_state.dart';
 import '../services/update_service.dart';
 import '../services/auth_service.dart';
-import '../services/whatsapp_service.dart';
 import 'login_screen.dart';
 
 /// Profile section: user info, photo, edit profile, Pro status,
@@ -225,7 +224,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
-    final wa = context.watch<WhatsAppService>();
     final p = app.profile;
 
     return Scaffold(
@@ -349,14 +347,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             subtitle:
                 '\$${(p?.monthlyBudget ?? 0).toStringAsFixed(2)}',
             onTap: () => _editBudget(context, app),
-          ),
-          _row(
-            icon: 'grocery',
-            title: 'WhatsApp',
-            subtitle: wa.isConnected
-                ? 'Connected • ${wa.phoneNumber ?? ''}'
-                : 'Not connected',
-            onTap: () => Navigator.pushNamed(context, '/whatsapp'),
           ),
           const SizedBox(height: 4),
           const SectionHeader(title: 'Rewards'),

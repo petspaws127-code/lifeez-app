@@ -11,24 +11,13 @@ import '../services/update_service.dart';
 import '../services/eastern_time.dart';
 import 'ai_assistant_screen.dart';
 import 'bills_screen.dart';
-import 'budget_guard_screen.dart';
 import 'calendar_screen.dart';
-import 'car_screen.dart';
-import 'cash_flow_screen.dart';
-import 'documents_screen.dart';
-import 'family_screen.dart';
 import 'habits_screen.dart';
-import 'lent_borrowed_screen.dart';
 import 'money_screen.dart';
-import 'my_day_screen.dart';
 import 'notifications_screen.dart';
+import 'pets_screen.dart';
 import 'profile_screen.dart';
-import 'referrals_screen.dart';
 import 'reminders_screen.dart';
-import 'report_screen.dart';
-import 'scanner_screen.dart';
-import 'shopping_screen.dart';
-import 'subscription_audit_screen.dart';
 import 'subscriptions_screen.dart';
 import 'tasks_screen.dart';
 
@@ -222,7 +211,7 @@ class HomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // 4. Features grid — 4 main feature cards.
+              // 4. Features grid — 7 main feature cards (FINAL).
               const SectionHeader(title: 'Features'),
               const SizedBox(height: 8),
               GridView.count(
@@ -241,11 +230,21 @@ class HomeScreen extends StatelessWidget {
                       CalendarScreen.route),
                   _featureCard(context, 'Bills', 'bills',
                       BillsScreen.route),
+                  _featureCard(context, 'Budget', 'money',
+                      MoneyScreen.route),
+                  _featureCard(context, 'Pets', 'pet',
+                      PetsScreen.route),
                 ],
               ),
               const SizedBox(height: 16),
 
-              // 5. Today — compact, max 3 tasks.
+              // 5. Activity — live feed of what's happening.
+              const SectionHeader(title: 'Activity'),
+              const SizedBox(height: 8),
+              _ActivityFeed(app: app),
+              const SizedBox(height: 16),
+
+              // 6. Today — compact, max 3 tasks.
               SectionHeader(
                 title: 'Today',
                 actionLabel: 'See all',
@@ -320,28 +319,13 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  /// Bottom sheet opened by the "+" FAB: all extra features in a list.
+  /// Bottom sheet opened by the "+" FAB: extra features (FINAL: 2).
   void _showMoreFeatures(BuildContext context) {
-    // All features NOT on the home grid (home has Tasks, Reminders,
-    // Events, Bills). No duplicates.
+    // FINAL: Only Subscriptions and Habits in Plus.
+    // Home has: AI, Tasks, Reminders, Events, Bills, Budget, Pets.
     final features = <Map<String, dynamic>>[
-      {'label': 'Budget', 'category': 'money', 'route': MoneyScreen.route},
-      {'label': 'Shopping', 'category': 'grocery', 'route': ShoppingScreen.route},
-      {'label': 'Habits', 'category': 'habit', 'route': HabitsScreen.route},
-      {'label': 'My Day', 'category': 'myday', 'route': MyDayScreen.route},
-      {'label': 'Documents', 'category': 'document', 'route': DocumentsScreen.route},
       {'label': 'Subscriptions', 'category': 'subscription', 'route': SubscriptionsScreen.route},
-      {'label': 'Scanner', 'category': 'scan', 'route': ScannerScreen.route},
-      {'label': 'Alerts', 'category': 'notification', 'route': NotificationsScreen.route},
-      {'label': 'AI Assistant', 'category': 'brain', 'route': AiAssistantScreen.route},
-      {'label': 'Lent & Borrowed', 'icon': Icons.handshake_outlined, 'route': LentBorrowedScreen.route},
-      {'label': 'Subscription Audit', 'category': 'subscription', 'route': SubscriptionAuditScreen.route},
-      {'label': 'Cash-flow Forecast', 'icon': Icons.trending_up_rounded, 'route': CashFlowScreen.route},
-      {'label': 'Budget Guard', 'icon': Icons.shield_outlined, 'route': BudgetGuardScreen.route},
-      {'label': 'Family', 'category': 'family', 'route': FamilyScreen.route},
-      {'label': 'My Car', 'icon': Icons.directions_car_rounded, 'route': CarScreen.route},
-      {'label': 'Refer & Earn', 'category': 'share', 'route': ReferralsScreen.route},
-      {'label': 'Monthly Report', 'icon': Icons.bar_chart_rounded, 'route': ReportScreen.route},
+      {'label': 'Habits', 'category': 'habit', 'route': HabitsScreen.route},
     ];
 
     showModalBottomSheet(
@@ -541,6 +525,89 @@ class _QuickCommandsCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Live activity feed on Home — shows what's due, upcoming,
+/// and recently done across tasks, reminders, bills, and events.
+class _ActivityFeed extends StatelessWidget {
+  final AppState app;
+  const _ActivityFeed({required this.app});
+
+  @override
+  Widget build(BuildContext context) {
+    final items = <Map<String, dynamic>>[];
+
+    // Due tasks
+    for (final t in app.todayTasks.take(2)) {
+      items.add({
+        'icon': Icons.check_circle_outline_rounded,
+        'color': AppColors.deepGreen,
+        'text': 'Due today: ${t.title}',
+        'route': TasksScreen.route,
+      });
+    }
+    // Upcoming reminders
+    for (final r in app.activeReminders.take(2)) {
+      items.add({
+        'icon': Icons.notifications_outlined,
+        'color': AppColors.gold,
+        'text': 'Reminder: ${r.title}',
+        'route': RemindersScreen.route,
+      });
+    }
+    // Unpaid bills
+    for (final b in app.unpaidBills.take(2)) {
+      items.add({
+        'icon': Icons.receipt_long_outlined,
+        'color': Colors.orange,
+        'text': 'Bill due: ${b.name} — \$${b.amount.toStringAsFixed(0)}',
+        'route': BillsScreen.route,
+      });
+    }
+
+    if (items.isEmpty) {
+      return Container(
+        decoration: AppTheme.card3D(radius: 16),
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            const Icon(Icons.wb_sunny_outlined,
+                color: AppColors.muted, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'All clear! Nothing needs your attention.',
+                style: GoogleFonts.poppins(
+                    color: AppColors.muted, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: items.take(5).map((item) => Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: AppTheme.card3D(radius: 14),
+        child: ListTile(
+          dense: true,
+          leading: Icon(item['icon'] as IconData,
+              color: item['color'] as Color, size: 22),
+          title: Text(
+            item['text'] as String,
+            style: GoogleFonts.poppins(fontSize: 13),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: const Icon(Icons.chevron_right_rounded,
+              size: 18, color: Colors.grey),
+          onTap: () => Navigator.pushNamed(
+              context, item['route'] as String),
+        ),
+      )).toList(),
     );
   }
 }
