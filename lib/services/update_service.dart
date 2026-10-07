@@ -7,10 +7,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
 
 /// In-app updater: checks GitHub for a newer APK and prompts install.
-/// Version source: version.json in the repo (raw.githubusercontent).
+/// Version source: version.json in the public lifeez-updates repo.
 class UpdateService {
   static const _versionUrl =
-      'https://raw.githubusercontent.com/petspaws127-code/lifeez-app/main/version.json';
+      'https://raw.githubusercontent.com/petspaws127-code/lifeez-updates/main/version.json';
   static const _checkInterval = Duration(hours: 12);
 
   DateTime? _lastCheck;

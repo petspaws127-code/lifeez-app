@@ -224,16 +224,16 @@ class HomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // 4. Features grid — 12 feature cards.
+              // 4. Features grid — 4 main feature cards.
               const SectionHeader(title: 'Features'),
               const SizedBox(height: 8),
               GridView.count(
-                crossAxisCount: 3,
+                crossAxisCount: 2,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 mainAxisSpacing: 10,
                 crossAxisSpacing: 10,
-                childAspectRatio: 1.0,
+                childAspectRatio: 2.2,
                 children: [
                   _featureCard(context, 'Tasks', 'task',
                       TasksScreen.route),
@@ -243,22 +243,6 @@ class HomeScreen extends StatelessWidget {
                       CalendarScreen.route),
                   _featureCard(context, 'Bills', 'bills',
                       BillsScreen.route),
-                  _featureCard(context, 'Budget', 'money',
-                      MoneyScreen.route),
-                  _featureCard(context, 'Shopping', 'grocery',
-                      ShoppingScreen.route),
-                  _featureCard(context, 'Habits', 'habit',
-                      HabitsScreen.route),
-                  _featureCard(context, 'My Day', 'myday',
-                      MyDayScreen.route),
-                  _featureCard(context, 'Documents', 'document',
-                      DocumentsScreen.route),
-                  _featureCard(context, 'Subscriptions',
-                      'subscription', SubscriptionsScreen.route),
-                  _featureCard(context, 'Scanner', 'scan',
-                      ScannerScreen.route),
-                  _featureCard(context, 'Alerts', 'notification',
-                      NotificationsScreen.route),
                 ],
               ),
               const SizedBox(height: 16),
@@ -314,42 +298,72 @@ class HomeScreen extends StatelessWidget {
       onTap: () => Navigator.pushNamed(context, route),
       child: Container(
         decoration: AppTheme.card3D(radius: 18),
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        padding: const EdgeInsets.symmetric(
+            horizontal: 14, vertical: 10),
+        child: Row(
           children: [
-            CategoryIcon(category: category, size: 40),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              style: GoogleFonts.poppins(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
+            CategoryIcon(category: category, size: 44),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
+            const Icon(Icons.chevron_right_rounded,
+                size: 20, color: Colors.grey),
           ],
         ),
       ),
     );
   }
 
-  /// Bottom sheet opened by the "+" FAB: the extra features.
+  /// Bottom sheet opened by the "+" FAB: all extra features in a list.
   void _showMoreFeatures(BuildContext context) {
+    // All features NOT on the home grid (home has Tasks, Reminders,
+    // Events, Bills). No duplicates.
+    final features = <Map<String, dynamic>>[
+      {'label': 'Budget', 'category': 'money', 'route': MoneyScreen.route},
+      {'label': 'Shopping', 'category': 'grocery', 'route': ShoppingScreen.route},
+      {'label': 'Habits', 'category': 'habit', 'route': HabitsScreen.route},
+      {'label': 'My Day', 'category': 'myday', 'route': MyDayScreen.route},
+      {'label': 'Documents', 'category': 'document', 'route': DocumentsScreen.route},
+      {'label': 'Subscriptions', 'category': 'subscription', 'route': SubscriptionsScreen.route},
+      {'label': 'Scanner', 'category': 'scan', 'route': ScannerScreen.route},
+      {'label': 'Alerts', 'category': 'notification', 'route': NotificationsScreen.route},
+      {'label': 'AI Assistant', 'category': 'brain', 'route': AiAssistantScreen.route},
+      {'label': 'WhatsApp Chat', 'icon': Icons.chat_bubble_rounded, 'colors': const [AppColors.whatsapp, AppColors.whatsappDark], 'route': WhatsAppChatScreen.route},
+      {'label': 'Lent & Borrowed', 'icon': Icons.handshake_outlined, 'route': LentBorrowedScreen.route},
+      {'label': 'Subscription Audit', 'category': 'subscription', 'route': SubscriptionAuditScreen.route},
+      {'label': 'Cash-flow Forecast', 'icon': Icons.trending_up_rounded, 'route': CashFlowScreen.route},
+      {'label': 'Budget Guard', 'icon': Icons.shield_outlined, 'route': BudgetGuardScreen.route},
+      {'label': 'Family', 'category': 'family', 'route': FamilyScreen.route},
+      {'label': 'My Car', 'icon': Icons.directions_car_rounded, 'route': CarScreen.route},
+      {'label': 'Refer & Earn', 'category': 'share', 'route': ReferralsScreen.route},
+      {'label': 'Monthly Report', 'icon': Icons.bar_chart_rounded, 'route': ReportScreen.route},
+    ];
+
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius:
             BorderRadius.vertical(top: Radius.circular(26)),
       ),
-      builder: (sheetCtx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+      builder: (sheetCtx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.75,
+        minChildSize: 0.4,
+        maxChildSize: 0.92,
+        builder: (_, scrollController) => SafeArea(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const SizedBox(height: 10),
               Center(
                 child: Container(
                   width: 40,
@@ -361,69 +375,36 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              Text(
-                'More features',
-                style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  'More features',
+                  style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700),
+                ),
               ),
-              const SizedBox(height: 12),
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 10,
-                crossAxisSpacing: 10,
-                childAspectRatio: 2.4,
-                children: [
-                  // Closing the sheet and navigating both use the
-                  // outer (home) context; the sheet route is on the
-                  // same Navigator, so this pops exactly the sheet.
-                  _moreFeatureTile(context,
-                      label: 'AI Assistant',
-                      category: 'brain',
-                      route: AiAssistantScreen.route),
-                  _moreFeatureTile(context,
-                      label: 'WhatsApp Chat',
-                      icon: Icons.chat_bubble_rounded,
-                      colors: const [
-                        AppColors.whatsapp,
-                        AppColors.whatsappDark
-                      ],
-                      route: WhatsAppChatScreen.route),
-                  _moreFeatureTile(context,
-                      label: 'Lent & Borrowed',
-                      icon: Icons.handshake_outlined,
-                      route: LentBorrowedScreen.route),
-                  _moreFeatureTile(context,
-                      label: 'Subscription Audit',
-                      category: 'subscription',
-                      route: SubscriptionAuditScreen.route),
-                  _moreFeatureTile(context,
-                      label: 'Cash-flow Forecast',
-                      icon: Icons.trending_up_rounded,
-                      route: CashFlowScreen.route),
-                  _moreFeatureTile(context,
-                      label: 'Budget Guard',
-                      icon: Icons.shield_outlined,
-                      route: BudgetGuardScreen.route),
-                  _moreFeatureTile(context,
-                      label: 'Family',
-                      category: 'family',
-                      route: FamilyScreen.route),
-                  _moreFeatureTile(context,
-                      label: 'My Car',
-                      icon: Icons.directions_car_rounded,
-                      route: CarScreen.route),
-                  _moreFeatureTile(context,
-                      label: 'Refer & Earn',
-                      category: 'share',
-                      route: ReferralsScreen.route),
-                  _moreFeatureTile(context,
-                      label: 'Monthly Report',
-                      icon: Icons.bar_chart_rounded,
-                      route: ReportScreen.route),
-                ],
+              const SizedBox(height: 8),
+              Expanded(
+                child: ListView.separated(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(
+                      16, 4, 16, 24),
+                  itemCount: features.length,
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(height: 8),
+                  itemBuilder: (_, i) {
+                    final f = features[i];
+                    return _moreFeatureRow(
+                      context,
+                      label: f['label'] as String,
+                      route: f['route'] as String,
+                      category: f['category'] as String?,
+                      icon: f['icon'] as IconData?,
+                      colors: f['colors'] as List<Color>?,
+                    );
+                  },
+                ),
               ),
             ],
           ),
@@ -432,7 +413,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _moreFeatureTile(BuildContext context,
+  Widget _moreFeatureRow(BuildContext context,
       {required String label,
       required String route,
       String? category,
@@ -444,16 +425,17 @@ class HomeScreen extends StatelessWidget {
         Navigator.pushNamed(context, route);
       },
       child: Container(
-        decoration: AppTheme.card3D(radius: 18),
-        padding: const EdgeInsets.all(10),
+        decoration: AppTheme.card3D(radius: 16),
+        padding: const EdgeInsets.symmetric(
+            horizontal: 14, vertical: 12),
         child: Row(
           children: [
             if (category != null)
-              CategoryIcon(category: category, size: 38)
+              CategoryIcon(category: category, size: 40)
             else
               Container(
-                width: 38,
-                height: 38,
+                width: 40,
+                height: 40,
                 decoration: AppTheme.tile3D(
                   colors ??
                       const [
@@ -465,25 +447,22 @@ class HomeScreen extends StatelessWidget {
                 child: Icon(icon,
                     color: Colors.white, size: 20),
               ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
             Expanded(
               child: Text(
                 label,
                 style: GoogleFonts.poppins(
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: FontWeight.w600),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
             ),
             const Icon(Icons.chevron_right_rounded,
-                color: AppColors.muted, size: 20),
+                size: 22, color: Colors.grey),
           ],
         ),
       ),
     );
   }
-
   Widget _taskRow(
       BuildContext context, String title, String category, String id) {
     final app = context.read<AppState>();
