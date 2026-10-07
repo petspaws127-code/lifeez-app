@@ -90,11 +90,15 @@ class HabitsScreen extends StatelessWidget {
                       const Icon(Icons.local_fire_department_rounded,
                           size: 14, color: AppColors.gold),
                       const SizedBox(width: 4),
-                      Text(
-                        '${h.streak} day streak • ${h.weekCount}/7 this week',
-                        style: GoogleFonts.poppins(
-                            fontSize: 12,
-                            color: AppColors.muted),
+                      Flexible(
+                        child: Text(
+                          '${h.streak} day streak • ${h.weekCount}/7 this week',
+                          style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: AppColors.muted),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
                       ),
                     ],
                   ),
