@@ -7,6 +7,7 @@ import 'services/auth_service.dart';
 import 'services/app_state.dart';
 import 'services/whatsapp_service.dart';
 import 'screens/splash_screen.dart';
+import 'screens/welcome_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/main_tabs.dart';
@@ -58,7 +59,8 @@ class AiLifeAssistantApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthService()),
+        ChangeNotifierProvider(
+            create: (_) => AuthService()..restoreAdminSession()),
         ChangeNotifierProvider(create: (_) => AppState()),
         ChangeNotifierProvider(create: (_) => WhatsAppService()),
       ],
@@ -80,6 +82,7 @@ class AiLifeAssistantApp extends StatelessWidget {
         initialRoute: SplashScreen.route,
         routes: {
           SplashScreen.route: (_) => const SplashScreen(),
+          WelcomeScreen.route: (_) => const WelcomeScreen(),
           LoginScreen.route: (_) => const LoginScreen(),
           OnboardingScreen.route: (_) =>
               const OnboardingScreen(),

@@ -55,6 +55,39 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  /// Admin bypass options: Demo (free) or Paid Pro.
+  void _showAdminOptions(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Admin entry'),
+        content: const Text('Choose your test account type:'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await context.read<AuthService>().signInAsAdmin(plan: 'demo');
+              if (context.mounted) await _afterSignIn();
+            },
+            child: const Text('Demo (Free)'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await context.read<AuthService>().signInAsAdmin(plan: 'paid');
+              if (context.mounted) await _afterSignIn();
+            },
+            child: const Text('Paid Pro'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _signIn(
       String key, Future<void> Function(AuthService) action) async {
     setState(() => _busy = key);
@@ -67,7 +100,16 @@ class _LoginScreenState extends State<LoginScreen> {
     } on AuthSetupException catch (e) {
       _showError(e.message);
     } catch (e) {
-      _showError('Sign-in failed: $e');
+      final msg = e.toString();
+      // Google ApiException: 10 = DEVELOPER_ERROR (SHA-1 / OAuth not registered)
+      if (msg.contains('ApiException: 10')) {
+        _showError(
+          'Google sign-in needs setup: the app is not registered in Google '
+          'Cloud Console yet. Please use "Admin · Enter directly" for now.',
+        );
+      } else {
+        _showError('Sign-in failed: $e');
+      }
     } finally {
       if (mounted) setState(() => _busy = null);
     }
@@ -166,11 +208,7 @@ class _LoginScreenState extends State<LoginScreen> {
               // TEMPORARY admin bypass — remove when real logins are wired.
               Center(
                 child: TextButton.icon(
-                  onPressed: () async {
-                    // Direct entry: no auth; AppState.loadAll() safely
-                    // no-ops without a user, then routes to onboarding/home.
-                    await _afterSignIn();
-                  },
+                  onPressed: () => _showAdminOptions(context),
                   icon: const Icon(Icons.admin_panel_settings_outlined,
                       size: 16, color: AppColors.muted),
                   label: Text(

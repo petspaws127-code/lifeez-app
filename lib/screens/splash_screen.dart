@@ -6,7 +6,7 @@ import '../widgets/app_logo.dart';
 import '../services/auth_service.dart';
 import '../services/app_state.dart';
 import '../services/whatsapp_service.dart';
-import 'login_screen.dart';
+import 'welcome_screen.dart';
 import 'onboarding_screen.dart';
 import 'main_tabs.dart';
 
@@ -42,7 +42,7 @@ class _SplashScreenState extends State<SplashScreen>
     if (!mounted) return;
     final auth = context.read<AuthService>();
     if (!auth.isSignedIn) {
-      Navigator.pushReplacementNamed(context, LoginScreen.route);
+      Navigator.pushReplacementNamed(context, WelcomeScreen.route);
       return;
     }
     final app = context.read<AppState>();

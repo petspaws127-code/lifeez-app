@@ -3,6 +3,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'supabase_client.dart';
 
 /// Authentication for the 4 login options: Google, WhatsApp, Apple, Facebook.
@@ -25,10 +26,66 @@ class AuthSetupException implements Exception {
 }
 
 class AuthService extends ChangeNotifier {
-  bool get isSignedIn =>
-      SupabaseService.client.auth.currentUser != null;
+  static const _kAdminSession = 'lifeez_admin_session';
+  static const _kAdminPlan = 'lifeez_admin_plan'; // 'demo' or 'paid'
 
-  String? get userId => SupabaseService.currentUserId;
+  bool _adminSignedIn = false;
+  String _adminPlan = 'demo';
+
+  bool get isSignedIn =>
+      SupabaseService.client.auth.currentUser != null || _adminSignedIn;
+
+  bool get isAdmin => _adminSignedIn;
+  String get adminPlan => _adminPlan;
+
+  String? get userId => SupabaseService.currentUserId ?? (_adminSignedIn ? 'admin-local' : null);
+
+  /// Restore admin session from storage. Call at startup.
+  Future<void> restoreAdminSession() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _adminSignedIn = prefs.getBool(_kAdminSession) ?? false;
+      _adminPlan = prefs.getString(_kAdminPlan) ?? 'demo';
+      if (_adminSignedIn) notifyListeners();
+    } catch (_) {}
+  }
+
+  /// Admin bypass sign-in. Persists so the user stays logged in
+  /// across app restarts until they delete their account or sign out.
+  Future<void> signInAsAdmin({String plan = 'demo'}) async {
+    _adminSignedIn = true;
+    _adminPlan = plan;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kAdminSession, true);
+    await prefs.setString(_kAdminPlan, plan);
+    notifyListeners();
+  }
+
+  /// Switch admin plan between demo (free) and paid.
+  Future<void> setAdminPlan(String plan) async {
+    _adminPlan = plan;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kAdminPlan, plan);
+    notifyListeners();
+  }
+
+  /// Full account deletion — clears admin session and all local data.
+  /// After this the user can create a fresh account.
+  Future<void> deleteAccount() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_kAdminSession);
+    await prefs.remove(_kAdminPlan);
+    // Clear all app data keys
+    for (final key in prefs.getKeys().toList()) {
+      if (key.startsWith('lifeez_')) await prefs.remove(key);
+    }
+    _adminSignedIn = false;
+    _adminPlan = 'demo';
+    try {
+      await SupabaseService.client.auth.signOut();
+    } catch (_) {}
+    notifyListeners();
+  }
 
   // ---------------------------------------------------------------- Google
   Future<void> signInWithGoogle() async {
@@ -192,6 +249,14 @@ class AuthService extends ChangeNotifier {
     try {
       await FacebookAuth.instance.logOut();
     } catch (_) {}
+    // Clear admin session too
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_kAdminSession);
+      await prefs.remove(_kAdminPlan);
+    } catch (_) {}
+    _adminSignedIn = false;
+    _adminPlan = 'demo';
     await SupabaseService.client.auth.signOut();
     notifyListeners();
   }

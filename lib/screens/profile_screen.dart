@@ -216,7 +216,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final auth = context.read<AuthService>();
     final app = context.read<AppState>();
     await app.deleteAllMyData();
-    await auth.signOut();
+    await auth.deleteAccount();
     if (!mounted) return;
     Navigator.pushNamedAndRemoveUntil(
         context, LoginScreen.route, (_) => false);
@@ -359,7 +359,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onTap: () => Navigator.pushNamed(context, '/whatsapp'),
           ),
           const SizedBox(height: 4),
-          const SectionHeader(title: 'More'),
+          const SectionHeader(title: 'Rewards'),
           const SizedBox(height: 8),
           _row(
             icon: 'pro',
@@ -369,19 +369,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onTap: () =>
                 Navigator.pushNamed(context, '/referrals'),
           ),
-          _row(
-            icon: 'document',
-            title: 'Privacy Policy',
-            subtitle: 'How your data is handled',
-            onTap: () =>
-                Navigator.pushNamed(context, '/privacy'),
-          ),
-          _row(
-            icon: 'task',
-            title: 'Terms of Service',
-            subtitle: 'The fine print',
-            onTap: () => Navigator.pushNamed(context, '/terms'),
-          ),
+          const SizedBox(height: 4),
+          const SectionHeader(title: 'Support'),
+          const SizedBox(height: 8),
           _row(
             icon: 'other',
             title: 'Help & FAQ',
@@ -395,6 +385,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onTap: () =>
                 Navigator.pushNamed(context, '/support'),
           ),
+          const SizedBox(height: 4),
+          const SectionHeader(title: 'Legal'),
+          const SizedBox(height: 8),
+          _row(
+            icon: 'document',
+            title: 'Privacy Policy',
+            subtitle: 'How your data is handled',
+            onTap: () =>
+                Navigator.pushNamed(context, '/privacy'),
+          ),
+          _row(
+            icon: 'task',
+            title: 'Terms of Service',
+            subtitle: 'The fine print',
+            onTap: () => Navigator.pushNamed(context, '/terms'),
+          ),
+          const SizedBox(height: 4),
+          const SectionHeader(title: 'App'),
+          const SizedBox(height: 8),
           _row(
             icon: 'pro',
             title: 'Rate Lifeez',
