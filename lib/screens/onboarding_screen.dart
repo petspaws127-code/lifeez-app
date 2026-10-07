@@ -24,6 +24,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final _name = TextEditingController();
   final _income = TextEditingController();
   final _budget = TextEditingController();
+  final _savings = TextEditingController();
   bool _busy = false;
 
   @override
@@ -31,6 +32,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _name.dispose();
     _income.dispose();
     _budget.dispose();
+    _savings.dispose();
     super.dispose();
   }
 
@@ -44,6 +46,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       currency: 'USD',
       monthlyIncome: double.tryParse(_income.text.trim()) ?? 0,
       monthlyBudget: double.tryParse(_budget.text.trim()) ?? 0,
+      savingsGoal: double.tryParse(_savings.text.trim()) ?? 0,
     );
     await context.read<AppState>().saveProfile(profile);
     if (!mounted) return;
@@ -104,6 +107,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       const TextInputType.numberWithOptions(decimal: true),
                   validator: (v) => double.tryParse(v ?? '') == null
                       ? 'Enter a number, e.g. 2500'
+                      : null,
+                ),
+                AppTextField(
+                  controller: _savings,
+                  label: 'How much do you want to save this month? (USD)',
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  validator: (v) => double.tryParse(v ?? '') == null
+                      ? 'Enter a number, e.g. 500'
                       : null,
                 ),
                 const SizedBox(height: 12),
