@@ -50,24 +50,37 @@ class WelcomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 32),
               _feature(
-                icon: Icons.bolt_rounded,
-                title: 'Quick Commands',
-                desc: 'Type or speak — Lifeez understands and saves it.',
-              ),
-              _feature(
-                icon: Icons.pets_rounded,
-                title: 'Pets',
-                desc: 'Reminders, vaccinations, and memories for your pets.',
-              ),
-              _feature(
                 icon: Icons.check_circle_rounded,
-                title: 'Habits',
-                desc: 'Build streaks and track daily habits.',
+                title: 'Tasks',
+                desc: 'Stay on top of everything with simple to-do lists.',
+                highlight: true,
+              ),
+              _feature(
+                icon: Icons.alarm_rounded,
+                title: 'Reminders',
+                desc: 'Never miss a thing — including pet care reminders.',
+                highlight: true,
+              ),
+              _feature(
+                icon: Icons.event_rounded,
+                title: 'Events',
+                desc: 'Birthdays, appointments, and bills on one calendar.',
+                highlight: true,
               ),
               _feature(
                 icon: Icons.account_balance_wallet_rounded,
                 title: 'Budget & Savings',
                 desc: 'Track spending and grow your savings.',
+              ),
+              _feature(
+                icon: Icons.repeat_rounded,
+                title: 'Habits',
+                desc: 'Build streaks one day at a time.',
+              ),
+              _feature(
+                icon: Icons.bolt_rounded,
+                title: 'Quick Commands',
+                desc: 'Type or speak — Lifeez understands and saves it.',
               ),
               const SizedBox(height: 32),
               GradientButton(
@@ -91,6 +104,7 @@ class WelcomeScreen extends StatelessWidget {
     required IconData icon,
     required String title,
     required String desc,
+    bool highlight = false,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -98,13 +112,19 @@ class WelcomeScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: highlight ? 52 : 44,
+            height: highlight ? 52 : 44,
             decoration: BoxDecoration(
-              color: AppColors.greenMid.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(14),
+              color: highlight
+                  ? AppColors.greenSoft
+                  : AppColors.greenMid.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(highlight ? 16 : 14),
             ),
-            child: Icon(icon, color: AppColors.deepGreen, size: 24),
+            child: Icon(
+              icon,
+              color: AppColors.deepGreen,
+              size: highlight ? 28 : 24,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -114,8 +134,8 @@ class WelcomeScreen extends StatelessWidget {
                 Text(
                   title,
                   style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
+                    fontSize: highlight ? 17 : 16,
+                    fontWeight: FontWeight.w800,
                     color: AppColors.ink,
                   ),
                 ),

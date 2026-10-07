@@ -6,6 +6,7 @@ import '../widgets/category_icon.dart';
 import '../widgets/ui_kit.dart';
 import '../services/app_state.dart';
 import '../services/auth_service.dart';
+import '../services/biometric_service.dart';
 import '../services/whatsapp_service.dart';
 import 'login_screen.dart';
 import 'pin_lock_screen.dart';
@@ -20,6 +21,113 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  bool _hasFingerprint = false;
+  bool _hasFace = false;
+  bool _fingerprintEnabled = false;
+  bool _faceEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBiometrics();
+  }
+
+  Future<void> _loadBiometrics() async {
+    final bio = BiometricService.instance;
+    final results = await Future.wait([
+      bio.hasFingerprint,
+      bio.hasFace,
+      bio.isFingerprintEnabled(),
+      bio.isFaceEnabled(),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _hasFingerprint = results[0];
+      _hasFace = results[1];
+      _fingerprintEnabled = results[2];
+      _faceEnabled = results[3];
+    });
+  }
+
+  /// Toggling ON requires a successful biometric check first;
+  /// the preference is saved only when authentication succeeds.
+  Future<void> _toggleBiometric(
+      {required bool fingerprint, required bool enable}) async {
+    final bio = BiometricService.instance;
+    if (enable) {
+      final ok = await bio.authenticate(fingerprint
+          ? 'Confirm to enable fingerprint unlock'
+          : 'Confirm to enable face unlock');
+      if (!mounted) return;
+      if (!ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  'Authentication failed. Biometric unlock was not enabled.')),
+        );
+        return;
+      }
+    }
+    if (fingerprint) {
+      await bio.setFingerprintEnabled(enable);
+    } else {
+      await bio.setFaceEnabled(enable);
+    }
+    if (!mounted) return;
+    setState(() {
+      if (fingerprint) {
+        _fingerprintEnabled = enable;
+      } else {
+        _faceEnabled = enable;
+      }
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+          content: Text(enable
+              ? 'Biometric unlock enabled.'
+              : 'Biometric unlock disabled.')),
+    );
+  }
+
+  Widget _biometricRow({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required bool available,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Opacity(
+      opacity: available ? 1.0 : 0.55,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: AppTheme.card3D(radius: 18),
+        child: ListTile(
+          leading: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.greenSoft,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: AppColors.deepGreen),
+          ),
+          title: Text(title,
+              style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600)),
+          subtitle: Text(subtitle,
+              style: GoogleFonts.poppins(
+                  fontSize: 12.5, color: AppColors.muted)),
+          trailing: Switch(
+            value: value,
+            onChanged: available ? onChanged : null,
+            activeThumbColor: AppColors.deepGreen,
+          ),
+          onTap: available ? () => onChanged(!value) : null,
+        ),
+      ),
+    );
+  }
   Future<void> _signOut() async {
     final ok = await showDialog<bool>(
       context: context,
@@ -175,6 +283,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 : 'Protect the app with a 4-digit PIN',
             onTap: () => _pinOptions(context, app),
           ),
+          // Biometric unlock options — only shown once a PIN exists,
+          // since biometrics are an alternative to entering the PIN.
+          if (app.hasPin) ...[
+            _biometricRow(
+              icon: Icons.fingerprint_rounded,
+              title: 'Fingerprint unlock',
+              subtitle: _hasFingerprint
+                  ? 'Unlock the app with your fingerprint'
+                  : 'Not available on this device',
+              value: _fingerprintEnabled,
+              available: _hasFingerprint,
+              onChanged: (v) =>
+                  _toggleBiometric(fingerprint: true, enable: v),
+            ),
+            _biometricRow(
+              icon: Icons.face_rounded,
+              title: 'Face unlock',
+              subtitle: _hasFace
+                  ? 'Unlock the app with your face'
+                  : 'Not available on this device',
+              value: _faceEnabled,
+              available: _hasFace,
+              onChanged: (v) =>
+                  _toggleBiometric(fingerprint: false, enable: v),
+            ),
+          ],
           _row(
             icon: 'task',
             title: 'Privacy Policy',
@@ -282,6 +416,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onPressed: () async {
               Navigator.pop(ctx);
               await app.removePin();
+              // Biometrics are only an alternative to the PIN.
+              await BiometricService.instance.clearAll();
+              if (mounted) {
+                setState(() {
+                  _fingerprintEnabled = false;
+                  _faceEnabled = false;
+                });
+              }
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(

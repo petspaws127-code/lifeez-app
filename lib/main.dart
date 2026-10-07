@@ -6,6 +6,7 @@ import 'services/supabase_client.dart';
 import 'services/auth_service.dart';
 import 'services/app_state.dart';
 import 'services/whatsapp_service.dart';
+import 'services/notification_service.dart';
 import 'screens/splash_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/login_screen.dart';
@@ -49,6 +50,7 @@ Future<void> main() async {
   // TODO: paste your Supabase URL + anon key in
   // lib/services/supabase_client.dart before running.
   await SupabaseService.init();
+  await NotificationService.instance.init();
   runApp(const AiLifeAssistantApp());
 }
 

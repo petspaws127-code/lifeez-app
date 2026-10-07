@@ -15,6 +15,23 @@ class ShoppingScreen extends StatelessWidget {
   static const route = '/shopping';
   const ShoppingScreen({super.key});
 
+  static const List<String> _categories = [
+    'Groceries',
+    'Household',
+    'Personal Care',
+    'Pets',
+    'Other',
+  ];
+
+  static const List<String> _quickItems = [
+    'Milk',
+    'Eggs',
+    'Bread',
+    'Coffee',
+    'Laundry detergent',
+    'Trash bags',
+  ];
+
   Future<void> _aiAdd(BuildContext context, String text) async {
     final reply =
         await AssistantEngine(context.read<AppState>()).handleText(text);
@@ -100,45 +117,104 @@ class ShoppingScreen extends StatelessWidget {
 
   void _showAddSheet(BuildContext context) {
     final name = TextEditingController();
+    String category = 'Groceries';
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
       ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 24,
-          right: 24,
-          top: 24,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Add item',
-                style: GoogleFonts.poppins(
-                    fontSize: 18, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 12),
-            AppTextField(controller: name, label: 'Item name'),
-            const SizedBox(height: 8),
-            GradientButton(
-              label: 'Add to list',
-              onPressed: () async {
-                if (name.text.trim().isEmpty) return;
-                final uid =
-                    context.read<AppState>().profile?.id ?? '';
-                await context.read<AppState>().addShoppingItem(
-                      ShoppingItem(
-                          id: const Uuid().v4(),
-                          userId: uid,
-                          name: name.text.trim()),
-                    );
-                if (ctx.mounted) Navigator.pop(ctx);
-              },
-            ),
-          ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Add item',
+                  style: GoogleFonts.poppins(
+                      fontSize: 18, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 12),
+              AppTextField(controller: name, label: 'Item name'),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _quickItems
+                    .map((q) => ActionChip(
+                          label: Text(q,
+                              style: GoogleFonts.poppins(fontSize: 12)),
+                          backgroundColor: AppColors.goldSoft,
+                          side: BorderSide.none,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                          onPressed: () {
+                            name.text = q;
+                            name.selection =
+                                TextSelection.collapsed(offset: q.length);
+                          },
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Category',
+                    style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.muted)),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _categories.map((c) {
+                  final selected = category == c;
+                  return ChoiceChip(
+                    label: Text(c,
+                        style: GoogleFonts.poppins(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: selected
+                                ? Colors.white
+                                : AppColors.ink)),
+                    selected: selected,
+                    showCheckmark: false,
+                    selectedColor: AppColors.deepGreen,
+                    backgroundColor: AppColors.ivoryDeep,
+                    side: BorderSide.none,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    onSelected: (_) =>
+                        setSheet(() => category = c),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 16),
+              GradientButton(
+                label: 'Add to list',
+                onPressed: () async {
+                  if (name.text.trim().isEmpty) return;
+                  final uid =
+                      context.read<AppState>().profile?.id ?? '';
+                  await context.read<AppState>().addShoppingItem(
+                        ShoppingItem(
+                            id: const Uuid().v4(),
+                            userId: uid,
+                            name: name.text.trim(),
+                            section: category),
+                      );
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

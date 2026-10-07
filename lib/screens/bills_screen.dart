@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../theme/app_theme.dart';
@@ -7,6 +10,7 @@ import '../widgets/category_icon.dart';
 import '../widgets/suggestion_card.dart';
 import '../widgets/ui_kit.dart';
 import '../services/app_state.dart';
+import '../services/bill_scanner_service.dart';
 import '../models/bill.dart';
 
 class BillsScreen extends StatelessWidget {
@@ -48,8 +52,123 @@ class BillsScreen extends StatelessWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddSheet(context),
+        onPressed: () => _showAddOptions(context),
         child: const Icon(Icons.add_rounded),
+      ),
+    );
+  }
+
+  /// FAB menu: scan with camera, upload from gallery, or add manually.
+  void _showAddOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Add bill',
+                  style: GoogleFonts.poppins(
+                      fontSize: 17, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              _addOptionTile(
+                ctx,
+                icon: Icons.document_scanner_outlined,
+                title: 'Scan bill',
+                subtitle: 'Use the camera to scan a paper bill',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickAndScan(context, ImageSource.camera);
+                },
+              ),
+              _addOptionTile(
+                ctx,
+                icon: Icons.upload_file_outlined,
+                title: 'Upload bill',
+                subtitle: 'Pick a photo from your gallery',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickAndScan(context, ImageSource.gallery);
+                },
+              ),
+              _addOptionTile(
+                ctx,
+                icon: Icons.edit_outlined,
+                title: 'Add manually',
+                subtitle: 'Type the bill details yourself',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showAddSheet(context);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _addOptionTile(
+    BuildContext ctx, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: AppColors.greenSoft,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Icon(icon, color: AppColors.deepGreen),
+      ),
+      title: Text(title,
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+      subtitle: Text(subtitle,
+          style: GoogleFonts.poppins(
+              fontSize: 12, color: AppColors.muted)),
+      onTap: onTap,
+    );
+  }
+
+  /// Pick an image, run OCR with a loading indicator, then open review.
+  Future<void> _pickAndScan(BuildContext context, ImageSource source) async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: source, maxWidth: 1600);
+    if (picked == null || !context.mounted) return;
+
+    // Show a loading indicator while OCR runs.
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dlg) => const Center(
+        child: SizedBox(
+          width: 46,
+          height: 46,
+          child: CircularProgressIndicator(color: AppColors.deepGreen),
+        ),
+      ),
+    );
+
+    final result =
+        await BillScannerService().extractFromImage(picked.path);
+    if (context.mounted) Navigator.pop(context); // dismiss loading
+
+    if (!context.mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => BillReviewScreen(
+          imagePath: picked.path,
+          scan: result,
+        ),
       ),
     );
   }
@@ -170,6 +289,180 @@ class BillsScreen extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Full review screen shown after scanning/uploading a bill photo.
+/// The bill photo is shown at the top; extracted details are pre-filled
+/// and editable. OCR failures just leave the fields empty for manual entry.
+class BillReviewScreen extends StatefulWidget {
+  final String imagePath;
+  final BillScanResult scan;
+
+  const BillReviewScreen({
+    super.key,
+    required this.imagePath,
+    required this.scan,
+  });
+
+  @override
+  State<BillReviewScreen> createState() => _BillReviewScreenState();
+}
+
+class _BillReviewScreenState extends State<BillReviewScreen> {
+  late final TextEditingController _name;
+  late final TextEditingController _amount;
+  late int _dueDay;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final scan = widget.scan;
+    _name = TextEditingController(text: scan.merchant);
+    _amount = TextEditingController(
+        text: scan.amount > 0 ? scan.amount.toStringAsFixed(2) : '');
+    final scannedDay = scan.date?.day;
+    _dueDay = (scannedDay != null && scannedDay >= 1 && scannedDay <= 28)
+        ? scannedDay
+        : 1;
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _amount.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    final name = _name.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a bill name.')),
+      );
+      return;
+    }
+    final amt = double.tryParse(_amount.text.trim()) ?? 0;
+    setState(() => _saving = true);
+    final uid = context.read<AppState>().profile?.id ?? '';
+    await context.read<AppState>().addBill(Bill(
+          id: const Uuid().v4(),
+          userId: uid,
+          name: name,
+          amount: amt,
+          dueDay: _dueDay,
+        ));
+    if (!mounted) return;
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Bill saved.')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Review bill'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel',
+                style: GoogleFonts.poppins(
+                    color: AppColors.deepGreen,
+                    fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          children: [
+            // Bill photo thumbnail.
+            ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: Image.file(
+                File(widget.imagePath),
+                height: 180,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (c, e, s) => Container(
+                  height: 180,
+                  color: AppColors.greenSoft,
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.receipt_long_outlined, size: 48),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Check the details — edit anything before saving.',
+              style: GoogleFonts.poppins(
+                  fontSize: 13, color: AppColors.muted),
+            ),
+            if (widget.scan.isEmpty) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: AppTheme.card3D(radius: 14),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline,
+                        color: AppColors.deepGreen, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Could not read the bill automatically. Fill in the details below.',
+                        style: GoogleFonts.poppins(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 14),
+            AppTextField(controller: _name, label: 'Bill name (e.g. Rent)'),
+            AppTextField(
+              controller: _amount,
+              label: 'Amount (USD)',
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+            ),
+            Row(
+              children: [
+                Text('Due day of month:',
+                    style: GoogleFonts.poppins(fontSize: 14)),
+                const SizedBox(width: 12),
+                DropdownButton<int>(
+                  value: _dueDay,
+                  items: List.generate(28, (i) => i + 1)
+                      .map((d) =>
+                          DropdownMenuItem(value: d, child: Text('$d')))
+                      .toList(),
+                  onChanged: (v) =>
+                      setState(() => _dueDay = v ?? 1),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            GradientButton(
+              label: _saving ? 'Saving…' : 'Save bill',
+              onPressed: _saving ? null : _save,
+            ),
+            const SizedBox(height: 10),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Retake / pick another',
+                  style: GoogleFonts.poppins(
+                      color: AppColors.deepGreen,
+                      fontWeight: FontWeight.w600)),
+            ),
+          ],
         ),
       ),
     );

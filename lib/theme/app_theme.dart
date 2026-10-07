@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Brand palette: ivory background, deep green + gold accents.
+/// Brand palette: ivory background, light fresh green + gold accents.
 class AppColors {
   static const Color ivory = Color(0xFFFFFCF4);
   static const Color ivoryDeep = Color(0xFFF7F1E3);
-  static const Color deepGreen = Color(0xFF0C3B2E);
-  static const Color greenMid = Color(0xFF146B4F);
-  static const Color greenSoft = Color(0xFFE4EFE8);
+  static const Color deepGreen = Color(0xFF1E7D4F);
+  static const Color greenMid = Color(0xFF34A46F);
+  static const Color greenSoft = Color(0xFFDFF2E5);
   static const Color gold = Color(0xFFC9A227);
   static const Color goldLight = Color(0xFFF5DC8A);
   static const Color goldSoft = Color(0xFFFBF3DC);
@@ -96,14 +96,14 @@ class AppTheme {
           BoxShadow(
             color: _dark
                 ? const Color(0x40000000)
-                : const Color(0x140C3B2E),
+                : const Color(0x0D1E7D4F),
             blurRadius: 26,
             offset: const Offset(0, 14),
           ),
           BoxShadow(
             color: _dark
                 ? const Color(0x10000000)
-                : const Color(0x0AC9A227),
+                : const Color(0x08C9A227),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -122,7 +122,7 @@ class AppTheme {
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.deepGreen,
         brightness: Brightness.dark,
-        primary: const Color(0xFF4CAF6D),
+        primary: const Color(0xFF5CC47A),
         secondary: AppColors.gold,
         surface: const Color(0xFF1A2620),
       ),
@@ -140,7 +140,7 @@ class AppTheme {
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: Color(0xFF14211A),
-        selectedItemColor: Color(0xFF4CAF6D),
+        selectedItemColor: Color(0xFF5CC47A),
         unselectedItemColor: Color(0xFF93A89A),
         showUnselectedLabels: true,
         type: BottomNavigationBarType.fixed,
@@ -173,7 +173,7 @@ class AppTheme {
     );
   }
 
-  /// Deep-green hero gradient card.
+  /// Fresh green hero gradient card.
   static BoxDecoration heroGradient({double radius = 26}) => BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -183,9 +183,9 @@ class AppTheme {
         borderRadius: BorderRadius.circular(radius),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x400C3B2E),
-            blurRadius: 30,
-            offset: Offset(0, 16),
+            color: Color(0x2E1E7D4F),
+            blurRadius: 26,
+            offset: Offset(0, 14),
           ),
         ],
       );
@@ -218,13 +218,13 @@ class AppTheme {
         borderRadius: BorderRadius.circular(radius),
         boxShadow: [
           BoxShadow(
-            color: colors.last.withValues(alpha: 0.45),
-            blurRadius: 14,
-            offset: const Offset(0, 7),
+            color: colors.last.withValues(alpha: 0.35),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
           ),
           const BoxShadow(
-            color: Color(0x22FFFFFF),
-            blurRadius: 6,
+            color: Color(0x1AFFFFFF),
+            blurRadius: 5,
             offset: Offset(0, -2),
           ),
         ],

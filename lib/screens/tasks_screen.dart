@@ -16,6 +16,25 @@ class TasksScreen extends StatelessWidget {
   static const route = '/tasks';
   const TasksScreen({super.key});
 
+  /// Chip label -> TaskItem category value (matches CategoryIcon keys).
+  static const Map<String, String> _taskCategories = {
+    'Personal': 'general',
+    'Work': 'work',
+    'Home': 'home',
+    'Health': 'health',
+    'Shopping': 'shopping',
+    'Finance': 'money',
+  };
+
+  /// Quick titles that fill the title field with one tap.
+  static const List<String> _quickTitles = [
+    'Pay a bill',
+    'Call back',
+    'Buy groceries',
+    'Doctor visit',
+    'Car service',
+  ];
+
   Future<void> _aiAdd(BuildContext context, String text) async {
     final reply =
         await AssistantEngine(context.read<AppState>()).handleText(text);
@@ -161,7 +180,7 @@ class TasksScreen extends StatelessWidget {
   void _showAddSheet(BuildContext context) {
     final title = TextEditingController();
     DateTime? due;
-    String category = 'general';
+    String categoryLabel = 'Personal';
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -185,6 +204,61 @@ class TasksScreen extends StatelessWidget {
                       fontSize: 18, fontWeight: FontWeight.w700)),
               const SizedBox(height: 12),
               AppTextField(controller: title, label: 'What needs doing?'),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _quickTitles
+                    .map((q) => ActionChip(
+                          label: Text(q,
+                              style: GoogleFonts.poppins(fontSize: 12)),
+                          backgroundColor: AppColors.goldSoft,
+                          side: BorderSide.none,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                          onPressed: () {
+                            title.text = q;
+                            title.selection =
+                                TextSelection.collapsed(offset: q.length);
+                          },
+                        ))
+                    .toList(),
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Category',
+                    style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.muted)),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _taskCategories.keys.map((label) {
+                  final selected = categoryLabel == label;
+                  return ChoiceChip(
+                    label: Text(label,
+                        style: GoogleFonts.poppins(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: selected
+                                ? Colors.white
+                                : AppColors.ink)),
+                    selected: selected,
+                    showCheckmark: false,
+                    selectedColor: AppColors.deepGreen,
+                    backgroundColor: AppColors.ivoryDeep,
+                    side: BorderSide.none,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    onSelected: (_) =>
+                        setSheet(() => categoryLabel = label),
+                  );
+                }).toList(),
+              ),
               Row(
                 children: [
                   Expanded(
@@ -215,26 +289,6 @@ class TasksScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                initialValue: category,
-                decoration:
-                    const InputDecoration(labelText: 'Category'),
-                items: const [
-                  'general',
-                  'grocery',
-                  'health',
-                  'bills',
-                  'work',
-                  'home',
-                  'calls'
-                ]
-                    .map((c) => DropdownMenuItem(
-                        value: c, child: Text(c)))
-                    .toList(),
-                onChanged: (v) =>
-                    setSheet(() => category = v ?? 'general'),
-              ),
               const SizedBox(height: 16),
               GradientButton(
                 label: 'Add task',
@@ -247,7 +301,7 @@ class TasksScreen extends StatelessWidget {
                         userId: uid,
                         title: title.text.trim(),
                         dueDate: due,
-                        category: category,
+                        category: _taskCategories[categoryLabel] ?? 'general',
                         createdAt: easternNow(),
                       ));
                   if (ctx.mounted) Navigator.pop(ctx);

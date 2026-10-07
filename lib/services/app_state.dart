@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:uuid/uuid.dart';
 import 'supabase_client.dart';
 import 'command_parser.dart';
+import 'notification_service.dart';
 import '../models/profile.dart';
 import '../models/task_item.dart';
 import '../models/expense.dart';
@@ -264,6 +265,16 @@ class AppState extends ChangeNotifier {
     tasks[i] = tasks[i].copyWith(isDone: !tasks[i].isDone);
     notifyListeners();
     await _save('tasks', tasks[i].toJson());
+    if (tasks[i].isDone) {
+      final title = tasks[i].title.length > 60
+          ? '${tasks[i].title.substring(0, 57)}...'
+          : tasks[i].title;
+      await NotificationService.instance.showNow(
+        id: NotificationService.idFor('task_done_$id'),
+        title: 'Task completed',
+        body: '"$title" is done. Nice work!',
+      );
+    }
   }
 
   Future<void> deleteTask(String id) async {
@@ -353,6 +364,20 @@ class AppState extends ChangeNotifier {
     reminders.add(r);
     notifyListeners();
     await _save('reminders', r.toJson());
+    await _scheduleReminder(r);
+  }
+
+  /// Schedules a system notification for [r] when it has a future
+  /// remindAt and is not already done.
+  Future<void> _scheduleReminder(Reminder r) async {
+    if (r.isDone) return;
+    if (!r.remindAt.isAfter(DateTime.now())) return;
+    await NotificationService.instance.schedule(
+      id: NotificationService.idFor('reminder_${r.id}'),
+      title: 'Reminder',
+      body: r.title,
+      when: r.remindAt,
+    );
   }
 
   Future<void> toggleReminder(String id) async {
@@ -361,12 +386,25 @@ class AppState extends ChangeNotifier {
     reminders[i] = reminders[i].copyWith(isDone: !reminders[i].isDone);
     notifyListeners();
     await _save('reminders', reminders[i].toJson());
+    if (reminders[i].isDone) {
+      await NotificationService.instance.cancel(
+        NotificationService.idFor('reminder_$id'),
+      );
+      await NotificationService.instance.showNow(
+        id: NotificationService.idFor('reminder_done_$id'),
+        title: 'Reminder completed',
+        body: reminders[i].title,
+      );
+    }
   }
 
   Future<void> deleteReminder(String id) async {
     reminders.removeWhere((e) => e.id == id);
     notifyListeners();
     await _delete('reminders', id);
+    await NotificationService.instance.cancel(
+      NotificationService.idFor('reminder_$id'),
+    );
   }
 
   // ----------------------------------------------------------- documents
@@ -461,6 +499,11 @@ class AppState extends ChangeNotifier {
     pets.removeWhere((e) => e.id == id);
     vaccinations.removeWhere((v) => v.petId == id);
     petMemories.removeWhere((m) => m.petId == id);
+    // Cancel scheduled notifications for this pet's reminders before removal.
+    for (final r in reminders.where((r) => r.petId == id)) {
+      await NotificationService.instance
+          .cancel(NotificationService.idFor('reminder_${r.id}'));
+    }
     reminders.removeWhere((r) => r.petId == id);
     notifyListeners();
     await _delete('pet_profiles', id);
@@ -482,6 +525,7 @@ class AppState extends ChangeNotifier {
     reminders.add(r);
     notifyListeners();
     await _save('reminders', r.toJson());
+    await _scheduleReminder(r);
     refreshNotifications();
   }
 
@@ -646,6 +690,12 @@ class AppState extends ChangeNotifier {
       notifyListeners();
     }
     return ok;
+  }
+
+  /// Unlock the app without a PIN (e.g. after successful biometric auth).
+  void unlock() {
+    _pinUnlocked = true;
+    notifyListeners();
   }
 
   Future<void> setPin(String pin) async {

@@ -4,48 +4,38 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
-import '../widgets/ai_input_bar.dart';
 import '../widgets/category_icon.dart';
-import '../widgets/suggestion_card.dart';
 import '../widgets/ui_kit.dart';
 import '../services/app_state.dart';
-import '../services/assistant_engine.dart';
 import '../services/update_service.dart';
 import '../services/whatsapp_service.dart';
-import 'whatsapp_chat_screen.dart';
-import 'tasks_screen.dart';
-import 'money_screen.dart';
-import 'reminders_screen.dart';
-import 'bills_screen.dart';
-import 'shopping_screen.dart';
-import 'notifications_screen.dart';
-import 'my_day_screen.dart';
-import 'habits_screen.dart';
-import 'pets_screen.dart';
-import 'profile_screen.dart';
 import '../services/eastern_time.dart';
+import 'ai_assistant_screen.dart';
+import 'bills_screen.dart';
+import 'budget_guard_screen.dart';
+import 'calendar_screen.dart';
+import 'car_screen.dart';
+import 'cash_flow_screen.dart';
+import 'documents_screen.dart';
+import 'family_screen.dart';
+import 'habits_screen.dart';
+import 'lent_borrowed_screen.dart';
+import 'money_screen.dart';
+import 'my_day_screen.dart';
+import 'notifications_screen.dart';
+import 'profile_screen.dart';
+import 'referrals_screen.dart';
+import 'reminders_screen.dart';
+import 'report_screen.dart';
+import 'scanner_screen.dart';
+import 'shopping_screen.dart';
+import 'subscription_audit_screen.dart';
+import 'subscriptions_screen.dart';
+import 'tasks_screen.dart';
+import 'whatsapp_chat_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
-
-  Future<void> _handleAi(BuildContext context, String text) async {
-    final engine = AssistantEngine(context.read<AppState>());
-    final reply = await engine.handleText(text);
-    if (!context.mounted) return;
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Lifeez'),
-        content: Text(reply),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,13 +44,19 @@ class HomeScreen extends StatelessWidget {
     final firstName = name.split(' ').first;
 
     return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showMoreFeatures(context),
+        backgroundColor: AppColors.deepGreen,
+        child: const Icon(Icons.add_rounded,
+            color: Colors.white, size: 30),
+      ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () => app.loadAll(),
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             children: [
-              // Greeting
+              // 1. Greeting header
               Row(
                 children: [
                   GestureDetector(
@@ -169,20 +165,16 @@ class HomeScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
 
-              // WhatsApp connect card — FIRST, per WhatsApp-first design.
+              // 2. WhatsApp connect card — compact.
               const _WhatsAppHomeCard(),
-              const SizedBox(height: 14),
-
-              // Auto-carousel: tips & promos.
-              const _HomeCarousel(),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
 
               // Triggers the Go Pro popup (throttled, auto-dismissing).
               const _GoProPopupHost(),
 
-              // Hero: left to spend
+              // 3. Hero: left to spend this month
               Container(
                 decoration: AppTheme.heroGradient(),
                 padding: const EdgeInsets.all(20),
@@ -230,172 +222,48 @@ class HomeScreen extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
 
-              // At a glance
-              Row(
-                children: [
-                  _glanceTile(context, 'Open tasks',
-                      '${app.openTasks.length}', 'task'),
-                  const SizedBox(width: 10),
-                  _glanceTile(context, 'Bills due',
-                      '${app.unpaidBills.length}', 'bills'),
-                  const SizedBox(width: 10),
-                  _glanceTile(context, 'Reminders',
-                      '${app.activeReminders.length}', 'reminder'),
-                  const SizedBox(width: 10),
-                  _glanceTile(context, 'To buy',
-                      '${app.shoppingToBuy.length}', 'grocery'),
-                ],
-              ),
-              const SizedBox(height: 14),
-
-              // My Day preview
-              GestureDetector(
-                onTap: () => Navigator.pushNamed(
-                    context, MyDayScreen.route),
-                child: Container(
-                  decoration: AppTheme.card3D(),
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      const CategoryIcon(
-                          category: 'myday', size: 46),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                          children: [
-                            Text('My Day',
-                                style: GoogleFonts.poppins(
-                                    fontWeight:
-                                        FontWeight.w700,
-                                    fontSize: 15.5)),
-                            Text(
-                              app.openBrainDumps.isEmpty
-                                  ? 'Briefing + brain-dump inbox'
-                                  : '${app.openBrainDumps.length} thought${app.openBrainDumps.length == 1 ? '' : 's'} in your inbox',
-                              style: GoogleFonts.poppins(
-                                  color: AppColors.muted,
-                                  fontSize: 12.5),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Icon(
-                          Icons.chevron_right_rounded,
-                          color: AppColors.muted),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              // Habits + Pets row
-              Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => Navigator.pushNamed(
-                          context, HabitsScreen.route),
-                      child: Container(
-                        decoration:
-                            AppTheme.card3D(radius: 18),
-                        padding:
-                            const EdgeInsets.all(14),
-                        child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                          children: [
-                            const CategoryIcon(
-                                category: 'habit',
-                                size: 40),
-                            const SizedBox(height: 8),
-                            Text(
-                                '${app.habitsDoneToday}/${app.habits.length}',
-                                style:
-                                    GoogleFonts.poppins(
-                                        fontSize: 17,
-                                        fontWeight:
-                                            FontWeight.w800)),
-                            Text('Habits today',
-                                style:
-                                    GoogleFonts.poppins(
-                                        fontSize: 11.5,
-                                        color:
-                                            AppColors.muted)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => Navigator.pushNamed(
-                          context, PetsScreen.route),
-                      child: Container(
-                        decoration:
-                            AppTheme.card3D(radius: 18),
-                        padding:
-                            const EdgeInsets.all(14),
-                        child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                          children: [
-                            const CategoryIcon(
-                                category: 'pet',
-                                size: 40),
-                            const SizedBox(height: 8),
-                            Text(
-                                '${app.allPetReminders.length}',
-                                style:
-                                    GoogleFonts.poppins(
-                                        fontSize: 17,
-                                        fontWeight:
-                                            FontWeight.w800)),
-                            Text('Pet reminders',
-                                style:
-                                    GoogleFonts.poppins(
-                                        fontSize: 11.5,
-                                        color:
-                                            AppColors.muted)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-
-              // AI input
-              AiInputBar(
-                  onSubmit: (t) => _handleAi(context, t)),
-              const SizedBox(height: 14),
-
-              // Quick actions
-              const SectionHeader(title: 'Quick actions'),
-              Row(
-                mainAxisAlignment:
-                    MainAxisAlignment.spaceAround,
-                children: [
-                  _quickAction(context, 'Task', 'task',
-                      TasksScreen.route),
-                  _quickAction(context, 'Expense', 'money',
-                      MoneyScreen.route),
-                  _quickAction(context, 'Reminder', 'reminder',
-                      RemindersScreen.route),
-                  _quickAction(context, 'Bill', 'bills',
-                      BillsScreen.route),
-                  _quickAction(context, 'Shopping', 'grocery',
-                      ShoppingScreen.route),
-                ],
-              ),
+              // 4. Features grid — 12 feature cards.
+              const SectionHeader(title: 'Features'),
               const SizedBox(height: 8),
+              GridView.count(
+                crossAxisCount: 3,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                childAspectRatio: 1.0,
+                children: [
+                  _featureCard(context, 'Tasks', 'task',
+                      TasksScreen.route),
+                  _featureCard(context, 'Reminders', 'reminder',
+                      RemindersScreen.route),
+                  _featureCard(context, 'Events', 'event',
+                      CalendarScreen.route),
+                  _featureCard(context, 'Bills', 'bills',
+                      BillsScreen.route),
+                  _featureCard(context, 'Budget', 'money',
+                      MoneyScreen.route),
+                  _featureCard(context, 'Shopping', 'grocery',
+                      ShoppingScreen.route),
+                  _featureCard(context, 'Habits', 'habit',
+                      HabitsScreen.route),
+                  _featureCard(context, 'My Day', 'myday',
+                      MyDayScreen.route),
+                  _featureCard(context, 'Documents', 'document',
+                      DocumentsScreen.route),
+                  _featureCard(context, 'Subscriptions',
+                      'subscription', SubscriptionsScreen.route),
+                  _featureCard(context, 'Scanner', 'scan',
+                      ScannerScreen.route),
+                  _featureCard(context, 'Alerts', 'notification',
+                      NotificationsScreen.route),
+                ],
+              ),
+              const SizedBox(height: 16),
 
-              // Today
+              // 5. Today — compact, max 3 tasks.
               SectionHeader(
                 title: 'Today',
                 actionLabel: 'See all',
@@ -412,45 +280,6 @@ class HomeScreen extends StatelessWidget {
                       (t) => _taskRow(context, t.title,
                           t.category, t.id),
                     ),
-
-              // Coming up
-              const SectionHeader(title: 'Coming up'),
-              if (app.unpaidBills.isEmpty)
-                const EmptyState(
-                    message: 'No upcoming bills. You are all clear.',
-                    icon: Icons.receipt_long_outlined)
-              else
-                ...app.unpaidBills.take(3).map(
-                      (b) => Container(
-                        margin:
-                            const EdgeInsets.only(bottom: 10),
-                        decoration: AppTheme.card3D(radius: 18),
-                        child: ListTile(
-                          leading: const CategoryIcon(
-                              category: 'bills', size: 42),
-                          title: Text(b.name,
-                              style: GoogleFonts.poppins(
-                                  fontWeight:
-                                      FontWeight.w600)),
-                          subtitle: Text('Due on the ${b.dueDay}',
-                              style: GoogleFonts.poppins(
-                                  fontSize: 12.5,
-                                  color: AppColors.muted)),
-                          trailing: Text(
-                            '\$${b.amount.toStringAsFixed(2)}',
-                            style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.deepGreen),
-                          ),
-                        ),
-                      ),
-                    ),
-
-              const SizedBox(height: 6),
-              SuggestionCard(
-                title: 'AI tip',
-                suggestions: [_aiTip(app)],
-              ),
             ],
           ),
         ),
@@ -479,41 +308,178 @@ class HomeScreen extends StatelessWidget {
         ],
       );
 
-  Widget _glanceTile(
-      BuildContext context, String label, String value, String icon) {
-    return Expanded(
+  Widget _featureCard(BuildContext context, String label,
+      String category, String route) {
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, route),
       child: Container(
         decoration: AppTheme.card3D(radius: 18),
-        padding:
-            const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+        padding: const EdgeInsets.all(10),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CategoryIcon(category: icon, size: 36),
-            const SizedBox(height: 8),
-            Text(value,
-                style: GoogleFonts.poppins(
-                    fontSize: 17, fontWeight: FontWeight.w800)),
-            Text(label,
-                style: GoogleFonts.poppins(
-                    fontSize: 10.5, color: AppColors.muted),
-                textAlign: TextAlign.center),
+            CategoryIcon(category: category, size: 40),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: GoogleFonts.poppins(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _quickAction(BuildContext context, String label,
-      String icon, String route) {
+  /// Bottom sheet opened by the "+" FAB: the extra features.
+  void _showMoreFeatures(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      builder: (sheetCtx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.greenSoft,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'More features',
+                style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 12),
+              GridView.count(
+                crossAxisCount: 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                childAspectRatio: 2.4,
+                children: [
+                  // Closing the sheet and navigating both use the
+                  // outer (home) context; the sheet route is on the
+                  // same Navigator, so this pops exactly the sheet.
+                  _moreFeatureTile(context,
+                      label: 'AI Assistant',
+                      category: 'brain',
+                      route: AiAssistantScreen.route),
+                  _moreFeatureTile(context,
+                      label: 'WhatsApp Chat',
+                      icon: Icons.chat_bubble_rounded,
+                      colors: const [
+                        AppColors.whatsapp,
+                        AppColors.whatsappDark
+                      ],
+                      route: WhatsAppChatScreen.route),
+                  _moreFeatureTile(context,
+                      label: 'Lent & Borrowed',
+                      icon: Icons.handshake_outlined,
+                      route: LentBorrowedScreen.route),
+                  _moreFeatureTile(context,
+                      label: 'Subscription Audit',
+                      category: 'subscription',
+                      route: SubscriptionAuditScreen.route),
+                  _moreFeatureTile(context,
+                      label: 'Cash-flow Forecast',
+                      icon: Icons.trending_up_rounded,
+                      route: CashFlowScreen.route),
+                  _moreFeatureTile(context,
+                      label: 'Budget Guard',
+                      icon: Icons.shield_outlined,
+                      route: BudgetGuardScreen.route),
+                  _moreFeatureTile(context,
+                      label: 'Family',
+                      category: 'family',
+                      route: FamilyScreen.route),
+                  _moreFeatureTile(context,
+                      label: 'My Car',
+                      icon: Icons.directions_car_rounded,
+                      route: CarScreen.route),
+                  _moreFeatureTile(context,
+                      label: 'Refer & Earn',
+                      category: 'share',
+                      route: ReferralsScreen.route),
+                  _moreFeatureTile(context,
+                      label: 'Monthly Report',
+                      icon: Icons.bar_chart_rounded,
+                      route: ReportScreen.route),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _moreFeatureTile(BuildContext context,
+      {required String label,
+      required String route,
+      String? category,
+      IconData? icon,
+      List<Color>? colors}) {
     return GestureDetector(
-      onTap: () => Navigator.pushNamed(context, route),
-      child: Column(
-        children: [
-          CategoryIcon(category: icon, size: 52),
-          const SizedBox(height: 6),
-          Text(label,
-              style: GoogleFonts.poppins(fontSize: 12)),
-        ],
+      onTap: () {
+        Navigator.pop(context);
+        Navigator.pushNamed(context, route);
+      },
+      child: Container(
+        decoration: AppTheme.card3D(radius: 18),
+        padding: const EdgeInsets.all(10),
+        child: Row(
+          children: [
+            if (category != null)
+              CategoryIcon(category: category, size: 38)
+            else
+              Container(
+                width: 38,
+                height: 38,
+                decoration: AppTheme.tile3D(
+                  colors ??
+                      const [
+                        AppColors.deepGreen,
+                        AppColors.greenMid
+                      ],
+                  radius: 14,
+                ),
+                child: Icon(icon,
+                    color: Colors.white, size: 20),
+              ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded,
+                color: AppColors.muted, size: 20),
+          ],
+        ),
       ),
     );
   }
@@ -537,24 +503,9 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
-
-  String _aiTip(AppState app) {
-    if (app.budgetUsedPct > 0.85) {
-      return 'You have used ${(app.budgetUsedPct * 100).round()}% of your budget — consider slowing down discretionary spending.';
-    }
-    final top = app.categoryTotals.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    if (top.isNotEmpty) {
-      return 'Your biggest spending category this month is ${top.first.key} at \$${top.first.value.toStringAsFixed(0)}.';
-    }
-    if (app.unpaidBills.isNotEmpty) {
-      return '${app.unpaidBills.first.name} is due on the ${app.unpaidBills.first.dueDay} — mark it paid from the Bills screen.';
-    }
-    return 'Tell me things like "I spent \$45 at Walmart" and I will track everything for you.';
-  }
 }
 
-/// WhatsApp command center at the top of Home.
+/// Compact WhatsApp command center at the top of Home.
 class _WhatsAppHomeCard extends StatelessWidget {
   const _WhatsAppHomeCard();
 
@@ -563,119 +514,68 @@ class _WhatsAppHomeCard extends StatelessWidget {
     final wa = context.watch<WhatsAppService>();
     return Container(
       decoration: AppTheme.card3D(),
-      padding: const EdgeInsets.all(16),
-      child: wa.isConnected
-          ? Row(
-              children: [
-                Container(
-                  decoration: AppTheme.tile3D(
-                    const [
-                      AppColors.whatsapp,
-                      AppColors.whatsappDark
-                    ],
-                    radius: 14,
-                  ),
-                  padding: const EdgeInsets.all(10),
-                  child: const Icon(Icons.chat_bubble_rounded,
-                      color: Colors.white, size: 22),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: AppColors.whatsapp,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'WhatsApp connected',
-                            style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14.5),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        wa.phoneNumber ?? '',
-                        style: GoogleFonts.poppins(
-                            color: AppColors.muted,
-                            fontSize: 12.5),
-                      ),
-                    ],
-                  ),
-                ),
-                GradientButton(
-                  label: 'Open chat',
-                  colors: const [
-                    AppColors.whatsapp,
-                    AppColors.whatsappDark
-                  ],
-                  onPressed: () => Navigator.pushNamed(
-                      context, WhatsAppChatScreen.route),
-                ),
+      padding:
+          const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: Row(
+        children: [
+          Container(
+            decoration: AppTheme.tile3D(
+              const [
+                AppColors.whatsapp,
+                AppColors.whatsappDark
               ],
-            )
-          : Column(
+              radius: 13,
+            ),
+            padding: const EdgeInsets.all(9),
+            child: Icon(
+              wa.isConnected
+                  ? Icons.chat_bubble_rounded
+                  : Icons.chat_bubble_outline_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      decoration: AppTheme.tile3D(
-                        const [
-                          AppColors.whatsapp,
-                          AppColors.whatsappDark
-                        ],
-                        radius: 14,
-                      ),
-                      padding: const EdgeInsets.all(10),
-                      child: const Icon(
-                          Icons.chat_bubble_outline_rounded,
-                          color: Colors.white,
-                          size: 22),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Manage everything through WhatsApp',
-                        style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
                 Text(
-                  'Connect your number, then send text or voice notes and the app updates itself.',
+                  wa.isConnected
+                      ? 'WhatsApp connected'
+                      : 'WhatsApp',
                   style: GoogleFonts.poppins(
-                      color: AppColors.muted, fontSize: 13),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13.5),
                 ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: GradientButton(
-                    label: 'Direct Connect WhatsApp',
-                    icon: Icons.bolt_rounded,
-                    colors: const [
-                      AppColors.whatsapp,
-                      AppColors.whatsappDark
-                    ],
-                    onPressed: () =>
-                        _showConnectSheet(context),
-                  ),
+                Text(
+                  wa.isConnected
+                      ? (wa.phoneNumber ?? '')
+                      : 'Control the app by text or voice',
+                  style: GoogleFonts.poppins(
+                      color: AppColors.muted,
+                      fontSize: 11.5),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
+          ),
+          const SizedBox(width: 8),
+          GradientButton(
+            label: wa.isConnected ? 'Chat' : 'Connect',
+            colors: const [
+              AppColors.whatsapp,
+              AppColors.whatsappDark
+            ],
+            onPressed: () => wa.isConnected
+                ? Navigator.pushNamed(
+                    context, WhatsAppChatScreen.route)
+                : _showConnectSheet(context),
+          ),
+        ],
+      ),
     );
   }
 
@@ -732,188 +632,6 @@ class _WhatsAppHomeCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-/// Auto-advancing carousel of tips and promos on Home.
-class _HomeCarousel extends StatefulWidget {
-  const _HomeCarousel();
-
-  @override
-  State<_HomeCarousel> createState() => _HomeCarouselState();
-}
-
-class _HomeCarouselState extends State<_HomeCarousel> {
-  final _controller = PageController();
-  Timer? _timer;
-  int _page = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (!mounted || !_controller.hasClients) return;
-      final app = context.read<AppState>();
-      final count = _cards
-          .where((c) =>
-              c.route != '/pro' || !(app.profile?.isPro ?? false))
-          .length;
-      if (count == 0) return;
-      final next = (_page + 1) % count;
-      _controller.animateToPage(
-        next,
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOut,
-      );
-    });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  List<({String title, String body, String cta, String route, List<Color> colors, IconData icon})>
-      get _cards => [
-            (
-              title: 'Go Pro — 14 days free',
-              body: 'Unlock AI insights, unlimited history, and priority features.',
-              cta: 'Start trial',
-              route: '/pro',
-              colors: const [Color(0xFF8a6d1c), AppColors.gold],
-              icon: Icons.workspace_premium_rounded,
-            ),
-            (
-              title: 'Savings ring',
-              body: 'Watch your savings grow and hit your monthly goal.',
-              cta: 'View savings',
-              route: '/money',
-              colors: const [AppColors.deepGreen, AppColors.greenMid],
-              icon: Icons.savings_outlined,
-            ),
-            (
-              title: 'Refer & earn Pro days',
-              body: 'Every 3 friends who join = 30 free Pro days for you.',
-              cta: 'Invite friends',
-              route: '/referrals',
-              colors: const [Color(0xFF22C55E), Color(0xFF15803D)],
-              icon: Icons.group_add_outlined,
-            ),
-            (
-              title: 'Budget Guard',
-              body: 'Get warned before spending runs past your budget.',
-              cta: 'Check status',
-              route: '/budget-guard',
-              colors: const [Color(0xFF146B4F), Color(0xFF0C3B2E)],
-              icon: Icons.shield_outlined,
-            ),
-          ];
-
-  @override
-  Widget build(BuildContext context) {
-    final app = context.watch<AppState>();
-    // Hide the Pro card for Pro users.
-    final cards = _cards
-        .where((c) => c.route != '/pro' || !(app.profile?.isPro ?? false))
-        .toList();
-    if (cards.isEmpty) return const SizedBox.shrink();
-    return Column(
-      children: [
-        SizedBox(
-          height: 132,
-          child: PageView.builder(
-            controller: _controller,
-            itemCount: cards.length,
-            onPageChanged: (i) => setState(() => _page = i),
-            itemBuilder: (context, i) {
-              final c = cards[i];
-              return Container(
-                margin: const EdgeInsets.symmetric(horizontal: 2),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: c.colors,
-                  ),
-                  borderRadius: BorderRadius.circular(22),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x300C3B2E),
-                      blurRadius: 18,
-                      offset: Offset(0, 8),
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Icon(c.icon, color: Colors.white, size: 40),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(c.title,
-                              style: GoogleFonts.poppins(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 15)),
-                          const SizedBox(height: 2),
-                          Text(c.body,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.poppins(
-                                  color: Colors.white70,
-                                  fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () =>
-                          Navigator.pushNamed(context, c.route),
-                      style: TextButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: c.colors.first,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(c.cta,
-                          style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12)),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            for (int i = 0; i < cards.length; i++)
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 3),
-                width: _page == i ? 18 : 7,
-                height: 7,
-                decoration: BoxDecoration(
-                  color: _page == i
-                      ? AppColors.deepGreen
-                      : AppColors.greenSoft,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-          ],
-        ),
-      ],
     );
   }
 }

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_logo.dart';
 import '../services/app_state.dart';
+import '../services/biometric_service.dart';
 
 /// PIN lock screen — shown when the app is locked.
 /// Enter the 4-digit PIN to unlock. Set/change the PIN in Settings.
@@ -19,6 +20,62 @@ class _PinLockScreenState extends State<PinLockScreen> {
   String _pin = '';
   String? _error;
   bool _busy = false;
+  bool _bioBusy = false;
+  bool _fingerprintEnabled = false;
+  bool _faceEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Offer biometric unlock immediately when any type is enabled.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoBiometricUnlock();
+    });
+  }
+
+  Future<void> _autoBiometricUnlock() async {
+    final bio = BiometricService.instance;
+    final fpOn = await bio.isFingerprintEnabled();
+    final faceOn = await bio.isFaceEnabled();
+    if (!mounted) return;
+    setState(() {
+      _fingerprintEnabled = fpOn;
+      _faceEnabled = faceOn;
+    });
+    if (fpOn || faceOn) {
+      await _runBiometricAuth(auto: true);
+    }
+  }
+
+  /// Manual retry from the "Use fingerprint / Use face ID" buttons.
+  Future<void> _manualBiometricUnlock() async {
+    await _runBiometricAuth(auto: false);
+  }
+
+  Future<void> _runBiometricAuth({required bool auto}) async {
+    if (_bioBusy || _busy) return;
+    setState(() {
+      _bioBusy = true;
+      _error = null;
+    });
+    final ok =
+        await BiometricService.instance.authenticate('Unlock Lifeez');
+    if (!mounted) return;
+    setState(() => _bioBusy = false);
+    if (ok) {
+      _onBiometricSuccess();
+    } else if (!auto) {
+      setState(() =>
+          _error = 'Biometric unlock failed. Enter your PIN.');
+    }
+  }
+
+  void _onBiometricSuccess() {
+    // Biometric auth passed — unlock the app (PIN stays as fallback).
+    if (mounted) {
+      context.read<AppState>().unlock();
+    }
+  }
 
   void _press(String d) {
     if (_busy || _pin.length >= 4) return;
@@ -129,6 +186,57 @@ class _PinLockScreenState extends State<PinLockScreen> {
                 },
               ),
             ),
+            const SizedBox(height: 8),
+            // Biometric unlock — manual retry buttons (PIN keypad
+            // above always stays available as the fallback).
+            if (_fingerprintEnabled || _faceEnabled) ...[
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 4,
+                children: [
+                  if (_fingerprintEnabled)
+                    TextButton.icon(
+                      onPressed:
+                          _bioBusy ? null : _manualBiometricUnlock,
+                      icon: _bioBusy
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2),
+                            )
+                          : const Icon(
+                              Icons.fingerprint_rounded,
+                              color: AppColors.deepGreen,
+                            ),
+                      label: Text('Use fingerprint',
+                          style: GoogleFonts.poppins(
+                              color: AppColors.deepGreen,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                  if (_faceEnabled)
+                    TextButton.icon(
+                      onPressed:
+                          _bioBusy ? null : _manualBiometricUnlock,
+                      icon: _bioBusy
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2),
+                            )
+                          : const Icon(
+                              Icons.face_rounded,
+                              color: AppColors.deepGreen,
+                            ),
+                      label: Text('Use face ID',
+                          style: GoogleFonts.poppins(
+                              color: AppColors.deepGreen,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                ],
+              ),
+            ],
             const SizedBox(height: 32),
           ],
         ),

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 import '../theme/app_theme.dart';
 import '../widgets/category_icon.dart';
 import '../widgets/ui_kit.dart';
+import '../models/reminder.dart';
 import '../services/app_state.dart';
 import '../services/eastern_time.dart';
 
@@ -14,6 +16,23 @@ class _DayEvent {
   final String detail;
   _DayEvent(this.title, this.category, this.detail);
 }
+
+class _EventPreset {
+  final String label;
+  final IconData icon;
+  final TimeOfDay defaultTime;
+  const _EventPreset(this.label, this.icon, this.defaultTime);
+}
+
+const List<_EventPreset> _quickPresets = [
+  _EventPreset('Birthday', Icons.cake_rounded, TimeOfDay(hour: 9, minute: 0)),
+  _EventPreset('Anniversary', Icons.favorite_rounded, TimeOfDay(hour: 9, minute: 0)),
+  _EventPreset('Meeting', Icons.groups_rounded, TimeOfDay(hour: 10, minute: 0)),
+  _EventPreset('Doctor Appointment', Icons.medical_services_rounded,
+      TimeOfDay(hour: 14, minute: 0)),
+  _EventPreset('Bill Due', Icons.receipt_long_rounded, TimeOfDay(hour: 9, minute: 0)),
+  _EventPreset('Holiday', Icons.beach_access_rounded, TimeOfDay(hour: 9, minute: 0)),
+];
 
 class CalendarScreen extends StatefulWidget {
   static const route = '/calendar';
@@ -73,6 +92,190 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return map;
   }
 
+  void _showQuickEventSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Quick event',
+                style: GoogleFonts.poppins(
+                    fontSize: 18, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4),
+            Text('Pick a preset to add it as a reminder.',
+                style: GoogleFonts.poppins(
+                    fontSize: 13, color: AppColors.muted)),
+            const SizedBox(height: 16),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate:
+                  const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                childAspectRatio: 2.4,
+              ),
+              itemCount: _quickPresets.length,
+              itemBuilder: (_, i) {
+                final p = _quickPresets[i];
+                return InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showPresetDetailSheet(context, p);
+                  },
+                  child: Container(
+                    decoration: AppTheme.card3D(radius: 16),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: AppColors.greenSoft,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(p.icon,
+                              color: AppColors.deepGreen),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(p.label,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.poppins(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showPresetDetailSheet(
+      BuildContext context, _EventPreset preset) {
+    final title = TextEditingController(text: preset.label);
+    final now = easternNow();
+    DateTime date =
+        DateTime(now.year, now.month, now.day)
+            .add(const Duration(days: 1));
+    TimeOfDay time = preset.defaultTime;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(preset.label,
+                  style: GoogleFonts.poppins(
+                      fontSize: 18, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 12),
+              AppTextField(
+                  controller: title, label: 'Event title'),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon:
+                          const Icon(Icons.calendar_month_outlined),
+                      label: Text(DateFormat('MMM d, yyyy').format(date)),
+                      onPressed: () async {
+                        final d = await showDatePicker(
+                          context: ctx,
+                          initialDate: date,
+                          firstDate: DateTime(
+                              now.year, now.month, now.day),
+                          lastDate: easternNow().add(
+                              const Duration(days: 730)),
+                        );
+                        if (d == null) return;
+                        setSheet(() => date = d);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.schedule_outlined),
+                      label: Text(time.format(ctx)),
+                      onPressed: () async {
+                        final t = await showTimePicker(
+                            context: ctx, initialTime: time);
+                        if (t == null) return;
+                        setSheet(() => time = t);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              GradientButton(
+                label: 'Save',
+                onPressed: () async {
+                  if (title.text.trim().isEmpty) return;
+                  final messenger = ScaffoldMessenger.of(context);
+                  final remindAt = DateTime(date.year, date.month,
+                      date.day, time.hour, time.minute);
+                  final uid =
+                      context.read<AppState>().profile?.id ?? '';
+                  await context.read<AppState>().addReminder(
+                        Reminder(
+                          id: const Uuid().v4(),
+                          userId: uid,
+                          title: title.text.trim(),
+                          remindAt: remindAt,
+                        ),
+                      );
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (!mounted) return;
+                  setState(() {
+                    _selected =
+                        DateTime(date.year, date.month, date.day);
+                    _month = DateTime(date.year, date.month);
+                  });
+                  messenger.showSnackBar(
+                    SnackBar(
+                        content: Text(
+                            'Reminder set for ${DateFormat('MMM d, h:mm a').format(remindAt)}')),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
@@ -85,10 +288,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Calendar')),
+      floatingActionButton: FloatingActionButton(
+        tooltip: 'Add event',
+        onPressed: () => _showQuickEventSheet(context),
+        child: const Icon(Icons.add_rounded),
+      ),
       body: RefreshIndicator(
         onRefresh: () => context.read<AppState>().loadAll(),
         child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
         children: [
           Container(
             decoration: AppTheme.card3D(),

@@ -35,42 +35,109 @@ class _AiInputBarState extends State<AiInputBar> {
   }
 
   Future<void> _toggleMic() async {
+    // 1. Already listening -> stop and return.
     if (_listening) {
       await _stt.stop();
-      setState(() => _listening = false);
+      if (mounted) setState(() => _listening = false);
       return;
     }
-    final status = await Permission.microphone.request();
-    if (!status.isGranted) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Microphone permission is needed for voice input.')),
-      );
-      return;
-    }
-    final available = await _stt.initialize();
-    if (!available) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Voice input is not available on this device.')),
-      );
-      return;
-    }
-    setState(() => _listening = true);
-    await _stt.listen(
-      onResult: (result) {
-        _controller.text = result.recognizedWords;
-        _controller.selection = TextSelection.fromPosition(
-          TextPosition(offset: _controller.text.length),
-        );
-        // Auto-submit when the speaker pauses and the result is final.
-        if (result.finalResult &&
-            _controller.text.trim().isNotEmpty) {
-          _submit();
+
+    try {
+      // 2. Check the permission status FIRST; don't blindly request.
+      final status = await Permission.microphone.status;
+
+      if (status.isGranted) {
+        // Granted: proceed to speech init below.
+      } else if (status.isPermanentlyDenied || status.isRestricted) {
+        // Permanently denied: do NOT request again; go straight to settings.
+        _showMicSettingsDialog();
+        return;
+      } else if (status.isDenied) {
+        final requested = await Permission.microphone.request();
+        if (!requested.isGranted) {
+          _showMicSettingsDialog();
+          return;
         }
-      },
+      }
+
+      // 4. Initialize speech recognition with status tracking so the UI never
+      // gets stuck in the listening state.
+      final available = await _stt.initialize(
+        onError: (error) {
+          if (mounted) setState(() => _listening = false);
+        },
+        onStatus: (status) {
+          if ((status == 'done' || status == 'notListening') && mounted) {
+            setState(() => _listening = false);
+          }
+        },
+      );
+      if (!available) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Voice input is not available on this device right now.'),
+          ),
+        );
+        return;
+      }
+
+      // 5. Start listening; auto-submit on final result (existing behavior).
+      setState(() => _listening = true);
+      await _stt.listen(
+        listenOptions: SpeechListenOptions(
+          pauseFor: const Duration(seconds: 3),
+          listenFor: const Duration(seconds: 30),
+        ),
+        onResult: (result) {
+          _controller.text = result.recognizedWords;
+          _controller.selection = TextSelection.fromPosition(
+            TextPosition(offset: _controller.text.length),
+          );
+          // Auto-submit when the speaker pauses and the result is final.
+          if (result.finalResult && _controller.text.trim().isNotEmpty) {
+            _submit();
+          }
+        },
+      );
+    } catch (_) {
+      // 6. Any failure: never leave the UI stuck in listening state.
+      if (mounted) setState(() => _listening = false);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not start voice input. Please try again.'),
+        ),
+      );
+    }
+  }
+
+  /// Shows the microphone guidance dialog with a one-tap path to Settings.
+  void _showMicSettingsDialog() {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Microphone is off'),
+        content: const Text(
+          'Voice input needs microphone access. '
+          'Tap Settings, then allow Microphone for Lifeez.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Not now'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              openAppSettings();
+            },
+            child: const Text('Open Settings'),
+          ),
+        ],
+      ),
     );
   }
 
