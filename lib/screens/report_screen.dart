@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../widgets/category_icon.dart';
 import '../widgets/ui_kit.dart';
 import '../services/app_state.dart';
+import '../services/eastern_time.dart';
 
 /// Monthly AI report with insights generated from the user's real data.
 class ReportScreen extends StatelessWidget {
@@ -15,7 +16,7 @@ class ReportScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
-    final month = DateFormat('MMMM yyyy').format(DateTime.now());
+    final month = DateFormat('MMMM yyyy').format(easternNow());
     final income = app.profile?.monthlyIncome ?? 0;
     final budget = app.profile?.monthlyBudget ?? 0;
     final spent = app.spentThisMonth;
@@ -28,7 +29,9 @@ class ReportScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Monthly Report')),
-      body: ListView(
+      body: RefreshIndicator(
+        onRefresh: () => context.read<AppState>().loadAll(),
+        child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
           Container(
@@ -95,6 +98,7 @@ class ReportScreen extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }

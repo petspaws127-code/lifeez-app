@@ -1,3 +1,4 @@
+import '../services/eastern_time.dart';
 /// Family member row (table: family_members).
 class FamilyMember {
   final String id;
@@ -35,7 +36,7 @@ class FamilyMember {
   /// Days until the next birthday (0 = today).
   int? get daysUntilBirthday {
     if (birthday == null) return null;
-    final now = DateTime.now();
+    final now = easternNow();
     var next = DateTime(now.year, birthday!.month, birthday!.day);
     if (next.isBefore(DateTime(now.year, now.month, now.day))) {
       next = DateTime(now.year + 1, birthday!.month, birthday!.day);

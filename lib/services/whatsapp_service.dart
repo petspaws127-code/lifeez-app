@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'supabase_client.dart';
+import 'eastern_time.dart';
 
 enum WhatsAppStatus { disconnected, connecting, connected }
 
@@ -9,7 +10,7 @@ class ChatMessage {
   final bool isUser;
   final DateTime at;
   ChatMessage({required this.text, required this.isUser, DateTime? at})
-      : at = at ?? DateTime.now();
+      : at = at ?? easternNow();
 }
 
 /// WhatsApp connection state + in-app chat.
@@ -84,7 +85,7 @@ class WhatsAppService extends ChangeNotifier {
         'user_id': uid,
         'phone_number': phoneNumber,
         'status': 'connected',
-        'verified_at': DateTime.now().toIso8601String(),
+        'verified_at': easternNow().toIso8601String(),
       });
     } catch (_) {}
   }

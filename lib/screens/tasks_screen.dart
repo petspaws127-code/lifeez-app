@@ -10,6 +10,7 @@ import '../widgets/ui_kit.dart';
 import '../services/app_state.dart';
 import '../services/assistant_engine.dart';
 import '../models/task_item.dart';
+import '../services/eastern_time.dart';
 
 class TasksScreen extends StatelessWidget {
   static const route = '/tasks';
@@ -78,7 +79,9 @@ class TasksScreen extends StatelessWidget {
     if (items.isEmpty) {
       return EmptyState(message: empty, icon: Icons.check_circle_outline);
     }
-    return ListView.builder(
+    return RefreshIndicator(
+      onRefresh: () => app.loadAll(),
+      child: ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
       itemCount: items.length,
       itemBuilder: (_, i) {
@@ -151,6 +154,7 @@ class TasksScreen extends StatelessWidget {
           ),
         );
       },
+      ),
     );
   }
 
@@ -192,10 +196,10 @@ class TasksScreen extends StatelessWidget {
                       onPressed: () async {
                         final d = await showDatePicker(
                           context: ctx,
-                          firstDate: DateTime.now(),
-                          lastDate: DateTime.now()
+                          firstDate: easternNow(),
+                          lastDate: easternNow()
                               .add(const Duration(days: 365)),
-                          initialDate: DateTime.now(),
+                          initialDate: easternNow(),
                         );
                         if (d == null) return;
                         if (!ctx.mounted) return;
@@ -244,7 +248,7 @@ class TasksScreen extends StatelessWidget {
                         title: title.text.trim(),
                         dueDate: due,
                         category: category,
-                        createdAt: DateTime.now(),
+                        createdAt: easternNow(),
                       ));
                   if (ctx.mounted) Navigator.pop(ctx);
                 },

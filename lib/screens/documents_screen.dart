@@ -9,6 +9,7 @@ import '../widgets/suggestion_card.dart';
 import '../widgets/ui_kit.dart';
 import '../services/app_state.dart';
 import '../models/document_item.dart';
+import '../services/eastern_time.dart';
 
 class DocumentsScreen extends StatelessWidget {
   static const route = '/documents';
@@ -33,7 +34,9 @@ class DocumentsScreen extends StatelessWidget {
     final app = context.watch<AppState>();
     return Scaffold(
       appBar: AppBar(title: const Text('Documents')),
-      body: ListView(
+      body: RefreshIndicator(
+        onRefresh: () => context.read<AppState>().loadAll(),
+        child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
         children: [
           if (app.documents.isEmpty)
@@ -96,6 +99,7 @@ class DocumentsScreen extends StatelessWidget {
             ],
           ),
         ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddSheet(context),
@@ -161,9 +165,9 @@ class DocumentsScreen extends StatelessWidget {
                   final d = await showDatePicker(
                     context: ctx,
                     firstDate: DateTime(2000),
-                    lastDate: DateTime.now()
+                    lastDate: easternNow()
                         .add(const Duration(days: 3650)),
-                    initialDate: DateTime.now(),
+                    initialDate: easternNow(),
                   );
                   if (d != null) {
                     setSheet(() => expiry = d);

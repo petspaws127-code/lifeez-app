@@ -1,3 +1,4 @@
+import '../services/eastern_time.dart';
 /// WhatsApp / assistant message log row (table: message_log).
 class WhatsAppMessage {
   final String id;
@@ -31,7 +32,7 @@ class WhatsAppMessage {
         externalMessageId: json['external_message_id'] as String?,
         createdAt: DateTime.tryParse(
                 (json['created_at'] as String?) ?? '') ??
-            DateTime.now(),
+            easternNow(),
       );
 
   Map<String, dynamic> toJson() => {

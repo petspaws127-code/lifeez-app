@@ -9,6 +9,7 @@ import '../widgets/suggestion_card.dart';
 import '../widgets/ui_kit.dart';
 import '../services/app_state.dart';
 import '../models/reminder.dart';
+import '../services/eastern_time.dart';
 
 class RemindersScreen extends StatelessWidget {
   static const route = '/reminders';
@@ -23,7 +24,9 @@ class RemindersScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Reminders')),
-      body: ListView(
+      body: RefreshIndicator(
+        onRefresh: () => context.read<AppState>().loadAll(),
+        child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
         children: [
           if (active.isEmpty && done.isEmpty)
@@ -90,6 +93,7 @@ class RemindersScreen extends StatelessWidget {
             ],
           ),
         ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddSheet(context),
@@ -100,7 +104,7 @@ class RemindersScreen extends StatelessWidget {
 
   void _showAddSheet(BuildContext context) {
     final title = TextEditingController();
-    DateTime when = DateTime.now().add(const Duration(hours: 1));
+    DateTime when = easternNow().add(const Duration(hours: 1));
     String? repeat;
     showModalBottomSheet(
       context: context,
@@ -134,8 +138,8 @@ class RemindersScreen extends StatelessWidget {
                 onPressed: () async {
                   final d = await showDatePicker(
                     context: ctx,
-                    firstDate: DateTime.now(),
-                    lastDate: DateTime.now()
+                    firstDate: easternNow(),
+                    lastDate: easternNow()
                         .add(const Duration(days: 365)),
                     initialDate: when,
                   );

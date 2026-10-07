@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 import 'theme/app_theme.dart';
 import 'services/supabase_client.dart';
@@ -24,6 +25,23 @@ import 'screens/car_screen.dart';
 import 'screens/family_screen.dart';
 import 'screens/report_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/pets_screen.dart';
+import 'screens/habits_screen.dart';
+import 'screens/my_day_screen.dart';
+import 'screens/notifications_screen.dart';
+import 'screens/pin_lock_screen.dart';
+import 'screens/scanner_screen.dart';
+import 'screens/pro_screen.dart';
+import 'screens/profile_screen.dart';
+import 'screens/referrals_screen.dart';
+import 'screens/lent_borrowed_screen.dart';
+import 'screens/subscription_audit_screen.dart';
+import 'screens/cash_flow_screen.dart';
+import 'screens/budget_guard_screen.dart';
+import 'screens/privacy_policy_screen.dart';
+import 'screens/terms_screen.dart';
+import 'screens/help_faq_screen.dart';
+import 'screens/contact_support_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,10 +62,21 @@ class AiLifeAssistantApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AppState()),
         ChangeNotifierProvider(create: (_) => WhatsAppService()),
       ],
-      child: MaterialApp(
-        title: 'Lifeez',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.light(),
+      child: Consumer<AppState>(
+        builder: (context, app, _) {
+          final mode = app.themeMode;
+          final systemDark =
+              SchedulerBinding.instance.platformDispatcher.platformBrightness ==
+                  Brightness.dark;
+          final dark =
+              mode == ThemeMode.dark || (mode == ThemeMode.system && systemDark);
+          AppTheme.setDark(dark);
+          return MaterialApp(
+            title: 'Lifeez',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.light(),
+            darkTheme: AppTheme.dark(),
+            themeMode: mode,
         initialRoute: SplashScreen.route,
         routes: {
           SplashScreen.route: (_) => const SplashScreen(),
@@ -77,6 +106,31 @@ class AiLifeAssistantApp extends StatelessWidget {
           ReportScreen.route: (_) => const ReportScreen(),
           SettingsScreen.route: (_) =>
               const SettingsScreen(),
+          PetsScreen.route: (_) => const PetsScreen(),
+          HabitsScreen.route: (_) => const HabitsScreen(),
+          MyDayScreen.route: (_) => const MyDayScreen(),
+          NotificationsScreen.route: (_) =>
+              const NotificationsScreen(),
+          PinLockScreen.route: (_) => const PinLockScreen(),
+          ScannerScreen.route: (_) => const ScannerScreen(),
+          ProScreen.route: (_) => const ProScreen(),
+          ProfileScreen.route: (_) => const ProfileScreen(),
+          ReferralsScreen.route: (_) => const ReferralsScreen(),
+          LentBorrowedScreen.route: (_) =>
+              const LentBorrowedScreen(),
+          SubscriptionAuditScreen.route: (_) =>
+              const SubscriptionAuditScreen(),
+          CashFlowScreen.route: (_) => const CashFlowScreen(),
+          BudgetGuardScreen.route: (_) =>
+              const BudgetGuardScreen(),
+          PrivacyPolicyScreen.route: (_) =>
+              const PrivacyPolicyScreen(),
+          TermsScreen.route: (_) => const TermsScreen(),
+          HelpFaqScreen.route: (_) => const HelpFaqScreen(),
+          ContactSupportScreen.route: (_) =>
+              const ContactSupportScreen(),
+        },
+      );
         },
       ),
     );

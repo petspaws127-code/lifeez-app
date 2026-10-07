@@ -32,7 +32,9 @@ class ShoppingScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Shopping List')),
-      body: ListView(
+      body: RefreshIndicator(
+        onRefresh: () => context.read<AppState>().loadAll(),
+        child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
         children: [
           AiInputBar(
@@ -63,6 +65,7 @@ class ShoppingScreen extends StatelessWidget {
             ],
           ),
         ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddSheet(context),

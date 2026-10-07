@@ -1,31 +1,41 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 
-/// Brand logo: speech bubble with a checkmark, as a 3D gradient tile.
+/// Brand logo: the Lifeez "L" mark (green rounded square, white L).
+/// Uses the supplied artwork; falls back gracefully if missing.
 class AppLogo extends StatelessWidget {
   final double size;
   const AppLogo({super.key, this.size = 84});
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final asset = dark ? 'assets/lifeez_logo_dark.png' : 'assets/lifeez_logo.png';
     return Hero(
       tag: 'app-logo',
-      child: Container(
-        width: size,
-        height: size,
-        decoration: AppTheme.tile3D(
-          const [AppColors.deepGreen, AppColors.greenMid],
-          radius: size * 0.3,
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Icon(Icons.chat_bubble_rounded,
-                color: Colors.white.withValues(alpha: 0.95),
-                size: size * 0.62),
-            Icon(Icons.check_rounded,
-                color: AppColors.goldLight, size: size * 0.34),
-          ],
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(size * 0.28),
+        child: Image.asset(
+          asset,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              color: const Color(0xFF4ADE80),
+              borderRadius: BorderRadius.circular(size * 0.28),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              'L',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: size * 0.55,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
         ),
       ),
     );

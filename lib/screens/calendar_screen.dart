@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../widgets/category_icon.dart';
 import '../widgets/ui_kit.dart';
 import '../services/app_state.dart';
+import '../services/eastern_time.dart';
 
 class _DayEvent {
   final String title;
@@ -29,7 +30,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
+    final now = easternNow();
     _month = DateTime(now.year, now.month);
     _selected = DateTime(now.year, now.month, now.day);
   }
@@ -84,7 +85,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Calendar')),
-      body: ListView(
+      body: RefreshIndicator(
+        onRefresh: () => context.read<AppState>().loadAll(),
+        child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
           Container(
@@ -154,9 +157,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     final hasEvents = events.containsKey(date);
                     final isSelected = _selected == date;
                     final isToday = date ==
-                        DateTime(DateTime.now().year,
-                            DateTime.now().month,
-                            DateTime.now().day);
+                        DateTime(easternNow().year,
+                            easternNow().month,
+                            easternNow().day);
                     return GestureDetector(
                       onTap: () =>
                           setState(() => _selected = date),
@@ -236,6 +239,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ),
             ),
         ],
+        ),
       ),
     );
   }

@@ -65,6 +65,11 @@ class _AiInputBarState extends State<AiInputBar> {
         _controller.selection = TextSelection.fromPosition(
           TextPosition(offset: _controller.text.length),
         );
+        // Auto-submit when the speaker pauses and the result is final.
+        if (result.finalResult &&
+            _controller.text.trim().isNotEmpty) {
+          _submit();
+        }
       },
     );
   }

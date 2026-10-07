@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../services/app_state.dart';
 import 'home_screen.dart';
 import 'tasks_screen.dart';
 import 'money_screen.dart';
 import 'calendar_screen.dart';
 import 'more_screen.dart';
+import 'pin_lock_screen.dart';
 
 /// Bottom navigation with the 5 main tabs.
+/// Shows the PIN lock screen when the app is locked.
 class MainTabs extends StatefulWidget {
   static const route = '/home';
   const MainTabs({super.key});
@@ -27,6 +31,10 @@ class _MainTabsState extends State<MainTabs> {
 
   @override
   Widget build(BuildContext context) {
+    final app = context.watch<AppState>();
+    if (app.isLocked) {
+      return const PinLockScreen();
+    }
     return Scaffold(
       body: IndexedStack(index: _index, children: _screens),
       bottomNavigationBar: BottomNavigationBar(

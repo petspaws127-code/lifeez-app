@@ -13,6 +13,18 @@ import 'car_screen.dart';
 import 'family_screen.dart';
 import 'report_screen.dart';
 import 'settings_screen.dart';
+import 'pets_screen.dart';
+import 'habits_screen.dart';
+import 'my_day_screen.dart';
+import 'notifications_screen.dart';
+import 'scanner_screen.dart';
+import 'pro_screen.dart';
+import 'profile_screen.dart';
+import 'referrals_screen.dart';
+import 'lent_borrowed_screen.dart';
+import 'subscription_audit_screen.dart';
+import 'cash_flow_screen.dart';
+import 'budget_guard_screen.dart';
 
 class _MenuEntry {
   final String label;
@@ -28,14 +40,28 @@ class MoreScreen extends StatelessWidget {
   static const _entries = [
     _MenuEntry('Manage with WhatsApp', 'grocery', WhatsAppChatScreen.route),
     _MenuEntry('AI Assistant', 'task', AiAssistantScreen.route),
+    _MenuEntry('My Day', 'myday', MyDayScreen.route),
+    _MenuEntry('Habit Tracker', 'habit', HabitsScreen.route),
+    _MenuEntry('Pet Reminders', 'pet', PetsScreen.route),
+    _MenuEntry('Notifications', 'notification',
+        NotificationsScreen.route),
     _MenuEntry('Reminders', 'reminder', RemindersScreen.route),
     _MenuEntry('Bills', 'bills', BillsScreen.route),
     _MenuEntry('Subscriptions', 'subscription', SubscriptionsScreen.route),
     _MenuEntry('Shopping List', 'grocery', ShoppingScreen.route),
     _MenuEntry('Documents', 'document', DocumentsScreen.route),
+    _MenuEntry('Document Scanner', 'scan', ScannerScreen.route),
     _MenuEntry('My Car', 'car', CarScreen.route),
     _MenuEntry('Family', 'family', FamilyScreen.route),
     _MenuEntry('Monthly Report', 'money', ReportScreen.route),
+    _MenuEntry('Budget Guard', 'money', BudgetGuardScreen.route),
+    _MenuEntry(
+        'Subscription Audit', 'subscription', SubscriptionAuditScreen.route),
+    _MenuEntry('Cash-flow Forecast', 'savings', CashFlowScreen.route),
+    _MenuEntry('Lent & Borrowed', 'money', LentBorrowedScreen.route),
+    _MenuEntry('Refer & Earn', 'share', ReferralsScreen.route),
+    _MenuEntry('My Profile', 'family', ProfileScreen.route),
+    _MenuEntry('Lifeez Pro', 'pro', ProScreen.route),
     _MenuEntry('Settings', 'general', SettingsScreen.route),
   ];
 

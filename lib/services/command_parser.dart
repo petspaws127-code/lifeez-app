@@ -1,3 +1,4 @@
+import 'eastern_time.dart';
 /// Natural-language command parser — the heart of Lifeez.
 ///
 /// Understands commands like:
@@ -241,7 +242,7 @@ class CommandParser {
   /// Parses "tomorrow 5pm", "on the 1st", "next monday", "every day", etc.
   static DateTime? extractDateTime(String raw) {
     final t = raw.toLowerCase();
-    final now = DateTime.now();
+    final now = easternNow();
     var day = DateTime(now.year, now.month, now.day);
     var foundDay = false;
 

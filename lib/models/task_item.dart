@@ -1,3 +1,4 @@
+import '../services/eastern_time.dart';
 /// Task row (table: tasks).
 class TaskItem {
   final String id;
@@ -43,7 +44,7 @@ class TaskItem {
         source: (json['source'] as String?) ?? 'app',
         createdAt: DateTime.tryParse(
                 (json['created_at'] as String?) ?? '') ??
-            DateTime.now(),
+            easternNow(),
       );
 
   Map<String, dynamic> toJson() => {

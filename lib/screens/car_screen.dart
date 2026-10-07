@@ -20,7 +20,9 @@ class CarScreen extends StatelessWidget {
     final app = context.watch<AppState>();
     return Scaffold(
       appBar: AppBar(title: const Text('My Car')),
-      body: ListView(
+      body: RefreshIndicator(
+        onRefresh: () => context.read<AppState>().loadAll(),
+        child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
         children: [
           if (app.vehicles.isEmpty)
@@ -131,6 +133,7 @@ class CarScreen extends StatelessWidget {
             ],
           ),
         ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _addVehicle(context),

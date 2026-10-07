@@ -107,6 +107,9 @@ class AppTextField extends StatelessWidget {
   final TextInputType keyboardType;
   final bool obscureText;
   final String? Function(String?)? validator;
+  final ValueChanged<String>? onChanged;
+  final IconData? prefixIcon;
+  final int maxLines;
 
   const AppTextField({
     super.key,
@@ -115,6 +118,9 @@ class AppTextField extends StatelessWidget {
     this.keyboardType = TextInputType.text,
     this.obscureText = false,
     this.validator,
+    this.onChanged,
+    this.prefixIcon,
+    this.maxLines = 1,
   });
 
   @override
@@ -126,7 +132,13 @@ class AppTextField extends StatelessWidget {
         keyboardType: keyboardType,
         obscureText: obscureText,
         validator: validator,
-        decoration: InputDecoration(labelText: label),
+        onChanged: onChanged,
+        maxLines: maxLines,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon:
+              prefixIcon == null ? null : Icon(prefixIcon),
+        ),
       ),
     );
   }

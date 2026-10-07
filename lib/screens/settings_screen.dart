@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 import '../widgets/category_icon.dart';
 import '../widgets/ui_kit.dart';
@@ -9,6 +8,8 @@ import '../services/app_state.dart';
 import '../services/auth_service.dart';
 import '../services/whatsapp_service.dart';
 import 'login_screen.dart';
+import 'pin_lock_screen.dart';
+import 'profile_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   static const route = '/settings';
@@ -19,13 +20,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  Future<void> _open(String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
-
   Future<void> _signOut() async {
     final ok = await showDialog<bool>(
       context: context,
@@ -92,11 +86,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
           // Account
-          Container(
-            decoration: AppTheme.card3D(),
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
+          GestureDetector(
+            onTap: () => Navigator.pushNamed(
+                context, ProfileScreen.route),
+            child: Container(
+              decoration: AppTheme.card3D(),
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
                 Container(
                   decoration: AppTheme.tile3D(
                     const [
@@ -137,6 +134,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
               ],
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -161,18 +159,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () => _editBudget(context),
           ),
           _row(
+            icon: 'pro',
+            title: 'Lifeez Pro',
+            subtitle: (p?.isPro ?? false)
+                ? 'Active${p?.trialEndsAt != null && (app.trialDaysLeft ?? 0) > 0 ? ' • trial' : ''}'
+                : 'Free plan • 14-day trial available',
+            onTap: () =>
+                Navigator.pushNamed(context, '/pro'),
+          ),
+          _row(
+            icon: 'pin',
+            title: 'App PIN lock',
+            subtitle: app.hasPin
+                ? 'Enabled'
+                : 'Protect the app with a 4-digit PIN',
+            onTap: () => _pinOptions(context, app),
+          ),
+          _row(
             icon: 'task',
             title: 'Privacy Policy',
             subtitle: 'How your data is handled',
-            onTap: () => _open(
-                'https://ailifeassistant.app/privacy'),
+            onTap: () =>
+                Navigator.pushNamed(context, '/privacy'),
           ),
           _row(
             icon: 'document',
             title: 'Terms of Service',
             subtitle: 'The fine print',
             onTap: () =>
-                _open('https://ailifeassistant.app/terms'),
+                Navigator.pushNamed(context, '/terms'),
+          ),
+          _row(
+            icon: 'other',
+            title: 'Help & FAQ',
+            subtitle: 'Answers to common questions',
+            onTap: () =>
+                Navigator.pushNamed(context, '/help'),
           ),
           _row(
             icon: 'other',
@@ -229,6 +251,63 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: AppColors.muted)
                 : null),
         onTap: onTap,
+      ),
+    );
+  }
+
+  void _pinOptions(BuildContext context, AppState app) {
+    if (!app.hasPin) {
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.vertical(top: Radius.circular(26)),
+        ),
+        builder: (_) => const PinSetupSheet(),
+      );
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('App PIN lock'),
+        content: const Text(
+            'PIN lock is enabled. Change it or turn it off.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Close')),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await app.removePin();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('PIN lock removed.')),
+                );
+              }
+            },
+            child: const Text('Turn off',
+                style: TextStyle(color: AppColors.danger)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(26)),
+                ),
+                builder: (_) => const PinSetupSheet(),
+              );
+            },
+            child: const Text('Change PIN'),
+          ),
+        ],
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 import 'package:uuid/uuid.dart';
 import 'supabase_client.dart';
 import 'command_parser.dart';
@@ -13,6 +14,13 @@ import '../models/document_item.dart';
 import '../models/vehicle.dart';
 import '../models/maintenance_item.dart';
 import '../models/family_member.dart';
+import '../models/habit.dart';
+import '../models/pet.dart';
+import '../models/brain_dump.dart';
+import '../models/savings_entry.dart';
+import '../models/app_notification.dart';
+import '../models/lent_borrowed.dart';
+import 'eastern_time.dart';
 
 const _uuid = Uuid();
 
@@ -31,9 +39,23 @@ class AppState extends ChangeNotifier {
   List<Vehicle> vehicles = [];
   List<MaintenanceItem> maintenanceItems = [];
   List<FamilyMember> familyMembers = [];
+  List<Habit> habits = [];
+  List<PetProfile> pets = [];
+  List<PetVaccination> vaccinations = [];
+  List<PetMemory> petMemories = [];
+  List<BrainDump> brainDumps = [];
+  List<SavingsEntry> savingsEntries = [];
+  List<LentBorrowed> lentBorrowed = [];
 
   bool loading = false;
   String? error;
+
+  // PIN lock: unlocked for this session once verified.
+  bool _pinUnlocked = false;
+
+  // Notification center: generated feed + last-seen marker.
+  List<AppNotification> notifications = [];
+  DateTime? notificationsSeenAt;
 
   String? get _uid => SupabaseService.currentUserId;
 
@@ -58,6 +80,19 @@ class AppState extends ChangeNotifier {
         c.from('vehicles').select().eq('user_id', uid),
         c.from('maintenance_items').select().eq('user_id', uid),
         c.from('family_members').select().eq('user_id', uid),
+        c.from('habits').select().eq('user_id', uid),
+        c.from('pet_profiles').select().eq('user_id', uid),
+        c.from('pet_vaccinations').select().eq('user_id', uid),
+        c.from('pet_memories').select().eq('user_id', uid),
+        c.from('brain_dumps').select().eq('user_id', uid).order('created_at'),
+        c.from('savings_entries')
+            .select()
+            .eq('user_id', uid)
+            .order('saved_at'),
+        c.from('lent_borrowed')
+            .select()
+            .eq('user_id', uid)
+            .order('date', ascending: false),
       ]);
       List<Map<String, dynamic>> list(dynamic r) =>
           r == null ? [] : List<Map<String, dynamic>>.from(r as List);
@@ -81,6 +116,20 @@ class AppState extends ChangeNotifier {
           list(results[9]).map(MaintenanceItem.fromJson).toList();
       familyMembers =
           list(results[10]).map(FamilyMember.fromJson).toList();
+      habits = list(results[11]).map(Habit.fromJson).toList();
+      pets = list(results[12]).map(PetProfile.fromJson).toList();
+      vaccinations =
+          list(results[13]).map(PetVaccination.fromJson).toList();
+      petMemories =
+          list(results[14]).map(PetMemory.fromJson).toList();
+      brainDumps =
+          list(results[15]).map(BrainDump.fromJson).toList();
+      savingsEntries =
+          list(results[16]).map(SavingsEntry.fromJson).toList();
+      lentBorrowed =
+          list(results[17]).map(LentBorrowed.fromJson).toList();
+      _pinUnlocked = false;
+      refreshNotifications();
     } catch (e) {
       error = 'Could not load your data: $e';
     } finally {
@@ -101,6 +150,16 @@ class AppState extends ChangeNotifier {
     vehicles = [];
     maintenanceItems = [];
     familyMembers = [];
+    habits = [];
+    pets = [];
+    vaccinations = [];
+    petMemories = [];
+    brainDumps = [];
+    savingsEntries = [];
+    lentBorrowed = [];
+    notifications = [];
+    notificationsSeenAt = null;
+    _pinUnlocked = false;
     notifyListeners();
   }
 
@@ -126,6 +185,63 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     await _save('profiles', p.toJson());
     notifyListeners();
+  }
+
+  /// Resolves the stored theme preference to a [ThemeMode].
+  ThemeMode get themeMode => switch (profile?.themeMode) {
+        'light' => ThemeMode.light,
+        'dark' => ThemeMode.dark,
+        _ => ThemeMode.system,
+      };
+
+  Future<void> setThemeMode(String mode) async {
+    if (profile == null) return;
+    await saveProfile(profile!.copyWith(themeMode: mode));
+  }
+
+  /// Generates a referral code once, the first time it is needed.
+  Future<void> ensureReferralCode() async {
+    if (profile == null || profile!.referralCode.isNotEmpty) return;
+    final rand = math.Random();
+    final code = 'LZ${100000 + rand.nextInt(900000)}';
+    await saveProfile(profile!.copyWith(referralCode: code));
+  }
+
+  /// Mock hook for a successful referral: every 3 real referrals earn
+  /// 30 Pro days, credited by extending the trial window.
+  Future<void> recordReferral() async {
+    if (profile == null) return;
+    final count = profile!.referralCount + 1;
+    var earned = profile!.proDaysEarned;
+    DateTime? trial = profile!.trialEndsAt;
+    if (count % 3 == 0) {
+      earned += 30;
+      final base = (trial != null && trial.isAfter(easternNow()))
+          ? trial
+          : easternNow();
+      trial = base.add(const Duration(days: 30));
+    }
+    await saveProfile(profile!.copyWith(
+      referralCount: count,
+      proDaysEarned: earned,
+      trialEndsAt: trial,
+    ));
+  }
+
+  /// Go Pro popup throttle: at most 5 shows per day, and never for
+  /// users who already have Pro. Returns true when the popup may show.
+  Future<bool> consumeGoProPopupSlot() async {
+    if (profile == null || profile!.isPro) return false;
+    final today =
+        '${easternNow().year}-${easternNow().month.toString().padLeft(2, '0')}-${easternNow().day.toString().padLeft(2, '0')}';
+    final sameDay = profile!.goProPopupDate == today;
+    final count = sameDay ? profile!.goProPopupCount : 0;
+    if (count >= 5) return false;
+    await saveProfile(profile!.copyWith(
+      goProPopupDate: today,
+      goProPopupCount: count + 1,
+    ));
+    return true;
   }
 
   // --------------------------------------------------------------- tasks
@@ -167,6 +283,13 @@ class AppState extends ChangeNotifier {
     expenses.removeWhere((e) => e.id == id);
     notifyListeners();
     await _delete('expenses', id);
+  }
+
+  Future<void> updateExpense(Expense e) async {
+    final i = expenses.indexWhere((x) => x.id == e.id);
+    if (i != -1) expenses[i] = e;
+    notifyListeners();
+    await _save('expenses', e.toJson());
   }
 
   // --------------------------------------------------------------- bills
@@ -289,7 +412,205 @@ class AppState extends ChangeNotifier {
     await _save('maintenance_items', maintenanceItems[i].toJson());
   }
 
-  // -------------------------------------------------------------- family
+  // -------------------------------------------------------------- habits
+  Future<void> addHabit(Habit h) async {
+    habits.add(h);
+    notifyListeners();
+    await _save('habits', h.toJson());
+  }
+
+  Future<void> toggleHabitToday(String id) async {
+    final i = habits.indexWhere((e) => e.id == id);
+    if (i == -1) return;
+    final today = Habit.dayKey(easternNow());
+    final checkins = List<String>.from(habits[i].checkins);
+    if (checkins.contains(today)) {
+      checkins.remove(today);
+    } else {
+      checkins.add(today);
+    }
+    habits[i] = habits[i].copyWith(checkins: checkins);
+    notifyListeners();
+    await _save('habits', habits[i].toJson());
+  }
+
+  Future<void> deleteHabit(String id) async {
+    habits.removeWhere((e) => e.id == id);
+    notifyListeners();
+    await _delete('habits', id);
+  }
+
+  int get habitsDoneToday =>
+      habits.where((h) => h.isDoneToday).length;
+
+  // ----------------------------------------------------------------- pets
+  Future<void> addPet(PetProfile p) async {
+    pets.add(p);
+    notifyListeners();
+    await _save('pet_profiles', p.toJson());
+  }
+
+  Future<void> updatePet(PetProfile p) async {
+    final i = pets.indexWhere((e) => e.id == p.id);
+    if (i != -1) pets[i] = p;
+    notifyListeners();
+    await _save('pet_profiles', p.toJson());
+  }
+
+  Future<void> deletePet(String id) async {
+    pets.removeWhere((e) => e.id == id);
+    vaccinations.removeWhere((v) => v.petId == id);
+    petMemories.removeWhere((m) => m.petId == id);
+    reminders.removeWhere((r) => r.petId == id);
+    notifyListeners();
+    await _delete('pet_profiles', id);
+  }
+
+  String petName(String petId) {
+    final i = pets.indexWhere((p) => p.id == petId);
+    return i == -1 ? 'Pet' : pets[i].name;
+  }
+
+  List<Reminder> petRemindersFor(String petId) => reminders
+      .where((r) => r.petId == petId && !r.isDone)
+      .toList();
+
+  List<Reminder> get allPetReminders =>
+      reminders.where((r) => r.petId != null && !r.isDone).toList();
+
+  Future<void> addPetReminder(Reminder r) async {
+    reminders.add(r);
+    notifyListeners();
+    await _save('reminders', r.toJson());
+    refreshNotifications();
+  }
+
+  Future<void> addVaccination(PetVaccination v) async {
+    vaccinations.add(v);
+    notifyListeners();
+    await _save('pet_vaccinations', v.toJson());
+    refreshNotifications();
+  }
+
+  Future<void> deleteVaccination(String id) async {
+    vaccinations.removeWhere((v) => v.id == id);
+    notifyListeners();
+    await _delete('pet_vaccinations', id);
+  }
+
+  List<PetVaccination> vaccinationsFor(String petId) =>
+      vaccinations.where((v) => v.petId == petId).toList();
+
+  Future<void> addPetMemory(PetMemory m) async {
+    petMemories.add(m);
+    notifyListeners();
+    await _save('pet_memories', m.toJson());
+  }
+
+  Future<void> deletePetMemory(String id) async {
+    petMemories.removeWhere((m) => m.id == id);
+    notifyListeners();
+    await _delete('pet_memories', id);
+  }
+
+  List<PetMemory> memoriesFor(String petId) =>
+      petMemories.where((m) => m.petId == petId).toList();
+
+  // ----------------------------------------------------------- brain dump
+  Future<void> addBrainDump(BrainDump b) async {
+    brainDumps.insert(0, b);
+    notifyListeners();
+    await _save('brain_dumps', b.toJson());
+  }
+
+  Future<void> toggleBrainDump(String id) async {
+    final i = brainDumps.indexWhere((e) => e.id == id);
+    if (i == -1) return;
+    brainDumps[i] =
+        brainDumps[i].copyWith(isDone: !brainDumps[i].isDone);
+    notifyListeners();
+    await _save('brain_dumps', brainDumps[i].toJson());
+  }
+
+  Future<void> deleteBrainDump(String id) async {
+    brainDumps.removeWhere((e) => e.id == id);
+    notifyListeners();
+    await _delete('brain_dumps', id);
+  }
+
+  List<BrainDump> get openBrainDumps =>
+      brainDumps.where((b) => !b.isDone).toList();
+
+  // -------------------------------------------------------------- savings
+  Future<void> addSavingsEntry(SavingsEntry s) async {
+    savingsEntries.add(s);
+    notifyListeners();
+    await _save('savings_entries', s.toJson());
+  }
+
+  Future<void> deleteSavingsEntry(String id) async {
+    savingsEntries.removeWhere((e) => e.id == id);
+    notifyListeners();
+    await _delete('savings_entries', id);
+  }
+
+  Future<void> setSavingsGoal(double goal) async {
+    if (profile == null) return;
+    await saveProfile(profile!.copyWith(savingsGoal: goal));
+  }
+
+  // -------------------------------------------------------- lent & borrowed
+  Future<void> addLentBorrowed(LentBorrowed e) async {
+    lentBorrowed.insert(0, e);
+    notifyListeners();
+    await _save('lent_borrowed', e.toJson());
+    refreshNotifications();
+  }
+
+  Future<void> updateLentBorrowed(LentBorrowed e) async {
+    final i = lentBorrowed.indexWhere((x) => x.id == e.id);
+    if (i != -1) lentBorrowed[i] = e;
+    notifyListeners();
+    await _save('lent_borrowed', e.toJson());
+    refreshNotifications();
+  }
+
+  Future<void> deleteLentBorrowed(String id) async {
+    lentBorrowed.removeWhere((e) => e.id == id);
+    notifyListeners();
+    await _delete('lent_borrowed', id);
+    refreshNotifications();
+  }
+
+  Future<void> toggleLentBorrowedSettled(String id) async {
+    final i = lentBorrowed.indexWhere((e) => e.id == id);
+    if (i == -1) return;
+    final e = lentBorrowed[i];
+    await updateLentBorrowed(e.copyWith(settled: !e.settled));
+  }
+
+  /// Net balance: positive = others owe me, negative = I owe others.
+  double get lentBorrowedNet => lentBorrowed
+      .where((e) => !e.settled && e.amount != null)
+      .fold(0.0,
+          (sum, e) => sum + (e.direction == 'lent' ? e.amount! : -e.amount!));
+
+  double get savedThisMonth {
+    final now = easternNow();
+    return savingsEntries
+        .where((s) =>
+            s.savedAt.year == now.year &&
+            s.savedAt.month == now.month)
+        .fold(0.0, (sum, s) => sum + s.amount);
+  }
+
+  double get savingsGoalPct {
+    final g = profile?.savingsGoal ?? 0;
+    if (g <= 0) return 0;
+    return (savedThisMonth / g).clamp(0.0, 1.0);
+  }
+
+  // --------------------------------------------------------------- family
   Future<void> addFamilyMember(FamilyMember f) async {
     familyMembers.add(f);
     notifyListeners();
@@ -300,6 +621,215 @@ class AppState extends ChangeNotifier {
     familyMembers.removeWhere((e) => e.id == id);
     notifyListeners();
     await _delete('family_members', id);
+  }
+
+  // ------------------------------------------------------------ PIN lock
+  /// Simple (non-cryptographic) PIN hash for the local lock screen.
+  static String hashPin(String pin) {
+    var h = 0;
+    const salted = 'lifeez::';
+    for (final c in (salted + pin).codeUnits) {
+      h = ((h * 31) + c) & 0x7fffffff;
+    }
+    return h.toRadixString(16);
+  }
+
+  bool get hasPin =>
+      profile?.pinHash != null && profile!.pinHash!.isNotEmpty;
+
+  bool get isLocked => hasPin && !_pinUnlocked;
+
+  bool verifyPin(String pin) {
+    final ok = hasPin && hashPin(pin) == profile!.pinHash;
+    if (ok) {
+      _pinUnlocked = true;
+      notifyListeners();
+    }
+    return ok;
+  }
+
+  Future<void> setPin(String pin) async {
+    if (profile == null) return;
+    _pinUnlocked = true;
+    await saveProfile(profile!.copyWith(pinHash: hashPin(pin)));
+  }
+
+  Future<void> removePin() async {
+    if (profile == null) return;
+    _pinUnlocked = true;
+    await saveProfile(profile!.copyWith(clearPin: true));
+  }
+
+  // -------------------------------------------------------- Pro & trial
+  /// Starts the 14-day Pro trial (mock — no real charge).
+  Future<void> startProTrial() async {
+    if (profile == null) return;
+    await saveProfile(profile!.copyWith(
+      trialEndsAt: easternNow().add(const Duration(days: 14)),
+      plan: 'pro',
+    ));
+    refreshNotifications();
+  }
+
+  /// Mock purchase: monthly $4.99 or yearly $39 (test mode, no charge).
+  Future<void> purchasePro(String plan) async {
+    if (profile == null) return;
+    final days = plan == 'yearly' ? 360 : 30;
+    await saveProfile(profile!.copyWith(
+      proPlan: plan,
+      proRenewsAt: easternNow().add(Duration(days: days)),
+      plan: 'pro',
+      trialEndsAt: null,
+    ));
+    refreshNotifications();
+  }
+
+  Future<void> cancelPro() async {
+    if (profile == null) return;
+    await saveProfile(profile!.copyWith(
+      plan: 'free',
+      proPlan: 'none',
+    ));
+  }
+
+  int? get trialDaysLeft {
+    final t = profile?.trialEndsAt;
+    if (t == null) return null;
+    final d = t.difference(easternNow()).inDays;
+    return d < 0 ? 0 : d;
+  }
+
+  // ---------------------------------------------------- notification feed
+  int get unreadCount {
+    if (notificationsSeenAt == null) return notifications.length;
+    return notifications
+        .where((n) => n.createdAt.isAfter(notificationsSeenAt!))
+        .length;
+  }
+
+  void markNotificationsSeen() {
+    notificationsSeenAt = easternNow();
+    notifyListeners();
+  }
+
+  /// Rebuilds the notification feed from current data.
+  void refreshNotifications() {
+    final now = easternNow();
+    final feed = <AppNotification>[];
+    if (!(profile?.notificationsEnabled ?? true)) {
+      notifications = feed;
+      notifyListeners();
+      return;
+    }
+
+    for (final b in unpaidBills) {
+      feed.add(AppNotification(
+        id: 'bill-${b.id}',
+        title: 'Bill due soon',
+        body:
+            '${b.name} — \$${b.amount.toStringAsFixed(2)} due on the ${b.dueDay}.',
+        icon: Icons.receipt_long_rounded,
+        createdAt: now,
+        route: '/bills',
+      ));
+    }
+    for (final t in todayTasks.take(3)) {
+      feed.add(AppNotification(
+        id: 'task-${t.id}',
+        title: 'Due today',
+        body: t.title,
+        icon: Icons.check_circle_outline_rounded,
+        createdAt: now,
+        route: '/tasks',
+      ));
+    }
+    // Nagging reminders: overdue tasks keep nagging until done.
+    final todayDate =
+        DateTime(now.year, now.month, now.day);
+    for (final t in tasks.where((t) =>
+        !t.isDone &&
+        t.dueDate != null &&
+        DateTime(t.dueDate!.year, t.dueDate!.month,
+                t.dueDate!.day)
+            .isBefore(todayDate))) {
+      final days = todayDate
+          .difference(DateTime(
+              t.dueDate!.year, t.dueDate!.month, t.dueDate!.day))
+          .inDays;
+      feed.add(AppNotification(
+        id: 'nag-${t.id}',
+        title: days <= 1
+            ? 'Still not done?'
+            : 'Overdue by $days day${days == 1 ? '' : 's'}',
+        body: '“${t.title}” is still waiting. Tap to finish it.',
+        icon: Icons.notification_important_rounded,
+        createdAt: now,
+        route: '/tasks',
+      ));
+    }
+    for (final r in activeReminders.take(3)) {
+      final petLabel =
+          r.petId != null ? ' for ${petName(r.petId!)}' : '';
+      feed.add(AppNotification(
+        id: 'rem-${r.id}',
+        title: 'Reminder$petLabel',
+        body: r.title,
+        icon: Icons.alarm_rounded,
+        createdAt: now,
+        route: '/reminders',
+      ));
+    }
+    // Lent & borrowed: overdue / due soon.
+    for (final e in lentBorrowed.where((e) => !e.settled)) {
+      if (e.dueDate == null) continue;
+      final due = DateTime(
+          e.dueDate!.year, e.dueDate!.month, e.dueDate!.day);
+      final today = DateTime(now.year, now.month, now.day);
+      final diff = due.difference(today).inDays;
+      if (diff < 0 || diff <= 3) {
+        feed.add(AppNotification(
+          id: 'lb-${e.id}',
+          title: diff < 0
+              ? 'Overdue: ${e.direction == 'lent' ? 'collect' : 'return'}'
+              : '${e.direction == 'lent' ? 'Collect' : 'Return'} soon',
+          body:
+              '${e.item} — ${e.person}${diff < 0 ? ' was due ${-diff} day${-diff == 1 ? '' : 's'} ago' : diff == 0 ? ' is due today' : ' is due in $diff days'}.',
+          icon: Icons.handshake_outlined,
+          createdAt: now,
+          route: '/lent-borrowed',
+        ));
+      }
+    }
+    for (final v in vaccinations) {
+      if (v.isOverdue || v.isDueSoon) {
+        feed.add(AppNotification(
+          id: 'vax-${v.id}',
+          title: v.isOverdue
+              ? 'Vaccination overdue'
+              : 'Vaccination due soon',
+          body:
+              '${v.vaccineName} for ${petName(v.petId)}${v.nextDueDate != null ? ' — due ${v.nextDueDate!.month}/${v.nextDueDate!.day}/${v.nextDueDate!.year}' : ''}.',
+          icon: Icons.medical_services_outlined,
+          createdAt: now,
+          route: '/pets',
+        ));
+      }
+    }
+    final trialLeft = trialDaysLeft;
+    if (trialLeft != null && trialLeft <= 3) {
+      feed.add(AppNotification(
+        id: 'trial-ending',
+        title: 'Pro trial ending',
+        body: trialLeft == 0
+            ? 'Your Pro trial ends today.'
+            : '$trialLeft day${trialLeft == 1 ? '' : 's'} left in your Pro trial.',
+        icon: Icons.star_outline_rounded,
+        createdAt: now,
+        route: '/pro',
+      ));
+    }
+    notifications = feed;
+    notifyListeners();
   }
 
   // ------------------------------------------------------- delete my data
@@ -315,6 +845,13 @@ class AppState extends ChangeNotifier {
       'maintenance_items',
       'vehicles',
       'family_members',
+      'habits',
+      'pet_profiles',
+      'pet_vaccinations',
+      'pet_memories',
+      'brain_dumps',
+      'savings_entries',
+      'lent_borrowed',
       'message_log',
       'whatsapp_connections',
       'profiles',
@@ -335,7 +872,7 @@ class AppState extends ChangeNotifier {
 
   // -------------------------------------------------------------- getters
   double get spentThisMonth {
-    final now = DateTime.now();
+    final now = easternNow();
     return expenses
         .where((e) =>
             e.spentAt.year == now.year && e.spentAt.month == now.month)
@@ -355,7 +892,7 @@ class AppState extends ChangeNotifier {
       tasks.where((t) => !t.isDone).toList();
 
   List<TaskItem> get todayTasks {
-    final now = DateTime.now();
+    final now = easternNow();
     final today = DateTime(now.year, now.month, now.day);
     return tasks
         .where((t) =>
@@ -368,7 +905,7 @@ class AppState extends ChangeNotifier {
   }
 
   List<TaskItem> get upcomingTasks {
-    final now = DateTime.now();
+    final now = easternNow();
     final today = DateTime(now.year, now.month, now.day);
     return tasks
         .where((t) =>
@@ -394,7 +931,7 @@ class AppState extends ChangeNotifier {
 
   Map<String, double> get categoryTotals {
     final map = <String, double>{};
-    final now = DateTime.now();
+    final now = easternNow();
     for (final e in expenses) {
       if (e.spentAt.year == now.year && e.spentAt.month == now.month) {
         map[e.category] = (map[e.category] ?? 0) + e.amount;
@@ -424,7 +961,7 @@ class AppState extends ChangeNotifier {
           category: (p['category'] as String?) ?? 'general',
           repeat: p['repeat'] as String?,
           source: 'whatsapp',
-          createdAt: DateTime.now(),
+          createdAt: easternNow(),
         ));
         return due == null
             ? 'Task added: ${p['title']}.'
@@ -454,7 +991,7 @@ class AppState extends ChangeNotifier {
           id: _uuid.v4(),
           userId: uid,
           title: (p['title'] as String?) ?? 'Reminder',
-          remindAt: at ?? DateTime.now().add(const Duration(hours: 1)),
+          remindAt: at ?? easternNow().add(const Duration(hours: 1)),
           repeat: p['repeat'] as String?,
         ));
         return at == null
@@ -471,7 +1008,7 @@ class AppState extends ChangeNotifier {
           amount: amount,
           category: category,
           note: note,
-          spentAt: DateTime.now(),
+          spentAt: easternNow(),
           source: 'whatsapp',
         ));
         return 'Logged \$${amount.toStringAsFixed(2)} for $category'
@@ -508,7 +1045,7 @@ class AppState extends ChangeNotifier {
           userId: uid,
           name: (p['name'] as String?) ?? 'Subscription',
           amount: (p['amount'] as num).toDouble(),
-          renewalDay: DateTime.now().day,
+          renewalDay: easternNow().day,
         ));
         return 'Subscription added: ${p['name']} at \$${(p['amount'] as num).toStringAsFixed(2)}/month.';
 
@@ -602,7 +1139,7 @@ class AppState extends ChangeNotifier {
   }
 
   String _fmtDateTime(DateTime d) {
-    final now = DateTime.now();
+    final now = easternNow();
     final today = DateTime(now.year, now.month, now.day);
     final day = DateTime(d.year, d.month, d.day);
     final diff = day.difference(today).inDays;

@@ -9,6 +9,7 @@ import '../widgets/suggestion_card.dart';
 import '../widgets/ui_kit.dart';
 import '../services/app_state.dart';
 import '../models/family_member.dart';
+import '../services/eastern_time.dart';
 
 class FamilyScreen extends StatelessWidget {
   static const route = '/family';
@@ -25,7 +26,9 @@ class FamilyScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Family')),
-      body: ListView(
+      body: RefreshIndicator(
+        onRefresh: () => context.read<AppState>().loadAll(),
+        child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
         children: [
           if (sorted.isEmpty)
@@ -92,6 +95,7 @@ class FamilyScreen extends StatelessWidget {
             ],
           ),
         ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddSheet(context),
@@ -140,9 +144,9 @@ class FamilyScreen extends StatelessWidget {
                   final d = await showDatePicker(
                     context: ctx,
                     firstDate: DateTime(1920),
-                    lastDate: DateTime.now(),
+                    lastDate: easternNow(),
                     initialDate:
-                        DateTime(DateTime.now().year - 30),
+                        DateTime(easternNow().year - 30),
                   );
                   if (d != null) {
                     setSheet(() => birthday = d);

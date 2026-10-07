@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -11,6 +13,8 @@ import '../widgets/ui_kit.dart';
 import '../services/app_state.dart';
 import '../services/command_parser.dart';
 import '../models/expense.dart';
+import '../models/savings_entry.dart';
+import '../services/eastern_time.dart';
 
 class MoneyScreen extends StatelessWidget {
   static const route = '/money';
@@ -25,7 +29,9 @@ class MoneyScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Money')),
-      body: ListView(
+      body: RefreshIndicator(
+        onRefresh: () => context.read<AppState>().loadAll(),
+        child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
         children: [
           // Income & budget
@@ -67,6 +73,172 @@ class MoneyScreen extends StatelessWidget {
                       fontSize: 24,
                       fontWeight: FontWeight.w800),
                 ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Savings — ring, saved this month, goal
+          const SectionHeader(title: 'Savings'),
+          Container(
+            decoration: AppTheme.card3D(),
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 110,
+                      height: 110,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          SizedBox(
+                            width: 110,
+                            height: 110,
+                            child:
+                                CircularProgressIndicator(
+                              value: app.savingsGoalPct,
+                              strokeWidth: 12,
+                              backgroundColor:
+                                  AppColors.greenSoft,
+                              valueColor:
+                                  const AlwaysStoppedAnimation<
+                                      Color>(
+                                      AppColors.deepGreen),
+                            ),
+                          ),
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '${(app.savingsGoalPct * 100).round()}%',
+                                style:
+                                    GoogleFonts.poppins(
+                                        fontSize: 20,
+                                        fontWeight:
+                                            FontWeight
+                                                .w800,
+                                        color: AppColors
+                                            .deepGreen),
+                              ),
+                              Text('of goal',
+                                  style:
+                                      GoogleFonts.poppins(
+                                          fontSize: 11,
+                                          color: AppColors
+                                              .muted)),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                        children: [
+                          Text('Saved this month',
+                              style: GoogleFonts.poppins(
+                                  color: AppColors.muted,
+                                  fontSize: 13)),
+                          Text(
+                            '\$${app.savedThisMonth.toStringAsFixed(2)}',
+                            style: GoogleFonts.poppins(
+                                fontSize: 26,
+                                fontWeight:
+                                    FontWeight.w800,
+                                color:
+                                    AppColors.deepGreen),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Goal: \$${(app.profile?.savingsGoal ?? 0).toStringAsFixed(0)}/month',
+                            style: GoogleFonts.poppins(
+                                fontSize: 12.5,
+                                color: AppColors.muted),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton(
+                                  style:
+                                      OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets
+                                        .symmetric(
+                                        vertical: 10),
+                                    shape:
+                                        RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius
+                                              .circular(
+                                                  14),
+                                    ),
+                                  ),
+                                  onPressed: () =>
+                                      _showSavingsSheet(
+                                          context),
+                                  child: const Text(
+                                      'Add savings'),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: OutlinedButton(
+                                  style:
+                                      OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets
+                                        .symmetric(
+                                        vertical: 10),
+                                    shape:
+                                        RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius
+                                              .circular(
+                                                  14),
+                                    ),
+                                  ),
+                                  onPressed: () =>
+                                      _showGoalSheet(
+                                          context, app),
+                                  child:
+                                      const Text('Set goal'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (app.savingsGoalPct >= 1)
+                  Padding(
+                    padding:
+                        const EdgeInsets.only(top: 12),
+                    child: Text(
+                      'Goal reached! Amazing discipline.',
+                      style: GoogleFonts.poppins(
+                          color: AppColors.deepGreen,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13.5),
+                    ),
+                  )
+                else if ((app.profile?.savingsGoal ??
+                        0) >
+                    0)
+                  Padding(
+                    padding:
+                        const EdgeInsets.only(top: 12),
+                    child: Text(
+                      _savingsNudge(app),
+                      style: GoogleFonts.poppins(
+                          color: AppColors.muted,
+                          fontSize: 13),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -166,6 +338,8 @@ class MoneyScreen extends StatelessWidget {
                         style: GoogleFonts.poppins(
                             fontWeight: FontWeight.w700),
                       ),
+                      onTap: () =>
+                          _showExpenseDetail(context, e),
                     ),
                   ),
                 ),
@@ -175,6 +349,7 @@ class MoneyScreen extends StatelessWidget {
             suggestions: _moneySuggestions(app),
           ),
         ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddSheet(context),
@@ -226,10 +401,140 @@ class MoneyScreen extends StatelessWidget {
     return out;
   }
 
+  String _savingsNudge(AppState app) {
+    final left =
+        (app.profile?.savingsGoal ?? 0) - app.savedThisMonth;
+    if (left <= 0) return 'Goal reached! Amazing discipline.';
+    final day = easternNow().day;
+    final daysLeft = 30 - day;
+    if (daysLeft <= 0) {
+      return 'Month is almost over — \$${left.toStringAsFixed(0)} to go.';
+    }
+    final perDay = left / daysLeft;
+    return 'Save about \$${perDay.toStringAsFixed(0)}/day to hit your goal.';
+  }
+
+  void _showSavingsSheet(BuildContext context) {
+    final amount = TextEditingController();
+    final note = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Add savings',
+                style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
+            AppTextField(
+                controller: amount,
+                label: 'Amount (USD)',
+                keyboardType:
+                    const TextInputType.numberWithOptions(
+                        decimal: true)),
+            AppTextField(
+                controller: note,
+                label: 'Note (optional)'),
+            const SizedBox(height: 8),
+            GradientButton(
+              label: 'Save',
+              onPressed: () async {
+                final amt =
+                    double.tryParse(amount.text.trim());
+                if (amt == null || amt <= 0) return;
+                final app = context.read<AppState>();
+                await app.addSavingsEntry(SavingsEntry(
+                  id: const Uuid().v4(),
+                  userId: app.profile?.id ?? '',
+                  amount: amt,
+                  note: note.text.trim().isEmpty
+                      ? null
+                      : note.text.trim(),
+                  savedAt: easternNow(),
+                ));
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showGoalSheet(BuildContext context, AppState app) {
+    final goal = TextEditingController(
+        text: (app.profile?.savingsGoal ?? 0) > 0
+            ? (app.profile!.savingsGoal)
+                .toStringAsFixed(0)
+            : '');
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Monthly savings goal',
+                style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
+            AppTextField(
+                controller: goal,
+                label: 'Goal amount (USD)',
+                keyboardType:
+                    const TextInputType.numberWithOptions(
+                        decimal: true)),
+            const SizedBox(height: 8),
+            GradientButton(
+              label: 'Set goal',
+              onPressed: () async {
+                final g =
+                    double.tryParse(goal.text.trim()) ??
+                        0;
+                await context
+                    .read<AppState>()
+                    .setSavingsGoal(g);
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showAddSheet(BuildContext context) {
     final amount = TextEditingController();
     final note = TextEditingController();
     String category = 'Other';
+    String? receiptPath;
+    final picker = ImagePicker();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -277,6 +582,62 @@ class MoneyScreen extends StatelessWidget {
                 onChanged: (v) =>
                     setSheet(() => category = v ?? 'Other'),
               ),
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final src = await showModalBottomSheet<ImageSource>(
+                    context: ctx,
+                    builder: (c2) => SafeArea(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ListTile(
+                            leading: const Icon(
+                                Icons.photo_camera_rounded),
+                            title: const Text('Take photo'),
+                            onTap: () => Navigator.pop(
+                                c2, ImageSource.camera),
+                          ),
+                          ListTile(
+                            leading: const Icon(
+                                Icons.photo_library_rounded),
+                            title:
+                                const Text('Choose from gallery'),
+                            onTap: () => Navigator.pop(
+                                c2, ImageSource.gallery),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                  if (src == null) return;
+                  final img = await picker.pickImage(
+                      source: src,
+                      maxWidth: 1024,
+                      imageQuality: 80);
+                  if (img != null) {
+                    setSheet(() => receiptPath = img.path);
+                  }
+                },
+                icon: const Icon(Icons.receipt_long_rounded,
+                    size: 18),
+                label: Text(receiptPath == null
+                    ? 'Attach receipt (optional)'
+                    : 'Receipt attached ✓'),
+              ),
+              if (receiptPath != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.file(
+                      File(receiptPath!),
+                      height: 120,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
               const SizedBox(height: 16),
               GradientButton(
                 label: 'Save expense',
@@ -295,7 +656,8 @@ class MoneyScreen extends StatelessWidget {
                         amount: amt,
                         category: cat,
                         note: note.text.trim(),
-                        spentAt: DateTime.now(),
+                        spentAt: easternNow(),
+                        receiptPath: receiptPath,
                       ));
                   if (ctx.mounted) Navigator.pop(ctx);
                 },
@@ -305,5 +667,135 @@ class MoneyScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Expense detail: shows info + receipt photo, with delete.
+  void _showExpenseDetail(BuildContext context, Expense e) {
+    final app = context.read<AppState>();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+            '-\$${e.amount.toStringAsFixed(2)}',
+            style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w700)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('${e.category} • ${DateFormat('MM/dd/yyyy').format(e.spentAt)}',
+                  style: GoogleFonts.poppins(
+                      fontSize: 13, color: AppColors.muted)),
+              if (e.note.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(e.note,
+                    style: GoogleFonts.poppins(fontSize: 14)),
+              ],
+              const SizedBox(height: 12),
+              if ((e.receiptPath ?? '').isNotEmpty)
+                GestureDetector(
+                  onTap: () => showDialog(
+                    context: ctx,
+                    builder: (_) => Dialog(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Image.file(
+                            File(e.receiptPath!)),
+                      ),
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.file(
+                      File(e.receiptPath!),
+                      height: 180,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                )
+              else
+                Text('No receipt attached.',
+                    style: GoogleFonts.poppins(
+                        fontSize: 13, color: AppColors.muted)),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await _attachReceiptToExpense(context, e);
+            },
+            child: Text((e.receiptPath ?? '').isEmpty
+                ? 'Add receipt'
+                : 'Replace receipt'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await app.deleteExpense(e.id);
+            },
+            child: const Text('Delete',
+                style: TextStyle(color: AppColors.danger)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _attachReceiptToExpense(
+      BuildContext context, Expense e) async {
+    final picker = ImagePicker();
+    final src = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (c2) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading:
+                  const Icon(Icons.photo_camera_rounded),
+              title: const Text('Take photo'),
+              onTap: () =>
+                  Navigator.pop(c2, ImageSource.camera),
+            ),
+            ListTile(
+              leading:
+                  const Icon(Icons.photo_library_rounded),
+              title: const Text('Choose from gallery'),
+              onTap: () =>
+                  Navigator.pop(c2, ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (src == null || !context.mounted) return;
+    final img = await picker.pickImage(
+        source: src, maxWidth: 1024, imageQuality: 80);
+    if (img == null || !context.mounted) return;
+    await context.read<AppState>().updateExpense(
+          Expense(
+            id: e.id,
+            userId: e.userId,
+            amount: e.amount,
+            category: e.category,
+            note: e.note,
+            spentAt: e.spentAt,
+            source: e.source,
+            receiptPath: img.path,
+          ),
+        );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Receipt attached.')),
+      );
+    }
   }
 }

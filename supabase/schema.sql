@@ -241,3 +241,143 @@ create table if not exists whatsapp_otps (
   created_at timestamptz not null default now()
 );
 alter table whatsapp_otps enable row level security;
+
+-- ============================================================
+-- Migration: tables + columns added after the first release
+-- (habits, pets, brain dump, savings, lent/borrowed, PIN, Pro,
+--  profile preferences, receipts, pet reminder links)
+-- ============================================================
+
+-- New profile columns
+alter table profiles add column if not exists email text not null default '';
+alter table profiles add column if not exists savings_goal numeric not null default 0;
+alter table profiles add column if not exists pin_hash text;
+alter table profiles add column if not exists trial_ends_at date;
+alter table profiles add column if not exists pro_plan text;
+alter table profiles add column if not exists pro_renews_at date;
+alter table profiles add column if not exists theme_mode text not null default 'system';
+alter table profiles add column if not exists photo_path text;
+alter table profiles add column if not exists notifications_enabled boolean not null default true;
+alter table profiles add column if not exists daily_briefing_enabled boolean not null default true;
+alter table profiles add column if not exists referral_code text not null default '';
+alter table profiles add column if not exists referral_count int not null default 0;
+alter table profiles add column if not exists pro_days_earned int not null default 0;
+alter table profiles add column if not exists go_pro_popup_date date;
+alter table profiles add column if not exists go_pro_popup_count int not null default 0;
+
+-- Receipt photo on expenses
+alter table expenses add column if not exists receipt_path text;
+
+-- Pets-only reminder link
+alter table reminders add column if not exists pet_id uuid;
+
+-- Pet profile photo
+alter table pet_profiles add column if not exists photo_path text;
+
+-- ------------------------------------------------------------ habits
+create table if not exists habits (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  checkins text not null default '[]',
+  created_at timestamptz not null default now()
+);
+
+-- ------------------------------------------------------ pet_profiles
+create table if not exists pet_profiles (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  species text not null default 'dog',
+  breed text,
+  birth_date date,
+  weight_lbs numeric,
+  notes text,
+  photo_path text,
+  created_at timestamptz not null default now()
+);
+
+-- -------------------------------------------------- pet_vaccinations
+create table if not exists pet_vaccinations (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  pet_id uuid not null references pet_profiles(id) on delete cascade,
+  vaccine_name text not null,
+  given_date date not null,
+  next_due_date date,
+  created_at timestamptz not null default now()
+);
+
+-- ------------------------------------------------------ pet_memories
+create table if not exists pet_memories (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  pet_id uuid not null references pet_profiles(id) on delete cascade,
+  caption text not null default '',
+  memory_date date not null,
+  photo_path text,
+  created_at timestamptz not null default now()
+);
+
+-- ------------------------------------------------------- brain_dumps
+create table if not exists brain_dumps (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  text text not null,
+  is_done boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+-- --------------------------------------------------- savings_entries
+create table if not exists savings_entries (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  amount numeric not null,
+  note text not null default '',
+  saved_at date not null,
+  created_at timestamptz not null default now()
+);
+
+-- ----------------------------------------------------- lent_borrowed
+create table if not exists lent_borrowed (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  person text not null,
+  item text not null,
+  amount numeric,
+  direction text not null default 'lent',
+  date date not null,
+  due_date date,
+  note text,
+  settled boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+-- RLS for the new tables
+alter table habits enable row level security;
+alter table pet_profiles enable row level security;
+alter table pet_vaccinations enable row level security;
+alter table pet_memories enable row level security;
+alter table brain_dumps enable row level security;
+alter table savings_entries enable row level security;
+alter table lent_borrowed enable row level security;
+
+do $$
+declare t text;
+begin
+  foreach t in array array[
+    'habits','pet_profiles','pet_vaccinations','pet_memories',
+    'brain_dumps','savings_entries','lent_borrowed'
+  ] loop
+    execute format('drop policy if exists "own rows" on %I', t);
+    execute format(
+      'create policy "own rows" on %I for all using (auth.uid() = user_id) with check (auth.uid() = user_id)',
+      t);
+  end loop;
+end $$;
+
+create index if not exists idx_habits_user on habits(user_id);
+create index if not exists idx_pets_user on pet_profiles(user_id);
+create index if not exists idx_brain_dumps_user on brain_dumps(user_id);
+create index if not exists idx_savings_user on savings_entries(user_id);
+create index if not exists idx_lent_borrowed_user on lent_borrowed(user_id);

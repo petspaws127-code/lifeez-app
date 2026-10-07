@@ -21,6 +21,16 @@ class AppColors {
 
 /// Modern 3D design language: layered cards, gradient tiles, soft shadows.
 class AppTheme {
+  /// Set by the app root whenever the active [ThemeMode] resolves;
+  /// keeps static card helpers in sync with the theme.
+  static bool _dark = false;
+  static void setDark(bool v) => _dark = v;
+  static bool get isDark => _dark;
+
+  /// Card surface color that follows the active theme.
+  static Color get card =>
+      _dark ? const Color(0xFF1A2620) : Colors.white;
+
   static ThemeData light() {
     final base = ThemeData.light(useMaterial3: true);
     final text = GoogleFonts.poppinsTextTheme(base.textTheme).apply(
@@ -80,21 +90,88 @@ class AppTheme {
 
   /// Layered white card with soft double shadow (the "3D" surface).
   static BoxDecoration card3D({double radius = 22}) => BoxDecoration(
-        color: Colors.white,
+        color: card,
         borderRadius: BorderRadius.circular(radius),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x140C3B2E),
+            color: _dark
+                ? const Color(0x40000000)
+                : const Color(0x140C3B2E),
             blurRadius: 26,
-            offset: Offset(0, 14),
+            offset: const Offset(0, 14),
           ),
           BoxShadow(
-            color: Color(0x0AC9A227),
+            color: _dark
+                ? const Color(0x10000000)
+                : const Color(0x0AC9A227),
             blurRadius: 10,
-            offset: Offset(0, 3),
+            offset: const Offset(0, 3),
           ),
         ],
       );
+
+  /// Dark theme: deep green-black surfaces, light green accents. No blue.
+  static ThemeData dark() {
+    final base = ThemeData.dark(useMaterial3: true);
+    final text = GoogleFonts.poppinsTextTheme(base.textTheme).apply(
+      bodyColor: const Color(0xFFE9F2EA),
+      displayColor: const Color(0xFFE9F2EA),
+    );
+    return base.copyWith(
+      scaffoldBackgroundColor: const Color(0xFF0E1A14),
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: AppColors.deepGreen,
+        brightness: Brightness.dark,
+        primary: const Color(0xFF4CAF6D),
+        secondary: AppColors.gold,
+        surface: const Color(0xFF1A2620),
+      ),
+      textTheme: text,
+      appBarTheme: AppBarTheme(
+        backgroundColor: const Color(0xFF0E1A14),
+        foregroundColor: const Color(0xFFE9F2EA),
+        elevation: 0,
+        centerTitle: false,
+        titleTextStyle: GoogleFonts.poppins(
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          color: const Color(0xFFE9F2EA),
+        ),
+      ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: Color(0xFF14211A),
+        selectedItemColor: Color(0xFF4CAF6D),
+        unselectedItemColor: Color(0xFF93A89A),
+        showUnselectedLabels: true,
+        type: BottomNavigationBarType.fixed,
+        elevation: 12,
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: Color(0xFF2E7D4F),
+        foregroundColor: Colors.white,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: const Color(0xFF1A2620),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        hintStyle: GoogleFonts.poppins(
+            color: const Color(0xFF93A89A), fontSize: 14),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      dialogTheme: const DialogThemeData(
+        backgroundColor: Color(0xFF1A2620),
+      ),
+    );
+  }
 
   /// Deep-green hero gradient card.
   static BoxDecoration heroGradient({double radius = 26}) => BoxDecoration(

@@ -50,6 +50,27 @@ const Map<String, CategoryIconSpec> kCategoryIcons = {
       Icons.call, [Color(0xFF22C55E), Color(0xFF15803D)]),
   'other': CategoryIconSpec(
       Icons.circle, [Color(0xFF94A3B8), Color(0xFF64748B)]),
+  'pet': CategoryIconSpec(
+      Icons.pets, [Color(0xFF22C55E), Color(0xFF15803D)]),
+  'habit': CategoryIconSpec(
+      Icons.repeat_rounded, [Color(0xFF0C3B2E), Color(0xFF146B4F)]),
+  'brain': CategoryIconSpec(
+      Icons.psychology_outlined, [Color(0xFF8B5CF6), Color(0xFF5B21B6)]),
+  'notification': CategoryIconSpec(
+      Icons.notifications_outlined, [Color(0xFFF59E0B), Color(0xFFB45309)]),
+  'savings': CategoryIconSpec(
+      Icons.savings_outlined, [Color(0xFFC9A227), Color(0xFF926F0E)]),
+  'scan': CategoryIconSpec(
+      Icons.document_scanner_outlined,
+      [Color(0xFF64748B), Color(0xFF334155)]),
+  'pin': CategoryIconSpec(
+      Icons.lock_outline_rounded, [Color(0xFF0C3B2E), Color(0xFF146B4F)]),
+  'pro': CategoryIconSpec(
+      Icons.star_rounded, [Color(0xFFC9A227), Color(0xFF926F0E)]),
+  'myday': CategoryIconSpec(
+      Icons.wb_sunny_outlined, [Color(0xFFF59E0B), Color(0xFFB45309)]),
+  'share': CategoryIconSpec(
+      Icons.share_rounded, [Color(0xFF22C55E), Color(0xFF15803D)]),
 };
 
 CategoryIconSpec iconFor(String category) {

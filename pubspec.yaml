@@ -28,6 +28,11 @@ dependencies:
   speech_to_text: ^7.5.0
   permission_handler: ^11.3.1
   url_launcher: ^6.2.6
+  image_picker: ^1.0.7
+  http: ^1.2.0
+  package_info_plus: ^8.0.0
+  path_provider: ^2.1.4
+  open_filex: ^4.3.0
 
 dev_dependencies:
   flutter_test:
@@ -36,3 +41,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/lifeez_logo.png
+    - assets/lifeez_logo_dark.png

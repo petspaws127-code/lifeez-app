@@ -1,3 +1,4 @@
+import '../services/eastern_time.dart';
 /// Expense row (table: expenses).
 class Expense {
   final String id;
@@ -7,6 +8,7 @@ class Expense {
   final String note;
   final DateTime spentAt;
   final String source;
+  final String? receiptPath; // local photo of the receipt
 
   const Expense({
     required this.id,
@@ -16,6 +18,7 @@ class Expense {
     this.note = '',
     required this.spentAt,
     this.source = 'app',
+    this.receiptPath,
   });
 
   factory Expense.fromJson(Map<String, dynamic> json) => Expense(
@@ -26,8 +29,9 @@ class Expense {
         note: (json['note'] as String?) ?? '',
         spentAt: DateTime.tryParse(
                 (json['spent_at'] as String?) ?? '') ??
-            DateTime.now(),
+            easternNow(),
         source: (json['source'] as String?) ?? 'app',
+        receiptPath: json['receipt_path'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -38,5 +42,6 @@ class Expense {
         'note': note,
         'spent_at': spentAt.toIso8601String(),
         'source': source,
+        'receipt_path': receiptPath,
       };
 }

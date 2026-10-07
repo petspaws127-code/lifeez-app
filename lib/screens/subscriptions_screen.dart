@@ -8,6 +8,7 @@ import '../widgets/suggestion_card.dart';
 import '../widgets/ui_kit.dart';
 import '../services/app_state.dart';
 import '../models/subscription.dart';
+import '../services/eastern_time.dart';
 
 class SubscriptionsScreen extends StatelessWidget {
   static const route = '/subscriptions';
@@ -18,7 +19,9 @@ class SubscriptionsScreen extends StatelessWidget {
     final app = context.watch<AppState>();
     return Scaffold(
       appBar: AppBar(title: const Text('Subscriptions')),
-      body: ListView(
+      body: RefreshIndicator(
+        onRefresh: () => context.read<AppState>().loadAll(),
+        child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
         children: [
           Container(
@@ -91,6 +94,7 @@ class SubscriptionsScreen extends StatelessWidget {
             ],
           ),
         ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddSheet(context),
@@ -158,7 +162,7 @@ class SubscriptionsScreen extends StatelessWidget {
                           amount: double.tryParse(
                                   amount.text.trim()) ??
                               0,
-                          renewalDay: DateTime.now().day,
+                          renewalDay: easternNow().day,
                           billingCycle: cycle,
                         ),
                       );

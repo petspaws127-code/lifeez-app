@@ -1,3 +1,4 @@
+import '../services/eastern_time.dart';
 /// Reminder row (table: reminders).
 class Reminder {
   final String id;
@@ -6,6 +7,7 @@ class Reminder {
   final DateTime remindAt;
   final String? repeat; // none | daily | weekly | monthly
   final bool isDone;
+  final String? petId; // set when this is a pet reminder (pets-only section)
 
   const Reminder({
     required this.id,
@@ -14,6 +16,7 @@ class Reminder {
     required this.remindAt,
     this.repeat,
     this.isDone = false,
+    this.petId,
   });
 
   factory Reminder.fromJson(Map<String, dynamic> json) => Reminder(
@@ -22,9 +25,10 @@ class Reminder {
         title: (json['title'] as String?) ?? '',
         remindAt: DateTime.tryParse(
                 (json['remind_at'] as String?) ?? '') ??
-            DateTime.now(),
+            easternNow(),
         repeat: json['repeat'] as String?,
         isDone: (json['is_done'] as bool?) ?? false,
+        petId: json['pet_id'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -34,9 +38,14 @@ class Reminder {
         'remind_at': remindAt.toIso8601String(),
         'repeat': repeat,
         'is_done': isDone,
+        'pet_id': petId,
       };
 
-  Reminder copyWith({bool? isDone, String? title, DateTime? remindAt}) =>
+  Reminder copyWith(
+          {bool? isDone,
+          String? title,
+          DateTime? remindAt,
+          String? petId}) =>
       Reminder(
         id: id,
         userId: userId,
@@ -44,5 +53,6 @@ class Reminder {
         remindAt: remindAt ?? this.remindAt,
         repeat: repeat,
         isDone: isDone ?? this.isDone,
+        petId: petId ?? this.petId,
       );
 }

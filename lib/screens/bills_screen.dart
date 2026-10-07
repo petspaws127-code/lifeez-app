@@ -21,7 +21,9 @@ class BillsScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Bills')),
-      body: ListView(
+      body: RefreshIndicator(
+        onRefresh: () => context.read<AppState>().loadAll(),
+        child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
         children: [
           if (app.bills.isEmpty)
@@ -43,6 +45,7 @@ class BillsScreen extends StatelessWidget {
             suggestions: _suggestions(app),
           ),
         ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddSheet(context),

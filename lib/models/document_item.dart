@@ -1,3 +1,4 @@
+import '../services/eastern_time.dart';
 /// Document with expiry tracking (table: documents).
 class DocumentItem {
   final String id;
@@ -34,6 +35,6 @@ class DocumentItem {
 
   /// Days until expiry (negative = expired).
   int? get daysUntilExpiry => expiryDate?.difference(DateTime(
-              DateTime.now().year, DateTime.now().month, DateTime.now().day))
+              easternNow().year, easternNow().month, easternNow().day))
           .inDays;
 }
