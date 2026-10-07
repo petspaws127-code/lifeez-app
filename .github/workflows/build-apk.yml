@@ -49,8 +49,18 @@ jobs:
 
       - name: Build release APK
         id: build_release
-        run: flutter build apk --release 2>&1 | Tee-Object -FilePath build-release-log.txt
-        continue-on-error: true
+        run: |
+          flutter build apk --release --verbose > build-release-log.txt 2>&1
+          $code = $LASTEXITCODE
+          Get-Content build-release-log.txt | Select-Object -Last 30
+          exit $code
+
+      - name: Upload release build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-release-log
+          path: build-release-log.txt
 
       - name: Upload release APK
         if: steps.build_release.outcome == 'success'

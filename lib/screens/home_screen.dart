@@ -8,7 +8,6 @@ import '../widgets/category_icon.dart';
 import '../widgets/ui_kit.dart';
 import '../services/app_state.dart';
 import '../services/update_service.dart';
-import '../services/whatsapp_service.dart';
 import '../services/eastern_time.dart';
 import 'ai_assistant_screen.dart';
 import 'bills_screen.dart';
@@ -32,7 +31,6 @@ import 'shopping_screen.dart';
 import 'subscription_audit_screen.dart';
 import 'subscriptions_screen.dart';
 import 'tasks_screen.dart';
-import 'whatsapp_chat_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -167,8 +165,8 @@ class HomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
 
-              // 2. WhatsApp connect card — compact.
-              const _WhatsAppHomeCard(),
+              // 2. Quick Commands — AI command center.
+              const _QuickCommandsCard(),
               const SizedBox(height: 12),
 
               // Triggers the Go Pro popup (throttled, auto-dismissing).
@@ -336,7 +334,6 @@ class HomeScreen extends StatelessWidget {
       {'label': 'Scanner', 'category': 'scan', 'route': ScannerScreen.route},
       {'label': 'Alerts', 'category': 'notification', 'route': NotificationsScreen.route},
       {'label': 'AI Assistant', 'category': 'brain', 'route': AiAssistantScreen.route},
-      {'label': 'WhatsApp Chat', 'icon': Icons.chat_bubble_rounded, 'colors': const [AppColors.whatsapp, AppColors.whatsappDark], 'route': WhatsAppChatScreen.route},
       {'label': 'Lent & Borrowed', 'icon': Icons.handshake_outlined, 'route': LentBorrowedScreen.route},
       {'label': 'Subscription Audit', 'category': 'subscription', 'route': SubscriptionAuditScreen.route},
       {'label': 'Cash-flow Forecast', 'icon': Icons.trending_up_rounded, 'route': CashFlowScreen.route},
@@ -484,130 +481,63 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-/// Compact WhatsApp command center at the top of Home.
-class _WhatsAppHomeCard extends StatelessWidget {
-  const _WhatsAppHomeCard();
+/// Quick Commands — AI command center at the top of Home.
+/// Type or speak; Lifeez understands and saves it.
+class _QuickCommandsCard extends StatelessWidget {
+  const _QuickCommandsCard();
 
   @override
   Widget build(BuildContext context) {
-    final wa = context.watch<WhatsAppService>();
-    return Container(
-      decoration: AppTheme.card3D(),
-      padding:
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      child: Row(
-        children: [
-          Container(
-            decoration: AppTheme.tile3D(
-              const [
-                AppColors.whatsapp,
-                AppColors.whatsappDark
-              ],
-              radius: 13,
-            ),
-            padding: const EdgeInsets.all(9),
-            child: Icon(
-              wa.isConnected
-                  ? Icons.chat_bubble_rounded
-                  : Icons.chat_bubble_outline_rounded,
-              color: Colors.white,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  wa.isConnected
-                      ? 'WhatsApp connected'
-                      : 'WhatsApp',
-                  style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13.5),
-                ),
-                Text(
-                  wa.isConnected
-                      ? (wa.phoneNumber ?? '')
-                      : 'Control the app by text or voice',
-                  style: GoogleFonts.poppins(
-                      color: AppColors.muted,
-                      fontSize: 11.5),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          GradientButton(
-            label: wa.isConnected ? 'Chat' : 'Connect',
-            colors: const [
-              AppColors.whatsapp,
-              AppColors.whatsappDark
-            ],
-            onPressed: () => wa.isConnected
-                ? Navigator.pushNamed(
-                    context, WhatsAppChatScreen.route)
-                : _showConnectSheet(context),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showConnectSheet(BuildContext context) {
-    final phone = TextEditingController();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(26)),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 24,
-          right: 24,
-          top: 24,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+    return GestureDetector(
+      onTap: () =>
+          Navigator.pushNamed(context, AiAssistantScreen.route),
+      child: Container(
+        decoration: AppTheme.card3D(),
+        padding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
           children: [
-            Text('Connect WhatsApp',
-                style: GoogleFonts.poppins(
-                    fontSize: 18, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            Text(
-              'Enter your WhatsApp number. A verification code will be sent via WhatsApp.',
-              style: GoogleFonts.poppins(
-                  color: AppColors.muted, fontSize: 13.5),
+            Container(
+              decoration: AppTheme.tile3D(
+                const [
+                  AppColors.deepGreen,
+                  AppColors.greenMid
+                ],
+                radius: 13,
+              ),
+              padding: const EdgeInsets.all(9),
+              child: const Icon(
+                Icons.bolt_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
-            const SizedBox(height: 12),
-            AppTextField(
-                controller: phone,
-                label: 'WhatsApp number (e.g. +1 555 123 4567)',
-                keyboardType: TextInputType.phone),
-            const SizedBox(height: 8),
-            GradientButton(
-              label: 'Connect',
-              colors: const [
-                AppColors.whatsapp,
-                AppColors.whatsappDark
-              ],
-              onPressed: () async {
-                final number = phone.text.trim();
-                if (number.length < 7) return;
-                Navigator.pop(ctx);
-                await context
-                    .read<WhatsAppService>()
-                    .directConnect(number);
-              },
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Quick Commands',
+                    style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.5),
+                  ),
+                  Text(
+                    'Type or speak — Lifeez understands',
+                    style: GoogleFonts.poppins(
+                        color: AppColors.muted,
+                        fontSize: 11.5),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
+            const SizedBox(width: 8),
+            const Icon(Icons.chevron_right_rounded,
+                size: 22, color: Colors.grey),
           ],
         ),
       ),
