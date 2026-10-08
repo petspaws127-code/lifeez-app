@@ -9,6 +9,7 @@ import '../services/whatsapp_service.dart';
 import 'welcome_screen.dart';
 import 'onboarding_screen.dart';
 import 'main_tabs.dart';
+import '../services/update_service.dart';
 
 class SplashScreen extends StatefulWidget {
   static const route = '/splash';
@@ -38,6 +39,9 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _decideNext() async {
+    // Check for app updates on startup
+    _checkForUpdate();
+
     await Future.delayed(const Duration(milliseconds: 2300));
     if (!mounted) return;
     final auth = context.read<AuthService>();
@@ -114,4 +118,53 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
   }
+  Future<void> _checkForUpdate() async {
+    try {
+      final updateService = UpdateService();
+      final info = await updateService.checkForUpdate();
+      if (info != null && mounted) {
+        // Wait for splash to finish, then show dialog
+        await Future.delayed(const Duration(milliseconds: 1500));
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            title: Text('Update Available: v${info.versionName}'),
+            content: Text(info.notes.isNotEmpty ? info.notes : 'A new version is available!'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Later'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (ctx2) => const AlertDialog(
+                      content: Row(
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(width: 16),
+                          Text('Downloading...'),
+                        ],
+                      ),
+                    ),
+                  );
+                  try {
+                    await updateService.downloadAndInstall(info, (p) {});
+                  } catch (_) {}
+                  if (mounted) Navigator.pop(context);
+                },
+                child: const Text('Update'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (_) {}
+  }
+
 }
