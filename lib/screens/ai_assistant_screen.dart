@@ -125,8 +125,14 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                   const SizedBox(width: 8),
               itemBuilder: (_, i) => ActionChip(
                 label: Text(_examples[i],
-                    style: GoogleFonts.poppins(fontSize: 12)),
-                backgroundColor: AppColors.goldSoft,
+                    style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: AppTheme.isDark
+                            ? const Color(0xFF000000)
+                            : AppColors.ink)),
+                backgroundColor: AppTheme.isDark
+                    ? const Color(0xFFE8DCC0)
+                    : AppColors.goldSoft,
                 onPressed: () => _send(_examples[i]),
               ),
             ),
