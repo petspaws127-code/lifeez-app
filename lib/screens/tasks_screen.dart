@@ -211,8 +211,14 @@ class TasksScreen extends StatelessWidget {
                 children: _quickTitles
                     .map((q) => ActionChip(
                           label: Text(q,
-                              style: GoogleFonts.poppins(fontSize: 12)),
-                          backgroundColor: AppColors.goldSoft,
+                              style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: AppTheme.isDark
+                                      ? const Color(0xFF000000)
+                                      : AppColors.ink)),
+                          backgroundColor: AppTheme.isDark
+                              ? const Color(0xFFE8DCC0)
+                              : AppColors.goldSoft,
                           side: BorderSide.none,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(10)),
