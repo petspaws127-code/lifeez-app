@@ -96,7 +96,7 @@ class AuthService extends ChangeNotifier {
     //   - Web client → paste below as serverClientId
     // Then enable the Google provider in Supabase → Authentication → Providers.
     const iosClientId = 'TODO-PASTE-GOOGLE-iOS-CLIENT-ID';
-    const serverClientId = 'TODO-PASTE-GOOGLE-WEB-CLIENT-ID';
+    const serverClientId = '980159203050-d5h9v7mfjoi8v0rgqipq637jofevm5mn.apps.googleusercontent.com';
 
     final googleSignIn = GoogleSignIn(
       clientId: iosClientId.startsWith('TODO') ? null : iosClientId,
