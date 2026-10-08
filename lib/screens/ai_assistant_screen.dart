@@ -106,7 +106,9 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                         fontSize: 14.5,
                         color: m.isUser
                             ? Colors.white
-                            : AppColors.ink,
+                            : (AppTheme.isDark
+                                ? const Color(0xFFFFFFFF)
+                                : AppColors.ink),
                       ),
                     ),
                   ),
