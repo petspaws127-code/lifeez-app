@@ -46,7 +46,7 @@ class _MainTabsState extends State<MainTabs> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        title: Text('Update Available: v\${info.versionName}'),
+        title: Text('Update Available: v${info.versionName}'),
         content: Text(info.notes.isNotEmpty ? info.notes : 'A new version is available!'),
         actions: [
           TextButton(
