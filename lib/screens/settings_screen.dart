@@ -148,7 +148,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final auth = context.read<AuthService>();
     final appState = context.read<AppState>();
     await auth.signOut();
-    appState.clearLocal();
+    // Data kept on logout - user data persists;
     if (!mounted) return;
     Navigator.pushNamedAndRemoveUntil(
         context, LoginScreen.route, (_) => false);
