@@ -41,7 +41,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 32),
+              const SizedBox(height: 64),
               const AppLogo(size: 96),
               const SizedBox(height: 20),
               Text(
@@ -103,7 +103,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 title: 'Quick Commands',
                 desc: 'Type or speak — Lifeez understands and saves it.',
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
               GradientButton(
                 label: 'Get Started',
                 icon: Icons.arrow_forward_rounded,
