@@ -101,6 +101,48 @@ class _LoginScreenState extends State<LoginScreen> {
     if (clean.length > 120) clean = '${clean.substring(0, 117)}...';
     return clean.isEmpty ? 'Something went wrong. Please try again.' : clean;
   }
+  /// Password strength 0-4 (for signup mode)
+  int _passwordStrength(String password) {
+    int score = 0;
+    if (password.length >= 6) score++;
+    if (password.length >= 8) score++;
+    if (RegExp(r'[A-Z]').hasMatch(password) && RegExp(r'[a-z]').hasMatch(password)) score++;
+    if (RegExp(r'[0-9]').hasMatch(password) || RegExp(r'[^A-Za-z0-9]').hasMatch(password)) score++;
+    return score.clamp(0, 4);
+  }
+
+  Color _strengthColor(int score) {
+    switch (score) {
+      case 0:
+      case 1:
+        return Colors.red.shade400;
+      case 2:
+        return Colors.orange.shade400;
+      case 3:
+        return Colors.lightGreen;
+      case 4:
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _strengthLabel(int score) {
+    switch (score) {
+      case 0:
+      case 1:
+        return 'Weak';
+      case 2:
+        return 'Fair';
+      case 3:
+        return 'Good';
+      case 4:
+        return 'Strong';
+      default:
+        return '';
+    }
+  }
+
 
   Future<void> _handleGoogle() async {
     setState(() => _loading = true);
