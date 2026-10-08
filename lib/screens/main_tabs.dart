@@ -7,6 +7,7 @@ import 'money_screen.dart';
 import 'calendar_screen.dart';
 import 'more_screen.dart';
 import 'pin_lock_screen.dart';
+import '../services/update_service.dart';
 
 /// Bottom navigation with the 5 main tabs.
 /// Shows the PIN lock screen when the app is locked.
@@ -20,6 +21,72 @@ class MainTabs extends StatefulWidget {
 
 class _MainTabsState extends State<MainTabs> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-check for updates on app start
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) _checkForUpdateAuto();
+    });
+  }
+
+  Future<void> _checkForUpdateAuto() async {
+    try {
+      final updateService = UpdateService();
+      final info = await updateService.checkForUpdate();
+      if (info != null && mounted) {
+        _showUpdateDialog(info, updateService);
+      }
+    } catch (_) {}
+  }
+
+  void _showUpdateDialog(UpdateInfo info, UpdateService updateService) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Text('Update Available: v\${info.versionName}'),
+        content: Text(info.notes.isNotEmpty ? info.notes : 'A new version is available!'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Later'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              // Download and install
+              bool started = false;
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (ctx2) => const AlertDialog(
+                  content: Row(
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(width: 16),
+                      Text('Downloading...'),
+                    ],
+                  ),
+                ),
+              );
+              try {
+                started = await updateService.downloadAndInstall(info, (p) {});
+              } catch (_) {}
+              if (mounted) Navigator.pop(context);
+              if (!started && mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Download failed. Try again.')),
+                );
+              }
+            },
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+  }
 
   static const _screens = [
     HomeScreen(),
