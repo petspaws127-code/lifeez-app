@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -55,31 +56,84 @@ class UpdateService {
 
   /// Downloads the APK to temp storage and opens it for install.
   /// Returns true if the install intent was launched.
+  /// Robust: retries up to 3 times with resume support for large files.
   Future<bool> downloadAndInstall(
     UpdateInfo info,
     void Function(double progress) onProgress,
   ) async {
     if (info.apkUrl.isEmpty) return false;
-    try {
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/lifeez-update.apk');
-      final req = http.Request('GET', Uri.parse(info.apkUrl));
-      final res = await http.Client().send(req);
-      final total = res.contentLength ?? 0;
-      var received = 0;
-      final sink = file.openWrite();
-      await for (final chunk in res.stream) {
-        sink.add(chunk);
-        received += chunk.length;
-        if (total > 0) onProgress(received / total);
+
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/lifeez-update.apk');
+
+    // Try up to 3 times with resume
+    for (var attempt = 0; attempt < 3; attempt++) {
+      try {
+        final existingLength = await file.exists() ? await file.length() : 0;
+
+        final client = http.Client();
+        final req = http.Request('GET', Uri.parse(info.apkUrl));
+        // Resume from where we left off
+        if (existingLength > 0) {
+          req.headers['Range'] = 'bytes=$existingLength-';
+        }
+
+        final res = await client.send(req).timeout(
+          const Duration(seconds: 30),
+        );
+
+        if (res.statusCode != 200 && res.statusCode != 206) {
+          client.close();
+          continue; // Retry
+        }
+
+        // Get total size
+        var total = res.contentLength ?? 0;
+        if (res.statusCode == 206 && existingLength > 0) {
+          // Partial content: total is remaining + already downloaded
+          total += existingLength;
+        }
+
+        var received = existingLength;
+        final sink = file.openWrite(mode: existingLength > 0 ? FileMode.append : FileMode.write);
+
+        await for (final chunk in res.stream.timeout(
+          const Duration(seconds: 60),
+          onTimeout: (sink) {
+            sink.close();
+            throw TimeoutException('Download stalled');
+          },
+        )) {
+          sink.add(chunk);
+          received += chunk.length;
+          if (total > 0) onProgress(received / total);
+        }
+
+        await sink.close();
+        client.close();
+
+        // Verify download completed
+        final finalSize = await file.length();
+        if (total > 0 && finalSize < total) {
+          continue; // Incomplete, retry
+        }
+
+        onProgress(1.0);
+        await OpenFilex.open(file.path);
+        return true;
+      } catch (_) {
+        // Wait before retry
+        if (attempt < 2) {
+          await Future.delayed(Duration(seconds: (attempt + 1) * 2));
+        }
       }
-      await sink.close();
-      onProgress(1.0);
-      await OpenFilex.open(file.path);
-      return true;
-    } catch (_) {
-      return false;
     }
+
+    // All retries failed, clean up partial file
+    try {
+      if (await file.exists()) await file.delete();
+    } catch (_) {}
+    return false;
   }
 
   /// Shows the update dialog. Call from home/settings on startup.
