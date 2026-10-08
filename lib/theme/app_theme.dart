@@ -35,8 +35,9 @@ class AppTheme {
   static bool get isDark => _dark;
 
   /// Card surface color that follows the active theme.
+  /// Dark mode: pure black as requested.
   static Color get card =>
-      _dark ? const Color(0xFF1A2620) : Colors.white;
+      _dark ? const Color(0xFF000000) : Colors.white;
 
   static ThemeData light() {
     final base = ThemeData.light(useMaterial3: true);
@@ -117,38 +118,38 @@ class AppTheme {
         ],
       );
 
-  /// Dark theme: deep green-black surfaces, light green accents. No blue.
+  /// Dark theme: pure black surfaces, white text. No blue.
   static ThemeData dark() {
     final base = ThemeData.dark(useMaterial3: true);
     final text = GoogleFonts.poppinsTextTheme(base.textTheme).apply(
-      bodyColor: const Color(0xFFE9F2EA),
-      displayColor: const Color(0xFFE9F2EA),
+      bodyColor: const Color(0xFFFFFFFF),
+      displayColor: const Color(0xFFFFFFFF),
     );
     return base.copyWith(
-      scaffoldBackgroundColor: const Color(0xFF0E1A14),
+      scaffoldBackgroundColor: const Color(0xFF000000),
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.deepGreen,
         brightness: Brightness.dark,
         primary: const Color(0xFF5CC47A),
         secondary: AppColors.gold,
-        surface: const Color(0xFF1A2620),
+        surface: const Color(0xFF000000),
       ),
       textTheme: text,
       appBarTheme: AppBarTheme(
-        backgroundColor: const Color(0xFF0E1A14),
-        foregroundColor: const Color(0xFFE9F2EA),
+        backgroundColor: const Color(0xFF000000),
+        foregroundColor: const Color(0xFFFFFFFF),
         elevation: 0,
         centerTitle: false,
         titleTextStyle: GoogleFonts.poppins(
           fontSize: 20,
           fontWeight: FontWeight.w700,
-          color: const Color(0xFFE9F2EA),
+          color: const Color(0xFFFFFFFF),
         ),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: Color(0xFF14211A),
+        backgroundColor: Color(0xFF000000),
         selectedItemColor: Color(0xFF5CC47A),
-        unselectedItemColor: Color(0xFF93A89A),
+        unselectedItemColor: Color(0xFFFFFFFF),
         showUnselectedLabels: true,
         type: BottomNavigationBarType.fixed,
         elevation: 12,
@@ -159,7 +160,7 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFF1A2620),
+        fillColor: const Color(0xFF000000),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         border: OutlineInputBorder(
@@ -167,7 +168,7 @@ class AppTheme {
           borderSide: BorderSide.none,
         ),
         hintStyle: GoogleFonts.poppins(
-            color: const Color(0xFF93A89A), fontSize: 14),
+            color: const Color(0xFFFFFFFF), fontSize: 14),
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
@@ -175,7 +176,7 @@ class AppTheme {
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       dialogTheme: const DialogThemeData(
-        backgroundColor: Color(0xFF1A2620),
+        backgroundColor: Color(0xFF000000),
       ),
     );
   }
