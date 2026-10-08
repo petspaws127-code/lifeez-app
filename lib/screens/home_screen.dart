@@ -7,6 +7,9 @@ import 'notifications_screen.dart';
 import 'tasks_screen.dart';
 import 'reminders_screen.dart';
 import 'bills_screen.dart';
+import 'calendar_screen.dart';
+import 'subscriptions_screen.dart';
+import 'habits_screen.dart';
 
 // Prototype 2: Timeline Feed Dashboard - LOCKED design
 class HomeScreen extends StatelessWidget {
@@ -190,7 +193,12 @@ class HomeScreen extends StatelessWidget {
                   () => Navigator.pushNamed(ctx, RemindersScreen.route)),
                 _AddOption(Icons.receipt_outlined, 'Bills',
                   () => Navigator.pushNamed(ctx, BillsScreen.route)),
-                _AddOption(Icons.calendar_today_outlined, 'Events', () {}),
+                _AddOption(Icons.calendar_month_outlined, 'Calendar',
+                  () => Navigator.pushNamed(ctx, CalendarScreen.route)),
+                _AddOption(Icons.subscriptions_outlined, 'Subscriptions',
+                  () => Navigator.pushNamed(ctx, SubscriptionsScreen.route)),
+                _AddOption(Icons.local_fire_department_outlined, 'Habits',
+                  () => Navigator.pushNamed(ctx, HabitsScreen.route)),
               ],
             ),
             const SizedBox(height: 20),
