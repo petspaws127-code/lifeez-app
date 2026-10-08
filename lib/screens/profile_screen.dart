@@ -186,7 +186,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final auth = context.read<AuthService>();
     final app = context.read<AppState>();
     await auth.signOut();
-    app.clearLocal();
     if (!mounted) return;
     Navigator.pushNamedAndRemoveUntil(
         context, LoginScreen.route, (_) => false);
