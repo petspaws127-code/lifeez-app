@@ -246,16 +246,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 12),
-
-          _row(
-            icon: 'grocery',
-            title: 'WhatsApp',
-            subtitle: wa.isConnected
-                ? 'Connected • ${wa.phoneNumber ?? ''}'
-                : 'Not connected',
-            trailing: wa.isConnected
-                ? TextButton(
-                    onPressed: () => wa.disconnect(),
                     child: const Text('Disconnect'))
                 : null,
           ),
