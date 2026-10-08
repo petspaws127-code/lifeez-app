@@ -1,15 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/ui_kit.dart';
+import '../services/auth_service.dart';
 import 'login_screen.dart';
+import 'main_tabs.dart';
 
 /// Welcome/Info screen — shown once after splash for users who
 /// have not signed in yet. (Signed-in users skip this.)
-class WelcomeScreen extends StatelessWidget {
+class WelcomeScreen extends StatefulWidget {
   static const route = '/welcome';
   const WelcomeScreen({super.key});
+
+  @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // If already signed in, skip directly to Home
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final auth = context.read<AuthService>();
+      if (auth.isSignedIn) {
+        Navigator.pushReplacementNamed(context, MainTabs.route);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
