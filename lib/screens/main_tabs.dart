@@ -92,7 +92,6 @@ class _MainTabsState extends State<MainTabs> {
     HomeScreen(),
     TasksScreen(),
     MoneyScreen(),
-    CalendarScreen(),
     MoreScreen(),
   ];
 
@@ -116,9 +115,6 @@ class _MainTabsState extends State<MainTabs> {
           BottomNavigationBarItem(
               icon: Icon(Icons.account_balance_wallet_outlined),
               label: 'Money'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_month_outlined),
-              label: 'Calendar'),
           BottomNavigationBarItem(
               icon: Icon(Icons.grid_view_rounded), label: 'More'),
         ],
