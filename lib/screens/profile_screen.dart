@@ -457,6 +457,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         fontSize: 12, color: AppColors.muted));
               },
             ),
+            ),
         ],
       ),
     );
