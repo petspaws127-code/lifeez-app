@@ -39,6 +39,17 @@ class AppTheme {
   static Color get card =>
       _dark ? const Color(0xFF000000) : Colors.white;
 
+  /// Text color for BLACK backgrounds: always white.
+  static Color get textOnBlack => const Color(0xFFFFFFFF);
+
+  /// Text color for WHITE backgrounds: always black.
+  static Color get textOnWhite => const Color(0xFF000000);
+
+  /// Adaptive text color: white in dark mode (black bg), black in light mode (white bg).
+  /// Use this for text on theme-aware surfaces.
+  static Color get textOnSurface =>
+      _dark ? const Color(0xFFFFFFFF) : const Color(0xFF000000);
+
   static ThemeData light() {
     final base = ThemeData.light(useMaterial3: true);
     final text = GoogleFonts.poppinsTextTheme(base.textTheme).apply(
