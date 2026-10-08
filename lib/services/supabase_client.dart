@@ -2,15 +2,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Central Supabase bootstrap.
 ///
-/// TODO: paste your Supabase project credentials below (Supabase dashboard
-/// → Project Settings → API). The app will not start without them.
+/// Supabase credentials for lifeez-app project.
 class SupabaseService {
   static Future<void> init() async {
     await Supabase.initialize(
-      // TODO: paste your Supabase project URL, e.g. https://xyzcompany.supabase.co
-      url: 'TODO-PASTE-YOUR-SUPABASE-URL',
-      // TODO: paste your Supabase "anon public" key (Project Settings → API).
-      publishableKey: 'TODO-PASTE-YOUR-SUPABASE-ANON-KEY',
+            url: 'https://mxoejkweedxhndzwpxmj.supabase.co',
+            publishableKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im14b2Vqa3dlZWR4aG5kendweG1qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0MzcxMDQsImV4cCI6MjEwNzAxMzEwNH0.EmB1GGm_as8AmVKEE_gVeSAP6B-MzzCz_OHULD7yvyg',
     );
   }
 
