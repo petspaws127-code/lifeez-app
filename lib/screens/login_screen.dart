@@ -62,7 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Owner Login'),
+        title: const Text('Email Login'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -242,7 +242,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   icon: const Icon(Icons.admin_panel_settings_outlined,
                       size: 16, color: AppColors.muted),
                   label: Text(
-                    'Owner Login',
+                    'Email Login',
                     style: GoogleFonts.poppins(
                         fontSize: 13, color: AppColors.muted),
                   ),
