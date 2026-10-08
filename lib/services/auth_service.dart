@@ -241,6 +241,32 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Email/password sign in with Supabase.
+  Future<void> signInWithEmail(String email, String password) async {
+    try {
+      await SupabaseService.client.auth.signInWithPassword(
+        email: email.trim(),
+        password: password,
+      );
+      notifyListeners();
+    } catch (e) {
+      throw AuthSetupException('Login failed: ${e.toString()}');
+    }
+  }
+
+  /// Email/password sign up with Supabase.
+  Future<void> signUpWithEmail(String email, String password) async {
+    try {
+      await SupabaseService.client.auth.signUp(
+        email: email.trim(),
+        password: password,
+      );
+      notifyListeners();
+    } catch (e) {
+      throw AuthSetupException('Sign up failed: ${e.toString()}');
+    }
+  }
+
   // ----------------------------------------------------------------- Misc
   Future<void> signOut() async {
     try {
