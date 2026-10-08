@@ -93,6 +93,7 @@ class AuthService extends ChangeNotifier {
     // Google provider must be enabled in Supabase dashboard.
     await SupabaseService.client.auth.signInWithOAuth(
       OAuthProvider.google,
+      redirectTo: 'io.supabase.lifeez://login-callback',
     );
     // OAuth opens browser - session established via auth state listener.
     // Note: The actual session is established via deep link callback.
