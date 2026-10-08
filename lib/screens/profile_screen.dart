@@ -11,6 +11,7 @@ import '../services/app_state.dart';
 import '../services/update_service.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 /// Profile section: user info, photo, edit profile, Pro status,
 /// appearance + notification preferences, referrals, legal & support.
@@ -447,7 +448,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(height: 16),
           Center(
-            child: Text('Lifeez v1.0.0',
+            child: FutureBuilder<PackageInfo>(
+              future: PackageInfo.fromPlatform(),
+              builder: (context, snapshot) {
+                final version = snapshot.data?.version ?? '...';
+                return Text('Lifeez v$version',
                 style: GoogleFonts.poppins(
                     fontSize: 12, color: AppColors.muted)),
           ),
