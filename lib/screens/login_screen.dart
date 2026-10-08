@@ -55,33 +55,63 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  /// Admin bypass options: Demo (free) or Paid Pro.
+  /// Owner login with email/password via Supabase.
   void _showAdminOptions(BuildContext context) {
+    final emailCtrl = TextEditingController();
+    final passCtrl = TextEditingController();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Admin entry'),
-        content: const Text('Choose your test account type:'),
+        title: const Text('Owner Login'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                hintText: 'you@example.com',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: passCtrl,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Password',
+              ),
+            ),
+          ],
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
           ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await context.read<AuthService>().signInAsAdmin(plan: 'demo');
-              if (context.mounted) await _afterSignIn();
-            },
-            child: const Text('Demo (Free)'),
-          ),
           ElevatedButton(
             onPressed: () async {
+              final email = emailCtrl.text.trim();
+              final pass = passCtrl.text;
+              if (email.isEmpty || pass.isEmpty) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(content: Text('Enter email and password')),
+                );
+                return;
+              }
               Navigator.pop(ctx);
-              await context.read<AuthService>().signInAsAdmin(plan: 'paid');
-              if (context.mounted) await _afterSignIn();
+              try {
+                await context.read<AuthService>().signInWithEmail(email, pass);
+                if (context.mounted) await _afterSignIn();
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(e.toString())),
+                  );
+                }
+              }
             },
-            child: const Text('Paid Pro'),
+            child: const Text('Login'),
           ),
         ],
       ),
