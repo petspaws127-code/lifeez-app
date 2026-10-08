@@ -68,7 +68,11 @@ class AppState extends ChangeNotifier {
   // local storage (debounced), and loads back on startup. Works fully
   // offline — Supabase sync is best-effort on top of this.
   Timer? _saveTimer;
-  static const _localKey = 'lifeez_local_data_v1';
+  /// User-scoped storage key - each user sees only their own data.
+  static String get _localKey {
+    final uid = SupabaseService.currentUserId;
+    return 'lifeez_local_data_v1_${uid ?? "guest"}';
+  }
 
   @override
   void notifyListeners() {
