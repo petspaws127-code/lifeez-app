@@ -45,11 +45,60 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  void _showError(String msg) {
+  void _showError(String rawMsg) {
     if (!mounted) return;
+    final msg = _friendlyError(rawMsg);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: Colors.red.shade700),
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.info_outline, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(child: Text(msg, style: const TextStyle(color: Colors.white))),
+          ],
+        ),
+        backgroundColor: const Color(0xFF2D5A3D),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 4),
+      ),
     );
+  }
+
+  /// Maps technical auth errors to friendly user messages.
+  String _friendlyError(String raw) {
+    final lower = raw.toLowerCase();
+    if (lower.contains('invalid login credentials') || lower.contains('invalid_credentials')) {
+      return _isSignupMode
+          ? 'Something went wrong. Please try again.'
+          : 'Incorrect email or password. Please try again.';
+    }
+    if (lower.contains('user already registered') || lower.contains('already registered') || lower.contains('email already')) {
+      return 'This email is already registered. Try logging in instead!';
+    }
+    if (lower.contains('password') && (lower.contains('weak') || lower.contains('short') || lower.contains('6 characters'))) {
+      return 'Password must be at least 6 characters long.';
+    }
+    if (lower.contains('email') && lower.contains('invalid')) {
+      return 'Please enter a valid email address.';
+    }
+    if (lower.contains('network') || lower.contains('connection') || lower.contains('timeout') || lower.contains('socket')) {
+      return 'Connection issue. Please check your internet and try again.';
+    }
+    if (lower.contains('too many') || lower.contains('rate limit')) {
+      return 'Too many attempts. Please wait a moment and try again.';
+    }
+    if (lower.contains('cancelled') || lower.contains('canceled')) {
+      return 'Sign-in was cancelled.';
+    }
+    if (lower.contains('not configured') || lower.contains('setup')) {
+      return 'Google sign-in is being set up. Please use email for now.';
+    }
+    // Fallback: clean up the raw message
+    var clean = raw.replaceAll(RegExp(r'exception:?\s*', caseSensitive: false), '').trim();
+    if (clean.length > 120) clean = '${clean.substring(0, 117)}...';
+    return clean.isEmpty ? 'Something went wrong. Please try again.' : clean;
   }
 
   Future<void> _handleGoogle() async {
