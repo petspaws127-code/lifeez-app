@@ -135,3 +135,5 @@ screen updates instantly.
 Every record shows a **unique 3D icon** via `CategoryIcon` —
 `category_icon.dart` maps categories (grocery→cart, rent→house,
 transport→car, health→heart…) to gradient tiles.
+
+<!-- Build test 2026-10-08T15:47:35.908863 -->
