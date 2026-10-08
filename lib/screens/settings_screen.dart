@@ -244,9 +244,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 12),
-                    child: const Text('Disconnect'))
-                : null,
-          ),
           _row(
             icon: 'money',
             title: 'Monthly budget',
