@@ -453,9 +453,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
               builder: (context, snapshot) {
                 final version = snapshot.data?.version ?? '...';
                 return Text('Lifeez v$version',
-                style: GoogleFonts.poppins(
-                    fontSize: 12, color: AppColors.muted)),
-          ),
+                    style: GoogleFonts.poppins(
+                        fontSize: 12, color: AppColors.muted));
+              },
+            ),
         ],
       ),
     );
