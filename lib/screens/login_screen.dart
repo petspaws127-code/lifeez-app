@@ -135,7 +135,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (msg.contains('ApiException: 10')) {
         _showError(
           'Google sign-in needs setup: the app is not registered in Google '
-          'Cloud Console yet. Please use "Admin · Enter directly" for now.',
+          'Cloud Console yet. Please use "Email Login" for now.',
         );
       } else {
         _showError('Sign-in failed: $e');
