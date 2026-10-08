@@ -70,7 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String _friendlyError(String raw) {
     final lower = raw.toLowerCase();
     if (lower.contains('invalid login credentials') || lower.contains('invalid_credentials')) {
-      return _isSignupMode
+      return _isSignup
           ? 'Something went wrong. Please try again.'
           : 'Incorrect email or password. Please try again.';
     }
