@@ -7,7 +7,6 @@ import '../widgets/ui_kit.dart';
 import '../services/app_state.dart';
 import '../services/auth_service.dart';
 import '../services/biometric_service.dart';
-import '../services/whatsapp_service.dart';
 import 'login_screen.dart';
 import 'pin_lock_screen.dart';
 import 'profile_screen.dart';
@@ -185,7 +184,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
-    final wa = context.watch<WhatsAppService>();
     final p = app.profile;
 
     return Scaffold(
