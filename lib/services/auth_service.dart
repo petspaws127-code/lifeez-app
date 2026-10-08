@@ -91,13 +91,10 @@ class AuthService extends ChangeNotifier {
   Future<void> signInWithGoogle() async {
     // Uses Supabase OAuth via system browser - no SHA-1 needed.
     // Google provider must be enabled in Supabase dashboard.
-    final result = await SupabaseService.client.auth.signInWithOAuth(
+    await SupabaseService.client.auth.signInWithOAuth(
       OAuthProvider.google,
-      redirectTo: 'io.supabase.lifeez://login-callback',
     );
-    if (!result) {
-      throw const AuthException('Google sign-in was cancelled.');
-    }
+    // OAuth opens browser - session established via auth state listener.
     // Note: The actual session is established via deep link callback.
     // For now, notify listeners - the auth state will update.
     notifyListeners();
