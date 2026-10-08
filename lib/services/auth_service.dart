@@ -89,40 +89,17 @@ class AuthService extends ChangeNotifier {
 
   // ---------------------------------------------------------------- Google
   Future<void> signInWithGoogle() async {
-    // TODO: create OAuth client IDs in Google Cloud Console
-    // (https://console.cloud.google.com → APIs & Services → Credentials):
-    //   - Android client (needs your SHA-1 from `keytool -list -v`)
-    //   - iOS client (needs your iOS bundle id)
-    //   - Web client → paste below as serverClientId
-    // Then enable the Google provider in Supabase → Authentication → Providers.
-    const iosClientId = 'TODO-PASTE-GOOGLE-iOS-CLIENT-ID';
-    const serverClientId = '980159203050-d5h9v7mfjoi8v0rgqipq637jofevm5mn.apps.googleusercontent.com';
-
-    final googleSignIn = GoogleSignIn(
-      clientId: iosClientId.startsWith('TODO') ? null : iosClientId,
-      serverClientId:
-          serverClientId.startsWith('TODO') ? null : serverClientId,
-      scopes: const ['email', 'profile'],
+    // Uses Supabase OAuth via system browser - no SHA-1 needed.
+    // Google provider must be enabled in Supabase dashboard.
+    final result = await SupabaseService.client.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: 'io.supabase.lifeez://login-callback',
     );
-
-    final account = await googleSignIn.signIn();
-    if (account == null) {
-      // User cancelled the account picker — not an error.
-      return;
+    if (!result) {
+      throw const AuthException('Google sign-in was cancelled.');
     }
-    final googleAuth = await account.authentication;
-    final idToken = googleAuth.idToken;
-    if (idToken == null || idToken.startsWith('TODO')) {
-      throw const AuthSetupException(
-        'Google sign-in is not configured yet. Add your Google OAuth client '
-        'IDs in lib/services/auth_service.dart (see the TODO above).',
-      );
-    }
-    await SupabaseService.client.auth.signInWithIdToken(
-      provider: OAuthProvider.google,
-      idToken: idToken,
-      accessToken: googleAuth.accessToken,
-    );
+    // Note: The actual session is established via deep link callback.
+    // For now, notify listeners - the auth state will update.
     notifyListeners();
   }
 
