@@ -9,6 +9,7 @@ import '../services/whatsapp_service.dart';
 import '../services/supabase_client.dart';
 import 'onboarding_screen.dart';
 import 'main_tabs.dart';
+import '../widgets/google_logo.dart';
 
 /// Clean login screen: Google + Email only.
 class LoginScreen extends StatefulWidget {
@@ -202,7 +203,7 @@ class _LoginScreenState extends State<LoginScreen> {
               // Google button
               ElevatedButton.icon(
                 onPressed: _loading ? null : _handleGoogle,
-                icon: const Icon(Icons.g_mobiledata, size: 28),
+                icon: const GoogleLogo(size: 24),
                 label: Text(
                   'Continue with Google',
                   style: GoogleFonts.poppins(
