@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../services/app_state.dart';
 import 'home_screen.dart';
 import 'tasks_screen.dart';
+import 'reminders_screen.dart';
 import 'calendar_screen.dart';
 import 'more_screen.dart';
 import 'pin_lock_screen.dart';
@@ -90,6 +91,7 @@ class _MainTabsState extends State<MainTabs> {
   static const _screens = [
     HomeScreen(),
     TasksScreen(),
+    RemindersScreen(),
     MoreScreen(),
   ];
 
@@ -110,6 +112,9 @@ class _MainTabsState extends State<MainTabs> {
           BottomNavigationBarItem(
               icon: Icon(Icons.check_circle_outline_rounded),
               label: 'Tasks'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.notifications_outlined),
+              label: 'Reminders'),
           BottomNavigationBarItem(
               icon: Icon(Icons.grid_view_rounded), label: 'More'),
         ],

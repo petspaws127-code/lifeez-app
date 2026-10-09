@@ -9,7 +9,7 @@ import 'ai_daily_briefing_screen.dart';
 import 'weekly_review_screen.dart';
 import 'adhd_mode_screen.dart';
 import 'trip_planner_screen.dart';
-import 'pet_health_ai_screen.dart';
+import 'pets_screen.dart';
 import 'reminders_screen.dart';
 import 'calendar_screen.dart';
 import 'habits_screen.dart';
@@ -288,7 +288,7 @@ class HomeScreen extends StatelessWidget {
                   }),
                   _AddOption(Icons.pets_outlined, 'Pets', () {
                     Navigator.pop(ctx);
-                    Navigator.pushNamed(ctx, PetHealthAiScreen.route);
+                    Navigator.pushNamed(ctx, PetsScreen.route);
                   }),
                 ],
               ),
@@ -406,9 +406,13 @@ class _TimelineItem extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(item.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
                           fontSize: 14, fontWeight: FontWeight.w500)),
                       Text(item.subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
                           fontSize: 12, color: Colors.grey[600])),
                     ],

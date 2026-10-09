@@ -5,6 +5,7 @@ import '../theme/app_theme.dart';
 import '../widgets/ai_input_bar.dart';
 import '../services/app_state.dart';
 import '../services/assistant_engine.dart';
+import '../services/gemini_service.dart';
 
 class _Msg {
   final String text;
@@ -28,17 +29,25 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
   static const _examples = [
     'Add task buy milk tomorrow 5pm',
-    'I spent \$45 at Walmart',
     'Remind me to pay rent on the 1st',
-    'How much do I have left?',
+    'How can I be more productive?',
+    'Plan my day for me',
   ];
+
+  /// System context so Gemini answers as the Lifeez assistant.
+  static const _systemPrompt =
+      'You are Lifeez AI, a friendly personal life assistant inside the Lifeez app. '
+      'The app helps users manage tasks, reminders, calendar events, habits, and pets. '
+      'Keep answers short, warm, and practical. Use plain US English. '
+      'If the user asks to create something (task, reminder, habit), confirm what you understood in one line. '
+      'Never mention money, budgets, bills, or finances — those features were removed from the app.';
 
   @override
   void initState() {
     super.initState();
     _engine = AssistantEngine(context.read<AppState>());
     _messages.add(_Msg(
-        'Hi! Tell me what to do — tasks, expenses, bills, reminders, shopping. Try an example below.',
+        'Hi! Tell me what to do — tasks, reminders, habits, pets, and more. Try an example below.',
         false));
   }
 
@@ -61,9 +70,12 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   Future<void> _send(String text) async {
     setState(() => _messages.add(_Msg(text, true)));
     _scrollDown();
-    final reply = await _engine.handleText(text);
+    // Advanced AI first (Gemini), local engine as fallback.
+    String? reply =
+        await GeminiService.ask(text, systemContext: _systemPrompt);
+    reply ??= await _engine.handleText(text);
     if (!mounted) return;
-    setState(() => _messages.add(_Msg(reply, false)));
+    setState(() => _messages.add(_Msg(reply!, false)));
     _scrollDown();
   }
 

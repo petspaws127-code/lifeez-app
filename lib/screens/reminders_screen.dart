@@ -14,15 +14,19 @@ import '../services/app_state.dart';
 import '../models/pet.dart';
 import '../models/reminder.dart';
 import '../services/eastern_time.dart';
+import 'pet_health_ai_screen.dart';
 
-/// Unified Reminders: 3 tabs — Reminders | Pets | Memories.
-/// Pet Reminders is PETS ONLY (feeding, vet, grooming, walk, medicine).
+/// Reminders screen: general reminders only.
+/// Pet features live in PetsScreen (petMode) — one unified Pets place.
 class RemindersScreen extends StatefulWidget {
   static const route = '/reminders';
-  const RemindersScreen({super.key, this.initialTab = 0});
+  const RemindersScreen({super.key, this.initialTab = 0, this.petMode = false});
 
-  /// 0 = Reminders, 1 = Pets, 2 = Memories
+  /// 0 = Reminders (normal) | 0 = Pets, 1 = Health, 2 = Memories (petMode)
   final int initialTab;
+
+  /// When true, shows Pets | Health | Memories tabs (used by PetsScreen).
+  final bool petMode;
 
   @override
   State<RemindersScreen> createState() => _RemindersScreenState();
@@ -46,10 +50,11 @@ class _RemindersScreenState extends State<RemindersScreen>
   @override
   void initState() {
     super.initState();
+    final len = widget.petMode ? 3 : 1;
     _tabs = TabController(
-      length: 3,
+      length: len,
       vsync: this,
-      initialIndex: widget.initialTab.clamp(0, 2),
+      initialIndex: widget.initialTab.clamp(0, len - 1),
     );
     _tabs.addListener(() {
       if (!_tabs.indexIsChanging) setState(() {});
@@ -78,39 +83,46 @@ class _RemindersScreenState extends State<RemindersScreen>
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
+    final petMode = widget.petMode;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Reminders'),
-        bottom: TabBar(
-          controller: _tabs,
-          tabs: const [
-            Tab(text: 'Reminders'),
-            Tab(text: 'Pets'),
-            Tab(text: 'Memories'),
-          ],
-        ),
+        title: Text(petMode ? 'Pets' : 'Reminders'),
+        bottom: petMode
+            ? TabBar(
+                controller: _tabs,
+                tabs: const [
+                  Tab(text: 'Pets'),
+                  Tab(text: 'Health'),
+                  Tab(text: 'Memories'),
+                ],
+              )
+            : null,
       ),
-      body: TabBarView(
-        controller: _tabs,
-        children: [
-          _generalTab(context, app),
-          _petsTab(context, app),
-          _memoriesTab(context, app),
-        ],
-      ),
+      body: petMode
+          ? TabBarView(
+              controller: _tabs,
+              children: [
+                _petsTab(context, app),
+                _healthTab(context, app),
+                _memoriesTab(context, app),
+              ],
+            )
+          : _generalTab(context, app),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          if (_tabs.index == 1) {
-            if (app.pets.isEmpty) {
-              _showEditPet(context, app, null);
+          if (petMode) {
+            if (_tabs.index == 2) {
+              if (app.pets.isEmpty) {
+                _showEditPet(context, app, null);
+              } else {
+                _showAddMemory(context, app);
+              }
             } else {
-              _showAddPetReminder(context, app);
-            }
-          } else if (_tabs.index == 2) {
-            if (app.pets.isEmpty) {
-              _showEditPet(context, app, null);
-            } else {
-              _showAddMemory(context, app);
+              if (app.pets.isEmpty) {
+                _showEditPet(context, app, null);
+              } else {
+                _showAddPetReminder(context, app);
+              }
             }
           } else {
             _showAddSheet(context);
@@ -1130,6 +1142,83 @@ class _RemindersScreenState extends State<RemindersScreen>
           ),
         ),
       ),
+    );
+  }
+
+  // ============================================================= HEALTH TAB
+  Widget _healthTab(BuildContext context, AppState app) {
+    final pet = _currentPet(app);
+    if (app.pets.isEmpty || pet == null) {
+      return _noPetState(context, app);
+    }
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+      children: [
+        const SectionHeader(title: 'Health overview'),
+        const SizedBox(height: 8),
+        Card(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A9C63).withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(Icons.favorite_rounded,
+                      color: Color(0xFF1A9C63), size: 28),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        pet.name,
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Vaccinations, vet visits & health tips in one place.',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        ElevatedButton.icon(
+          onPressed: () =>
+              Navigator.pushNamed(context, PetHealthAiScreen.route),
+          icon: const Icon(Icons.health_and_safety_outlined),
+          label: Text(
+            'Open Pet Health',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF1A9C63),
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
