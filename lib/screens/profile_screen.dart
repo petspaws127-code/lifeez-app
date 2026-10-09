@@ -518,9 +518,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: Text(title,
             style:
                 GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle,
-            style: GoogleFonts.poppins(
-                fontSize: 12.5, color: AppColors.muted)),
+
         trailing: Switch.adaptive(
           value: value,
           activeThumbColor: AppColors.deepGreen,
@@ -546,9 +544,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             style: GoogleFonts.poppins(
                 fontWeight: FontWeight.w600,
                 color: danger ? AppColors.danger : null)),
-        subtitle: Text(subtitle,
-            style: GoogleFonts.poppins(
-                fontSize: 12.5, color: AppColors.muted)),
+
         trailing: const Icon(Icons.chevron_right_rounded,
             color: AppColors.muted),
         onTap: onTap,
