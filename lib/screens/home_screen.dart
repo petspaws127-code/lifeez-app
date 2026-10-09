@@ -222,7 +222,13 @@ class HomeScreen extends StatelessWidget {
             child: Icon(icon, color: const Color(0xFF1a9c63), size: 28),
           ),
           const SizedBox(height: 8),
-          Text(label, style: GoogleFonts.poppins(fontSize: 12)),
+          Text(
+            label,
+            style: GoogleFonts.poppins(fontSize: 11),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
         ],
       ),
     );
