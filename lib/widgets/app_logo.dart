@@ -23,7 +23,7 @@ class AppLogo extends StatelessWidget {
             width: size,
             height: size,
             decoration: BoxDecoration(
-              color: const Color(0xFF4ADE80),
+              color: const Color(0xFF1A9C63),
               borderRadius: BorderRadius.circular(size * 0.28),
             ),
             alignment: Alignment.center,
