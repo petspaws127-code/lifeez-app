@@ -40,6 +40,7 @@ import 'screens/lent_borrowed_screen.dart';
 import 'screens/subscription_audit_screen.dart';
 import 'screens/cash_flow_screen.dart';
 import 'screens/budget_guard_screen.dart';
+import 'screens/bill_saver_screen.dart';
 import 'screens/privacy_policy_screen.dart';
 import 'screens/terms_screen.dart';
 import 'screens/help_faq_screen.dart';
@@ -125,6 +126,7 @@ class AiLifeAssistantApp extends StatelessWidget {
               const LentBorrowedScreen(),
           SubscriptionAuditScreen.route: (_) =>
               const SubscriptionAuditScreen(),
+          BillSaverScreen.route: (_) => const BillSaverScreen(),
           CashFlowScreen.route: (_) => const CashFlowScreen(),
           BudgetGuardScreen.route: (_) =>
               const BudgetGuardScreen(),
