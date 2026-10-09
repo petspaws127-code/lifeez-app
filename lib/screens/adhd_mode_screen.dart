@@ -69,7 +69,7 @@ class _AdhdModeScreenState extends State<AdhdModeScreen> {
         app.todayTasks.isNotEmpty ? app.todayTasks.first : null;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('ADHD Focus Mode')),
+      appBar: AppBar(title: const Text('Focus Timer')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [

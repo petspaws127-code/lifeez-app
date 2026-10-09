@@ -71,7 +71,7 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Trip Planner')),
+      appBar: AppBar(title: const Text('Trips')),
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFF1A9C63),
         onPressed: _addTrip,

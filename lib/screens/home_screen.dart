@@ -4,19 +4,16 @@ import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../services/app_state.dart';
 import 'notifications_screen.dart';
-import 'tasks_screen.dart';
+import 'ai_assistant_screen.dart';
 import 'bill_saver_screen.dart';
 import 'ai_daily_briefing_screen.dart';
 import 'weekly_review_screen.dart';
-import 'travel_weather_screen.dart';
 import 'adhd_mode_screen.dart';
 import 'trip_planner_screen.dart';
 import 'pet_health_ai_screen.dart';
-import 'location_reminders_screen.dart';
 import 'reminders_screen.dart';
 import 'bills_screen.dart';
 import 'calendar_screen.dart';
-import 'subscriptions_screen.dart';
 import 'habits_screen.dart';
 
 // Prototype 2: Timeline Feed Dashboard - LOCKED design
@@ -176,57 +173,184 @@ class HomeScreen extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (ctx) => Container(
         decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
         ),
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('What do you want to add?',
-              style: GoogleFonts.poppins(
-                fontSize: 18, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 20),
-            GridView.count(
-              shrinkWrap: true,
-              crossAxisCount: 4,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              children: [
-                _AddOption(Icons.check_circle_outline, 'Tasks',
-                  () => Navigator.pushNamed(ctx, TasksScreen.route)),
-                _AddOption(Icons.notifications_outlined, 'Reminders',
-                  () => Navigator.pushNamed(ctx, RemindersScreen.route)),
-                _AddOption(Icons.receipt_outlined, 'Bills',
-                  () => Navigator.pushNamed(ctx, BillsScreen.route)),
-                _AddOption(Icons.calendar_month_outlined, 'Calendar',
-                  () => Navigator.pushNamed(ctx, CalendarScreen.route)),
-                _AddOption(Icons.subscriptions_outlined, 'Subscriptions',
-                  () => Navigator.pushNamed(ctx, SubscriptionsScreen.route)),
-                _AddOption(Icons.local_fire_department_outlined, 'Habits',
-                  () => Navigator.pushNamed(ctx, HabitsScreen.route)),
-                _AddOption(Icons.savings_outlined, 'Bill Saver',
-                  () => Navigator.pushNamed(ctx, BillSaverScreen.route)),
-                _AddOption(Icons.wb_sunny_outlined, 'AI Briefing',
-                  () => Navigator.pushNamed(ctx, AiDailyBriefingScreen.route)),
-                _AddOption(Icons.assessment_outlined, 'Weekly Review',
-                  () => Navigator.pushNamed(ctx, WeeklyReviewScreen.route)),
-                _AddOption(Icons.cloud_outlined, 'Travel Weather',
-                  () => Navigator.pushNamed(ctx, TravelWeatherScreen.route)),
-                _AddOption(Icons.psychology_outlined, 'ADHD Mode',
-                  () => Navigator.pushNamed(ctx, AdhdModeScreen.route)),
-                _AddOption(Icons.flight_outlined, 'Trip Planner',
-                  () => Navigator.pushNamed(ctx, TripPlannerScreen.route)),
-                _AddOption(Icons.pets_outlined, 'Pet Health AI',
-                  () => Navigator.pushNamed(ctx, PetHealthAiScreen.route)),
-                _AddOption(Icons.location_on_outlined, 'Location Alerts',
-                  () => Navigator.pushNamed(ctx, LocationRemindersScreen.route)),
-              ],
-            ),
-            const SizedBox(height: 20),
-          ],
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE3E3E3),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Add New',
+                          style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 2),
+                      Text('What would you like to create?',
+                          style: GoogleFonts.poppins(
+                              fontSize: 11, color: Colors.grey)),
+                    ],
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(ctx),
+                    child: Container(
+                      width: 28,
+                      height: 28,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF3F3F3),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close,
+                          size: 16, color: Colors.grey),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Quick Add -> AI Assistant
+              GestureDetector(
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.pushNamed(ctx, AiAssistantScreen.route);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color:
+                        const Color(0xFF1a9c63).withOpacity(0.06),
+                    border: Border.all(
+                        color: const Color(0xFF1a9c63), width: 1.2),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.search,
+                          color: Color(0xFF1a9c63), size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text('Type or speak anything...',
+                            style: GoogleFonts.poppins(
+                                fontSize: 12.5,
+                                color: Colors.grey[600])),
+                      ),
+                      const Icon(Icons.mic_none,
+                          color: Color(0xFF1a9c63), size: 20),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _sheetSectionLabel('QUICK CREATE'),
+              const SizedBox(height: 10),
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 4,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 8,
+                children: [
+                  _AddOption(Icons.notifications_outlined, 'Reminders',
+                      () {
+                    Navigator.pop(ctx);
+                    Navigator.pushNamed(ctx, RemindersScreen.route);
+                  }),
+                  _AddOption(Icons.receipt_outlined, 'Bills', () {
+                    Navigator.pop(ctx);
+                    Navigator.pushNamed(ctx, BillsScreen.route);
+                  }),
+                  _AddOption(Icons.calendar_month_outlined, 'Calendar',
+                      () {
+                    Navigator.pop(ctx);
+                    Navigator.pushNamed(ctx, CalendarScreen.route);
+                  }),
+                  _AddOption(
+                      Icons.local_fire_department_outlined, 'Habits',
+                      () {
+                    Navigator.pop(ctx);
+                    Navigator.pushNamed(ctx, HabitsScreen.route);
+                  }),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _sheetSectionLabel('SMART FEATURES'),
+              const SizedBox(height: 10),
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 3,
+                mainAxisSpacing: 14,
+                crossAxisSpacing: 8,
+                childAspectRatio: 1.05,
+                children: [
+                  _AddOption(Icons.savings_outlined, 'Bill Saver', () {
+                    Navigator.pop(ctx);
+                    Navigator.pushNamed(ctx, BillSaverScreen.route);
+                  }),
+                  _AddOption(
+                      Icons.wb_sunny_outlined, 'Daily Briefing', () {
+                    Navigator.pop(ctx);
+                    Navigator.pushNamed(
+                        ctx, AiDailyBriefingScreen.route);
+                  }),
+                  _AddOption(
+                      Icons.assessment_outlined, 'Weekly Review', () {
+                    Navigator.pop(ctx);
+                    Navigator.pushNamed(ctx, WeeklyReviewScreen.route);
+                  }),
+                  _AddOption(Icons.flight_outlined, 'Trips', () {
+                    Navigator.pop(ctx);
+                    Navigator.pushNamed(ctx, TripPlannerScreen.route);
+                  }),
+                  _AddOption(Icons.timer_outlined, 'Focus Timer', () {
+                    Navigator.pop(ctx);
+                    Navigator.pushNamed(ctx, AdhdModeScreen.route);
+                  }),
+                  _AddOption(Icons.pets_outlined, 'Pets', () {
+                    Navigator.pop(ctx);
+                    Navigator.pushNamed(ctx, PetHealthAiScreen.route);
+                  }),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _sheetSectionLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 2),
+      child: Text(
+        text,
+        style: GoogleFonts.poppins(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.5,
+          color: const Color(0xFF9A9A9A),
         ),
       ),
     );

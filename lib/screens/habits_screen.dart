@@ -21,7 +21,7 @@ class HabitsScreen extends StatelessWidget {
     final done = app.habitsDoneToday;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Habit Tracker')),
+      appBar: AppBar(title: const Text('Habits')),
       body: RefreshIndicator(
         onRefresh: () => context.read<AppState>().loadAll(),
         child: ListView(

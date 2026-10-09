@@ -17,7 +17,7 @@ class PetHealthAiScreen extends StatelessWidget {
     final petReminders = app.allPetReminders.length;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Pet Health AI')),
+      appBar: AppBar(title: const Text('Pets')),
       body: RefreshIndicator(
         onRefresh: () => context.read<AppState>().loadAll(),
         child: ListView(
