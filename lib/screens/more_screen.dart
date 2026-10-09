@@ -10,6 +10,7 @@ import 'contact_support_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'terms_screen.dart';
 import 'settings_screen.dart';
+import 'bill_saver_screen.dart';
 
 class _MenuEntry {
   final String label;
@@ -32,6 +33,9 @@ class MoreScreen extends StatelessWidget {
     _MenuSection('Account', [
       _MenuEntry('My Profile', 'family', ProfileScreen.route),
       _MenuEntry('Lifeez Pro', 'pro', ProScreen.route),
+    ]),
+    _MenuSection('Money', [
+      _MenuEntry('Bill Saver', 'money', BillSaverScreen.route),
     ]),
     _MenuSection('Support', [
       _MenuEntry('Help & FAQ', 'general', HelpFaqScreen.route),
