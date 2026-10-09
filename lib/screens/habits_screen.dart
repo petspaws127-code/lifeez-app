@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../widgets/category_icon.dart';
 import '../widgets/ui_kit.dart';
 import '../services/app_state.dart';
+import '../services/smart_ai_service.dart';
 import '../models/habit.dart';
 
 /// Habit Tracker — daily habits with check-ins, streaks and weekly progress.
@@ -112,8 +113,16 @@ class HabitsScreen extends StatelessWidget {
                             _confirmDelete(context, app, h),
                       ),
                       GestureDetector(
-                        onTap: () =>
-                            app.toggleHabitToday(h.id),
+                        onTap: () {
+                          final wasDone = h.isDoneToday;
+                          app.toggleHabitToday(h.id);
+                          if (!wasDone) {
+                            context
+                                .read<SmartAiService>()
+                                .recordHabitStreak(
+                                    h.title, h.streak + 1);
+                          }
+                        },
                         child: Container(
                           width: 40,
                           height: 40,
