@@ -408,26 +408,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           _row(
             icon: 'other',
-            title: 'Check for updates',
-            subtitle: 'See if a newer version is available',
-            onTap: () async {
-              final service = UpdateService();
-              final info =
-                  await service.checkForUpdate(force: true);
-              if (!context.mounted) return;
-              if (info == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('You have the latest version.')),
-                );
-              } else {
-                UpdateService.promptIfAvailable(context, service,
-                    force: true);
-              }
-            },
-          ),
-          _row(
-            icon: 'other',
             title: 'Delete account',
             subtitle: 'Remove your account and all data',
             danger: true,
