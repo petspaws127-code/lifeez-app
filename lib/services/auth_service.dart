@@ -91,12 +91,22 @@ class AuthService extends ChangeNotifier {
   Future<void> signInWithGoogle() async {
     // Uses Supabase OAuth via system browser - no SHA-1 needed.
     // Google provider must be enabled in Supabase dashboard.
-    await SupabaseService.client.auth.signInWithOAuth(
-      OAuthProvider.google,
-    );
-    // OAuth opens browser - session established via auth state listener.
-    // Note: The actual session is established via deep link callback.
-    // For now, notify listeners - the auth state will update.
+    try {
+      await SupabaseService.client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: 'io.supabase.lifeez://login-callback/',
+        queryParams: {'prompt': 'select_account'},
+      );
+    } catch (e) {
+      final msg = e.toString().toLowerCase();
+      if (msg.contains('access blocked') || msg.contains('403')) {
+        throw AuthSetupException(
+          'Google has blocked this sign-in. The app owner needs to publish '
+          'the OAuth consent screen in Google Cloud Console, or add your '
+          'email as a test user.');
+      }
+      rethrow;
+    }
     notifyListeners();
   }
 
