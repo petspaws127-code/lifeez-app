@@ -77,11 +77,9 @@ class BillSaverScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             if (savings.isEmpty)
-              const UiKitEmptyState(
+              const EmptyState(
                 icon: Icons.savings_outlined,
-                title: 'No savings found',
-                subtitle:
-                    'Add subscriptions to find cheaper alternatives.',
+                message: 'Add subscriptions to find cheaper alternatives.',
               )
             else
               ...savings.map((s) => _SavingsCard(saving: s)),
