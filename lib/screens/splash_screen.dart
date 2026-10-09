@@ -38,6 +38,8 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _decideNext() async {
+    // Check for updates FIRST (await it!)
+    await _checkForUpdate();
     await Future.delayed(const Duration(milliseconds: 2300));
     if (!mounted) return;
     final auth = context.read<AuthService>();
