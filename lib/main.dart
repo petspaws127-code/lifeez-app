@@ -48,6 +48,7 @@ import 'screens/adhd_mode_screen.dart';
 import 'screens/trip_planner_screen.dart';
 import 'screens/pet_health_ai_screen.dart';
 import 'screens/location_reminders_screen.dart';
+import 'services/smart_ai_service.dart';
 import 'screens/privacy_policy_screen.dart';
 import 'screens/terms_screen.dart';
 import 'screens/help_faq_screen.dart';
@@ -73,6 +74,8 @@ class AiLifeAssistantApp extends StatelessWidget {
             create: (_) => AuthService()..restoreAdminSession()),
         ChangeNotifierProvider(create: (_) => AppState()),
         ChangeNotifierProvider(create: (_) => WhatsAppService()),
+        ChangeNotifierProvider(
+            create: (_) => SmartAiService()..load()),
       ],
       child: Consumer<AppState>(
         builder: (context, app, _) {
