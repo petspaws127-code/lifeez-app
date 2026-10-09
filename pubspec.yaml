@@ -30,6 +30,7 @@ dependencies:
   url_launcher: ^6.2.6
   image_picker: ^1.0.7
   http: ^1.2.0
+  app_links: ^6.1.0
   package_info_plus: ^8.0.0
   path_provider: ^2.1.4
   open_filex: ^4.3.0
@@ -51,3 +52,5 @@ flutter:
   assets:
     - assets/lifeez_logo.png
     - assets/lifeez_logo_dark.png
+    - assets/google_g.png
+    - assets/apple_logo.png

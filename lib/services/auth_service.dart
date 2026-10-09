@@ -4,6 +4,9 @@ import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:app_links/app_links.dart';
+import 'dart:async';
+import 'dart:convert';
 import 'supabase_client.dart';
 
 /// Authentication for the 4 login options: Google, WhatsApp, Apple, Facebook.
@@ -39,6 +42,82 @@ class AuthService extends ChangeNotifier {
   String get adminPlan => _adminPlan;
 
   String? get userId => SupabaseService.currentUserId ?? (_adminSignedIn ? 'admin-local' : null);
+
+  /// Deep link listener for magic-link / OAuth callbacks.
+  /// Call once at app startup.
+  StreamSubscription<Uri>? _linkSub;
+  final _appLinks = AppLinks();
+
+  /// Start listening for login callback deep links
+  /// (magic link taps, OAuth redirects).
+  Future<void> startDeepLinkListener() async {
+    try {
+      // App was closed when the link was tapped.
+      final initial = await _appLinks.getInitialLink();
+      if (initial != null) await _handleAuthCallback(initial);
+    } catch (_) {}
+    _linkSub ??= _appLinks.uriLinkStream.listen(
+      (uri) async => await _handleAuthCallback(uri),
+      onError: (_) {},
+    );
+  }
+
+  Future<void> _handleAuthCallback(Uri uri) async {
+    try {
+      final client = SupabaseService.client;
+      // 1. PKCE code exchange
+      final code = uri.queryParameters['code'];
+      if (code != null && code.isNotEmpty) {
+        await client.auth.exchangeCodeForSession(uri.toString());
+        notifyListeners();
+        return;
+      }
+      // 2. Token hash (magic link / OTP link)
+      final tokenHash = uri.queryParameters['token_hash'];
+      final typeParam = uri.queryParameters['type'];
+      if (tokenHash != null && tokenHash.isNotEmpty) {
+        OtpType type = OtpType.magiclink;
+        if (typeParam == 'signup') type = OtpType.signup;
+        if (typeParam == 'recovery') type = OtpType.recovery;
+        if (typeParam == 'email_change') type = OtpType.emailChange;
+        await client.auth.verifyOTP(tokenHash: tokenHash, type: type);
+        notifyListeners();
+        return;
+      }
+      // 3. Implicit flow: tokens in URL fragment
+      if (uri.fragment.contains('access_token')) {
+        final params = Uri.splitQueryString(uri.fragment);
+        final accessToken = params['access_token'];
+        final refreshToken = params['refresh_token'];
+        if (accessToken != null &&
+            accessToken.isNotEmpty &&
+            refreshToken != null &&
+            refreshToken.isNotEmpty) {
+          // Fetch the user with the access token, then rebuild the session.
+          final userRes = await client.auth.getUser(accessToken);
+          final user = userRes.user;
+          if (user != null) {
+            final expiresIn =
+                int.tryParse(params['expires_in'] ?? '3600') ?? 3600;
+            final sessionJson = jsonEncode({
+              'access_token': accessToken,
+              'token_type': params['token_type'] ?? 'bearer',
+              'expires_in': expiresIn,
+              'expires_at':
+                  DateTime.now().millisecondsSinceEpoch ~/ 1000 +
+                      expiresIn,
+              'refresh_token': refreshToken,
+              'user': user.toJson(),
+            });
+            await client.auth.recoverSession(sessionJson);
+            notifyListeners();
+          }
+        }
+      }
+    } catch (_) {
+      // Ignore malformed callbacks; user can still use the 6-digit code.
+    }
+  }
 
   /// Restore admin session from storage. Call at startup.
   Future<void> restoreAdminSession() async {
@@ -252,10 +331,12 @@ class AuthService extends ChangeNotifier {
   }
 
   /// Passwordless email OTP: sends a 6-digit login code (Option A login).
+  /// The email also contains a magic login link that opens the app directly.
   Future<void> sendEmailOtp(String email) async {
     try {
       await SupabaseService.client.auth.signInWithOtp(
         email: email.trim(),
+        emailRedirectTo: 'io.supabase.lifeez://login-callback/',
       );
     } catch (e) {
       throw AuthSetupException('Could not send code: ${e.toString()}');

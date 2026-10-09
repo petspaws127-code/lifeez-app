@@ -9,6 +9,7 @@ import '../services/whatsapp_service.dart';
 import 'main_tabs.dart';
 import 'otp_verify_screen.dart';
 import '../widgets/google_logo.dart';
+import '../widgets/apple_logo.dart';
 
 /// Option A passwordless login: email -> 6-digit code. No password.
 /// Social buttons (Google/Apple) below. Admin bypass kept at bottom.
@@ -299,16 +300,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ],
                       ),
-                      child: Center(
-                        child: Text(
-                          '',
-                          style: GoogleFonts.poppins(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
+                      child: const Center(
+                          child: AppleLogo(size: 28)),
                     ),
                   ),
                 ],

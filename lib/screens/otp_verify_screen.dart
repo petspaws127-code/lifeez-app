@@ -25,12 +25,25 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
   final _codeCtrl = TextEditingController();
   bool _loading = false;
   bool _resending = false;
+  bool _navigated = false;
   int _resendIn = 60;
   Timer? _timer;
+  VoidCallback? _authListener;
 
   @override
   void initState() {
     super.initState();
+    // If the user taps the magic login link in the email instead of
+    // typing the code, the deep-link handler signs them in — jump ahead.
+    _authListener = () {
+      if (!_navigated &&
+          mounted &&
+          context.read<AuthService>().isSignedIn) {
+        _navigated = true;
+        _afterSignIn();
+      }
+    };
+    context.read<AuthService>().addListener(_authListener!);
     _timer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (_resendIn > 0 && mounted) {
         setState(() => _resendIn--);
@@ -42,6 +55,9 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
 
   @override
   void dispose() {
+    if (_authListener != null) {
+      context.read<AuthService>().removeListener(_authListener!);
+    }
     _timer?.cancel();
     _codeCtrl.dispose();
     super.dispose();
@@ -154,6 +170,15 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
                   fontSize: 14,
+                  color: AppColors.muted,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Tip: you can also tap the login link in the email.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
                   color: AppColors.muted,
                 ),
               ),

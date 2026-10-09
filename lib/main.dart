@@ -67,7 +67,9 @@ class AiLifeAssistantApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(
-            create: (_) => AuthService()..restoreAdminSession()),
+            create: (_) => AuthService()
+              ..restoreAdminSession()
+              ..startDeepLinkListener()),
         ChangeNotifierProvider(create: (_) => AppState()),
         ChangeNotifierProvider(create: (_) => WhatsAppService()),
         ChangeNotifierProvider(
