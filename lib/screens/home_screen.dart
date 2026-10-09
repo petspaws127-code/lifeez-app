@@ -147,11 +147,16 @@ class HomeScreen extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () {
-              app.monthlyIncome = double.tryParse(incomeCtrl.text) ?? 0;
-              app.monthlyBudget = double.tryParse(budgetCtrl.text) ?? 0;
-              app.savingsGoal = double.tryParse(savingsCtrl.text) ?? 0;
-              Navigator.pop(ctx);
+            onPressed: () async {
+              final profile = app.profile;
+              if (profile != null) {
+                await app.saveProfile(profile.copyWith(
+                  monthlyIncome: double.tryParse(incomeCtrl.text) ?? 0,
+                  monthlyBudget: double.tryParse(budgetCtrl.text) ?? 0,
+                  savingsGoal: double.tryParse(savingsCtrl.text) ?? 0,
+                ));
+              }
+              if (ctx.mounted) Navigator.pop(ctx);
             },
             child: const Text('Save'),
           ),
