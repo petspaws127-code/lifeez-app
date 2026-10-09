@@ -421,7 +421,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               icon: Icons.logout_rounded,
               colors: const [
                 Color(0xFF6B7280),
-                Color(0xFF4B5563)
+                Color(0xFF1A9C63)
               ],
               onPressed: _signOut,
             ),
