@@ -1,94 +1,119 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../theme/app_theme.dart';
+import '../widgets/app_logo.dart';
+import '../widgets/ui_kit.dart';
+import '../services/auth_service.dart';
 import 'login_screen.dart';
-import '../theme/app_colors.dart';
+import 'main_tabs.dart';
 
-class WelcomeScreen extends StatelessWidget {
+/// Welcome/Info screen — shown once after splash for users who
+/// have not signed in yet. (Signed-in users skip this.)
+class WelcomeScreen extends StatefulWidget {
+  static const route = '/welcome';
   const WelcomeScreen({super.key});
+
+  @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // If already signed in, skip directly to Home
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final auth = context.read<AuthService>();
+      if (auth.isSignedIn) {
+        Navigator.pushReplacementNamed(context, MainTabs.route);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF8E7),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 40),
-              // Logo
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Center(
-                  child: Text(
-                    'L',
-                    style: GoogleFonts.poppins(
-                      fontSize: 48,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
+              const SizedBox(height: 64),
+              const AppLogo(size: 96),
+              const SizedBox(height: 20),
+              Text(
+                'Lifeez',
+                style: GoogleFonts.poppins(
+                  fontSize: 36,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.deepGreen,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 4),
+              Text(
+                'Life, made easy.',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  color: AppColors.muted,
+                ),
+              ),
+              const SizedBox(height: 8),
               Text(
                 'Tell it. It remembers it.',
-                textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1B5E20),
+                  fontSize: 14,
+                  fontStyle: FontStyle.italic,
+                  color: AppColors.muted,
                 ),
               ),
               const SizedBox(height: 32),
-              // 2x2 Grid
-              Expanded(
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 16,
-                  crossAxisSpacing: 16,
-                  childAspectRatio: 0.95,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: [
-                    _featureCard('Tasks', Icons.checklist_rounded),
-                    _featureCard('Pets', Icons.pets),
-                    _featureCard('Habits', Icons.autorenew_rounded),
-                    _featureCard('Budget', Icons.account_balance_wallet_rounded),
-                  ],
-                ),
+              _feature(
+                icon: Icons.check_circle_rounded,
+                title: 'Tasks',
+                desc: 'Stay on top of everything with simple to-do lists.',
+                highlight: true,
               ),
-              // Get Started button
-              SizedBox(
-                width: double.infinity,
-                height: 60,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const LoginScreen()),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: Text(
-                    'Get Started',
-                    style: GoogleFonts.poppins(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
+              _feature(
+                icon: Icons.alarm_rounded,
+                title: 'Reminders',
+                desc: 'Never miss a thing — including pet care reminders.',
+                highlight: true,
               ),
-              const SizedBox(height: 32),
+              _feature(
+                icon: Icons.event_rounded,
+                title: 'Events',
+                desc: 'Birthdays, appointments, and bills on one calendar.',
+                highlight: true,
+              ),
+              _feature(
+                icon: Icons.account_balance_wallet_rounded,
+                title: 'Budget & Savings',
+                desc: 'Track spending and grow your savings.',
+              ),
+              _feature(
+                icon: Icons.repeat_rounded,
+                title: 'Habits',
+                desc: 'Build streaks one day at a time.',
+              ),
+              _feature(
+                icon: Icons.bolt_rounded,
+                title: 'Quick Commands',
+                desc: 'Type or speak — Lifeez understands and saves it.',
+              ),
+              const SizedBox(height: 16),
+              GradientButton(
+                label: 'Get Started',
+                icon: Icons.arrow_forward_rounded,
+                onPressed: () => Navigator.pushReplacementNamed(
+                  context,
+                  LoginScreen.route,
+                ),
+                colors: const [AppColors.deepGreen, AppColors.greenMid],
+              ),
+              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -96,38 +121,54 @@ class WelcomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _featureCard(String label, IconData icon) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+  Widget _feature({
+    required IconData icon,
+    required String title,
+    required String desc,
+    bool highlight = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 72,
-            height: 72,
+            width: highlight ? 52 : 44,
+            height: highlight ? 52 : 44,
             decoration: BoxDecoration(
-              color: const Color(0xFFC8E6C9),
-              shape: BoxShape.circle,
+              color: highlight
+                  ? AppColors.greenSoft
+                  : AppColors.greenMid.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(highlight ? 16 : 14),
             ),
-            child: Icon(icon, size: 36, color: AppColors.primary),
+            child: Icon(
+              icon,
+              color: AppColors.deepGreen,
+              size: highlight ? 28 : 24,
+            ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            label,
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-              color: const Color(0xFF333333),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: highlight ? 17 : 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.ink,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  desc,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    color: AppColors.muted,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
