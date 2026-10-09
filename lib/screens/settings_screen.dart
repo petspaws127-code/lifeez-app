@@ -334,10 +334,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          Center(
-            child: Text('Lifeez v1.0.0',
-                style: GoogleFonts.poppins(
-                    fontSize: 12, color: AppColors.muted)),
+          FutureBuilder<PackageInfo>(
+            future: PackageInfo.fromPlatform(),
+            builder: (context, snapshot) {
+              final version = snapshot.data?.version ?? '...';
+              return Center(
+                child: Text('Lifeez v$version',
+                    style: GoogleFonts.poppins(
+                        fontSize: 12, color: AppColors.muted)),
+              );
+            },
           ),
         ],
       ),
