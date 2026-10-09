@@ -22,13 +22,6 @@ class HomeScreen extends StatelessWidget {
     final name = app.profile?.name ?? 'there';
     final budgetLeft = app.leftToSpend;
     
-    // Show setup popup if budget not configured (Task 5)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (app.monthlyBudget <= 0 && context.mounted) {
-        _showSetupPopup(context, app);
-      }
-    });
-    
     // Build timeline items from all activities
     final items = _buildTimeline(app);
     
@@ -121,46 +114,6 @@ class HomeScreen extends StatelessWidget {
         onPressed: () => _showAddSheet(context),
         backgroundColor: const Color(0xFF1a9c63),
         child: const Icon(Icons.add, color: Colors.white, size: 28),
-      ),
-    );
-  }
-
-  void _showSetupPopup(BuildContext context, AppState app) {
-    final incomeCtrl = TextEditingController();
-    final budgetCtrl = TextEditingController();
-    final savingsCtrl = TextEditingController();
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Setup your budget'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: incomeCtrl, keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Monthly Income (\$)')),
-            TextField(controller: budgetCtrl, keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Monthly Budget (\$)')),
-            TextField(controller: savingsCtrl, keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Savings Goal (\$)')),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              final profile = app.profile;
-              if (profile != null) {
-                await app.saveProfile(profile.copyWith(
-                  monthlyIncome: double.tryParse(incomeCtrl.text) ?? 0,
-                  monthlyBudget: double.tryParse(budgetCtrl.text) ?? 0,
-                  savingsGoal: double.tryParse(savingsCtrl.text) ?? 0,
-                ));
-              }
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Save'),
-          ),
-        ],
       ),
     );
   }
