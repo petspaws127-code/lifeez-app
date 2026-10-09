@@ -5,6 +5,14 @@ import '../theme/app_theme.dart';
 import '../services/app_state.dart';
 import 'notifications_screen.dart';
 import 'tasks_screen.dart';
+import 'bill_saver_screen.dart';
+import 'ai_daily_briefing_screen.dart';
+import 'weekly_review_screen.dart';
+import 'travel_weather_screen.dart';
+import 'adhd_mode_screen.dart';
+import 'trip_planner_screen.dart';
+import 'pet_health_ai_screen.dart';
+import 'location_reminders_screen.dart';
 import 'reminders_screen.dart';
 import 'bills_screen.dart';
 import 'calendar_screen.dart';
@@ -199,6 +207,22 @@ class HomeScreen extends StatelessWidget {
                   () => Navigator.pushNamed(ctx, SubscriptionsScreen.route)),
                 _AddOption(Icons.local_fire_department_outlined, 'Habits',
                   () => Navigator.pushNamed(ctx, HabitsScreen.route)),
+                _AddOption(Icons.savings_outlined, 'Bill Saver',
+                  () => Navigator.pushNamed(ctx, BillSaverScreen.route)),
+                _AddOption(Icons.wb_sunny_outlined, 'AI Briefing',
+                  () => Navigator.pushNamed(ctx, AiDailyBriefingScreen.route)),
+                _AddOption(Icons.assessment_outlined, 'Weekly Review',
+                  () => Navigator.pushNamed(ctx, WeeklyReviewScreen.route)),
+                _AddOption(Icons.cloud_outlined, 'Travel Weather',
+                  () => Navigator.pushNamed(ctx, TravelWeatherScreen.route)),
+                _AddOption(Icons.psychology_outlined, 'ADHD Mode',
+                  () => Navigator.pushNamed(ctx, AdhdModeScreen.route)),
+                _AddOption(Icons.flight_outlined, 'Trip Planner',
+                  () => Navigator.pushNamed(ctx, TripPlannerScreen.route)),
+                _AddOption(Icons.pets_outlined, 'Pet Health AI',
+                  () => Navigator.pushNamed(ctx, PetHealthAiScreen.route)),
+                _AddOption(Icons.location_on_outlined, 'Location Alerts',
+                  () => Navigator.pushNamed(ctx, LocationRemindersScreen.route)),
               ],
             ),
             const SizedBox(height: 20),
