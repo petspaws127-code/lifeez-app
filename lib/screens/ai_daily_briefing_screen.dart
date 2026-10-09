@@ -5,6 +5,7 @@ import '../theme/app_theme.dart';
 import '../widgets/category_icon.dart';
 import '../widgets/ui_kit.dart';
 import '../services/app_state.dart';
+import '../services/smart_ai_service.dart';
 
 /// AI Daily Briefing: today's summary at a glance.
 class AiDailyBriefingScreen extends StatelessWidget {
@@ -34,6 +35,7 @@ class AiDailyBriefingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
+    final ai = context.watch<SmartAiService>();
     final tasksDue = app.todayTasks.length;
     final reminders = app.activeReminders.length;
     final bills = app.unpaidBills.length;
@@ -60,7 +62,7 @@ class AiDailyBriefingScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${_greeting()}! Here is your day.',
+                    '${ai.getPersonalizedGreeting()}! Here is your day.',
                     style: GoogleFonts.poppins(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
@@ -96,6 +98,13 @@ class AiDailyBriefingScreen extends StatelessWidget {
               label: 'Unpaid bills',
               value: '$bills',
             ),
+            if (ai.getSmartSuggestions().isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const SectionHeader(title: 'AI Insights'),
+              ...ai
+                  .getSmartSuggestions()
+                  .map((s) => _InsightCard(text: s)),
+            ],
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(16),
@@ -122,6 +131,37 @@ class AiDailyBriefingScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _InsightCard extends StatelessWidget {
+  final String text;
+  const _InsightCard({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A9C63).withOpacity(0.08),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.auto_awesome_outlined,
+              color: Color(0xFF1A9C63), size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: GoogleFonts.poppins(fontSize: 13.5),
+            ),
+          ),
+        ],
       ),
     );
   }
