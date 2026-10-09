@@ -67,13 +67,7 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [AppColors.ivory, AppColors.ivoryDeep],
-          ),
-        ),
+        color: Colors.white,
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -101,7 +95,7 @@ class _SplashScreenState extends State<SplashScreen>
               FadeTransition(
                 opacity: _fade,
                 child: Text(
-                  'Tell it. It remembers it.',
+                  'Life, made easy.',
                   style: GoogleFonts.poppins(
                     fontSize: 15,
                     color: AppColors.muted,
