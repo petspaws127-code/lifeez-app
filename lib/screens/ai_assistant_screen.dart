@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import '../theme/app_theme.dart';
 import '../widgets/ai_input_bar.dart';
 import '../services/app_state.dart';
@@ -26,6 +27,9 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   final List<_Msg> _messages = [];
   final _scroll = ScrollController();
   late final AssistantEngine _engine;
+  final _tts = FlutterTts();
+  bool _speakReplies = false;
+  bool _speaking = false;
 
   static const _examples = [
     'Add task buy milk tomorrow 5pm',
@@ -49,12 +53,38 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     _messages.add(_Msg(
         'Hi! Tell me what to do — tasks, reminders, habits, pets, and more. Try an example below.',
         false));
+    _tts.setCompletionHandler(() {
+      if (mounted) setState(() => _speaking = false);
+    });
   }
 
   @override
   void dispose() {
     _scroll.dispose();
+    _tts.stop();
     super.dispose();
+  }
+
+  Future<void> _speak(String text) async {
+    try {
+      await _tts.stop();
+      await _tts.setLanguage('en-US');
+      await _tts.setSpeechRate(0.95);
+      if (mounted) setState(() => _speaking = true);
+      await _tts.speak(text);
+    } catch (_) {
+      if (mounted) setState(() => _speaking = false);
+    }
+  }
+
+  Future<void> _toggleSpeak() async {
+    if (_speaking) {
+      await _tts.stop();
+      if (mounted) setState(() => _speaking = false);
+      return;
+    }
+    setState(() => _speakReplies = !_speakReplies);
+    if (!_speakReplies) await _tts.stop();
   }
 
   void _scrollDown() {
@@ -77,12 +107,31 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     if (!mounted) return;
     setState(() => _messages.add(_Msg(reply!, false)));
     _scrollDown();
+    if (_speakReplies) _speak(reply!);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('AI Assistant')),
+      appBar: AppBar(
+        title: const Text('AI Assistant'),
+        actions: [
+          IconButton(
+            icon: Icon(
+              _speakReplies
+                  ? Icons.volume_up_rounded
+                  : Icons.volume_off_outlined,
+              color: _speakReplies
+                  ? const Color(0xFF1A9C63)
+                  : Colors.grey,
+            ),
+            tooltip: _speakReplies
+                ? 'Voice replies on — tap to mute'
+                : 'Tap for voice replies',
+            onPressed: _toggleSpeak,
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(

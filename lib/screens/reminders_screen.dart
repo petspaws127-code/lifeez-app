@@ -366,8 +366,6 @@ class _RemindersScreenState extends State<RemindersScreen>
                       const SizedBox(height: 8),
                       _petProfileCard(context, app),
                       const SizedBox(height: 10),
-                      _vaccinesCard(context, app),
-                      const SizedBox(height: 10),
                       _lostPetCard(context, app),
                     ],
                   ),
@@ -1154,6 +1152,10 @@ class _RemindersScreenState extends State<RemindersScreen>
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
       children: [
+        const SectionHeader(title: 'Vaccinations'),
+        const SizedBox(height: 8),
+        _vaccinesCard(context, app),
+        const SizedBox(height: 16),
         const SectionHeader(title: 'Health overview'),
         const SizedBox(height: 8),
         Card(

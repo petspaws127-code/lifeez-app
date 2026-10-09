@@ -14,6 +14,7 @@ import '../models/bill.dart';
 import '../models/subscription.dart';
 import '../models/shopping_item.dart';
 import '../models/reminder.dart';
+import '../models/alarm.dart';
 import '../models/document_item.dart';
 import '../models/vehicle.dart';
 import '../models/maintenance_item.dart';
@@ -39,6 +40,7 @@ class AppState extends ChangeNotifier {
   List<Subscription> subscriptions = [];
   List<ShoppingItem> shoppingItems = [];
   List<Reminder> reminders = [];
+  List<Alarm> alarms = [];
   List<DocumentItem> documents = [];
   List<Vehicle> vehicles = [];
   List<MaintenanceItem> maintenanceItems = [];
@@ -93,6 +95,7 @@ class AppState extends ChangeNotifier {
         'subscriptions': subscriptions.map((e) => e.toJson()).toList(),
         'shoppingItems': shoppingItems.map((e) => e.toJson()).toList(),
         'reminders': reminders.map((e) => e.toJson()).toList(),
+        'alarms': alarms.map((e) => e.toJson()).toList(),
         'documents': documents.map((e) => e.toJson()).toList(),
         'vehicles': vehicles.map((e) => e.toJson()).toList(),
         'maintenanceItems':
@@ -138,6 +141,7 @@ class AppState extends ChangeNotifier {
           .toList();
       reminders =
           list(data['reminders']).map(Reminder.fromJson).toList();
+      alarms = list(data['alarms']).map(Alarm.fromJson).toList();
       documents =
           list(data['documents']).map(DocumentItem.fromJson).toList();
       vehicles =
@@ -524,6 +528,56 @@ class AppState extends ChangeNotifier {
     await NotificationService.instance.cancel(
       NotificationService.idFor('reminder_$id'),
     );
+  }
+
+  // --------------------------------------------------------------- alarms
+  /// Alarms are device-local (system notifications), stored locally only.
+  Future<void> addAlarm(Alarm a) async {
+    alarms.add(a);
+    notifyListeners();
+    await _saveLocal();
+    await _scheduleAlarm(a);
+  }
+
+  Future<void> _scheduleAlarm(Alarm a) async {
+    if (!a.enabled) return;
+    await NotificationService.instance.schedule(
+      id: NotificationService.idFor('alarm_${a.id}'),
+      title: 'Alarm',
+      body: a.label,
+      when: a.nextFire(),
+    );
+  }
+
+  Future<void> toggleAlarm(String id) async {
+    final i = alarms.indexWhere((e) => e.id == id);
+    if (i == -1) return;
+    alarms[i] = alarms[i].copyWith(enabled: !alarms[i].enabled);
+    notifyListeners();
+    await _saveLocal();
+    if (alarms[i].enabled) {
+      await _scheduleAlarm(alarms[i]);
+    } else {
+      await NotificationService.instance.cancel(
+        NotificationService.idFor('alarm_$id'),
+      );
+    }
+  }
+
+  Future<void> deleteAlarm(String id) async {
+    alarms.removeWhere((e) => e.id == id);
+    notifyListeners();
+    await _saveLocal();
+    await NotificationService.instance.cancel(
+      NotificationService.idFor('alarm_$id'),
+    );
+  }
+
+  /// Re-schedule all enabled alarms (call on app start).
+  Future<void> rescheduleAlarms() async {
+    for (final a in alarms) {
+      await _scheduleAlarm(a);
+    }
   }
 
   // ----------------------------------------------------------- documents
@@ -1287,7 +1341,8 @@ class AppState extends ChangeNotifier {
             '"done with grocery run".';
 
       case CommandIntent.unknown:
-        return 'I did not quite get that. Try "help" to see what I understand.';
+        return 'Got it! I\'m best at tasks, reminders, alarms, habits, pets, and trips. '
+            'Try "help" to see examples, or tell me what you\'d like to organize.';
     }
   }
 

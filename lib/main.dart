@@ -18,6 +18,7 @@ import 'screens/tasks_screen.dart';
 import 'screens/calendar_screen.dart';
 import 'screens/more_screen.dart';
 import 'screens/reminders_screen.dart';
+import 'screens/alarm_screen.dart';
 import 'screens/shopping_screen.dart';
 import 'screens/documents_screen.dart';
 import 'screens/car_screen.dart';
@@ -107,6 +108,7 @@ class AiLifeAssistantApp extends StatelessWidget {
           MoreScreen.route: (_) => const MoreScreen(),
           RemindersScreen.route: (_) =>
               const RemindersScreen(),
+          AlarmScreen.route: (_) => const AlarmScreen(),
           ShoppingScreen.route: (_) =>
               const ShoppingScreen(),
           DocumentsScreen.route: (_) =>

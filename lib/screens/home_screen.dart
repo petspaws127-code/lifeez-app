@@ -10,7 +10,7 @@ import 'weekly_review_screen.dart';
 import 'adhd_mode_screen.dart';
 import 'trip_planner_screen.dart';
 import 'pets_screen.dart';
-import 'reminders_screen.dart';
+import 'alarm_screen.dart';
 import 'calendar_screen.dart';
 import 'habits_screen.dart';
 
@@ -238,11 +238,6 @@ class HomeScreen extends StatelessWidget {
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 8,
                 children: [
-                  _AddOption(Icons.notifications_outlined, 'Reminders',
-                      () {
-                    Navigator.pop(ctx);
-                    Navigator.pushNamed(ctx, RemindersScreen.route);
-                  }),
                   _AddOption(Icons.calendar_month_outlined, 'Calendar',
                       () {
                     Navigator.pop(ctx);
@@ -253,6 +248,10 @@ class HomeScreen extends StatelessWidget {
                       () {
                     Navigator.pop(ctx);
                     Navigator.pushNamed(ctx, HabitsScreen.route);
+                  }),
+                  _AddOption(Icons.alarm_outlined, 'Alarm', () {
+                    Navigator.pop(ctx);
+                    Navigator.pushNamed(ctx, AlarmScreen.route);
                   }),
                 ],
               ),
