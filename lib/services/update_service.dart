@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
@@ -179,19 +180,18 @@ class _UpdateDialogState extends State<_UpdateDialog> {
   bool _failed = false;
 
   Future<void> _start() async {
-    setState(() {
-      _progress = 0;
-      _failed = false;
-    });
-    final ok = await widget.service.downloadAndInstall(
-      widget.info,
-      (p) => mounted ? setState(() => _progress = p) : null,
-    );
-    if (!ok && mounted) {
-      setState(() {
-        _failed = true;
-        _progress = -1;
-      });
+    // Open download URL in browser (reliable, no in-app download issues)
+    try {
+      final uri = Uri.parse(widget.info.apkUrl);
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (mounted) Navigator.pop(context);
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _failed = true;
+          _progress = -1;
+        });
+      }
     }
   }
 
