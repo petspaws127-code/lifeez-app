@@ -6,12 +6,12 @@ import '../widgets/app_logo.dart';
 import '../services/auth_service.dart';
 import '../services/app_state.dart';
 import '../services/whatsapp_service.dart';
-import '../services/supabase_client.dart';
-import 'onboarding_screen.dart';
 import 'main_tabs.dart';
+import 'otp_verify_screen.dart';
 import '../widgets/google_logo.dart';
 
-/// Clean login screen: Google + Email only.
+/// Option A passwordless login: email -> 6-digit code. No password.
+/// Social buttons (Google/Apple) below. Admin bypass kept at bottom.
 class LoginScreen extends StatefulWidget {
   static const route = '/login';
   const LoginScreen({super.key});
@@ -22,15 +22,12 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _emailCtrl = TextEditingController();
-  final _passCtrl = TextEditingController();
-  bool _isSignup = false;
-  bool _obscurePass = true;
   bool _loading = false;
+  bool _socialLoading = false;
 
   @override
   void dispose() {
     _emailCtrl.dispose();
-    _passCtrl.dispose();
     super.dispose();
   }
 
@@ -55,36 +52,30 @@ class _LoginScreenState extends State<LoginScreen> {
           children: [
             const Icon(Icons.info_outline, color: Colors.white, size: 20),
             const SizedBox(width: 10),
-            Expanded(child: Text(msg, style: const TextStyle(color: Colors.white))),
+            Expanded(
+                child: Text(msg,
+                    style: const TextStyle(color: Colors.white))),
           ],
         ),
         backgroundColor: const Color(0xFF1A9C63),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
         duration: const Duration(seconds: 4),
       ),
     );
   }
 
-  /// Maps technical auth errors to friendly user messages.
   String _friendlyError(String raw) {
     final lower = raw.toLowerCase();
-    if (lower.contains('invalid login credentials') || lower.contains('invalid_credentials')) {
-      return _isSignup
-          ? 'Something went wrong. Please try again.'
-          : 'Incorrect email or password. Please try again.';
-    }
-    if (lower.contains('user already registered') || lower.contains('already registered') || lower.contains('email already')) {
-      return 'This email is already registered. Try logging in instead!';
-    }
-    if (lower.contains('password') && (lower.contains('weak') || lower.contains('short') || lower.contains('6 characters'))) {
-      return 'Password must be at least 6 characters long.';
-    }
-    if (lower.contains('email') && lower.contains('invalid')) {
+    if (lower.contains('invalid') && lower.contains('email')) {
       return 'Please enter a valid email address.';
     }
-    if (lower.contains('network') || lower.contains('connection') || lower.contains('timeout') || lower.contains('socket')) {
+    if (lower.contains('network') ||
+        lower.contains('connection') ||
+        lower.contains('timeout') ||
+        lower.contains('socket')) {
       return 'Connection issue. Please check your internet and try again.';
     }
     if (lower.contains('too many') || lower.contains('rate limit')) {
@@ -94,96 +85,33 @@ class _LoginScreenState extends State<LoginScreen> {
       return 'Sign-in was cancelled.';
     }
     if (lower.contains('not configured') || lower.contains('setup')) {
-      return 'Google sign-in is being set up. Please use email for now.';
+      return 'This sign-in method is being set up. Try email code for now.';
     }
-    // Fallback: clean up the raw message
-    var clean = raw.replaceAll(RegExp(r'exception:?\s*', caseSensitive: false), '').trim();
+    var clean =
+        raw.replaceAll(RegExp(r'exception:?\s*', caseSensitive: false), '').trim();
     if (clean.length > 120) clean = '${clean.substring(0, 117)}...';
     return clean.isEmpty ? 'Something went wrong. Please try again.' : clean;
   }
-  /// Password strength 0-4 (for signup mode)
-  int _passwordStrength(String password) {
-    int score = 0;
-    if (password.length >= 6) score++;
-    if (password.length >= 8) score++;
-    if (RegExp(r'[A-Z]').hasMatch(password) && RegExp(r'[a-z]').hasMatch(password)) score++;
-    if (RegExp(r'[0-9]').hasMatch(password) || RegExp(r'[^A-Za-z0-9]').hasMatch(password)) score++;
-    return score.clamp(0, 4);
-  }
 
-  Color _strengthColor(int score) {
-    switch (score) {
-      case 0:
-      case 1:
-        return Colors.red.shade400;
-      case 2:
-        return Colors.orange.shade400;
-      case 3:
-        return Colors.lightGreen;
-      case 4:
-        return Colors.green;
-      default:
-        return Colors.grey;
-    }
-  }
+  bool _validEmail(String e) =>
+      e.isNotEmpty && RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(e);
 
-  String _strengthLabel(int score) {
-    switch (score) {
-      case 0:
-      case 1:
-        return 'Weak';
-      case 2:
-        return 'Fair';
-      case 3:
-        return 'Good';
-      case 4:
-        return 'Strong';
-      default:
-        return '';
-    }
-  }
-
-
-  Future<void> _handleGoogle() async {
-    setState(() => _loading = true);
-    try {
-      await context.read<AuthService>().signInWithGoogle();
-      if (mounted) await _afterSignIn();
-    } catch (e) {
-      _showError('Google sign-in needs setup. Please use Email for now.');
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _handleEmail() async {
+  Future<void> _handleContinue() async {
     final email = _emailCtrl.text.trim();
-    final pass = _passCtrl.text;
-    if (email.isEmpty || !email.contains('@')) {
+    if (!_validEmail(email)) {
       _showError('Enter a valid email address');
       return;
     }
-    if (pass.length < 6) {
-      _showError('Password must be at least 6 characters');
-      return;
-    }
     setState(() => _loading = true);
     try {
-      final auth = context.read<AuthService>();
-      if (_isSignup) {
-        await auth.signUpWithEmail(email, pass);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Account created! Check email to confirm, then log in.'),
-            ),
-          );
-          setState(() => _isSignup = false);
-        }
-      } else {
-        await auth.signInWithEmail(email, pass);
-        if (mounted) await _afterSignIn();
-      }
+      await context.read<AuthService>().sendEmailOtp(email);
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OtpVerifyScreen(email: email),
+        ),
+      );
     } catch (e) {
       _showError(e.toString().replaceFirst('Exception: ', ''));
     } finally {
@@ -191,144 +119,105 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _handleForgot() async {
-    final email = _emailCtrl.text.trim();
-    if (email.isEmpty || !email.contains('@')) {
-      _showError('Enter your email first');
-      return;
-    }
+  Future<void> _handleGoogle() async {
+    setState(() => _socialLoading = true);
     try {
-      await SupabaseService.client.auth.resetPasswordForEmail(email);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password reset email sent!')),
-        );
-      }
+      await context.read<AuthService>().signInWithGoogle();
+      if (mounted) await _afterSignIn();
     } catch (e) {
-      _showError('Could not send reset email');
+      _showError('Google sign-in is being set up. Try email code for now.');
+    } finally {
+      if (mounted) setState(() => _socialLoading = false);
+    }
+  }
+
+  Future<void> _handleApple() async {
+    setState(() => _socialLoading = true);
+    try {
+      await context.read<AuthService>().signInWithApple();
+      if (mounted) await _afterSignIn();
+    } catch (e) {
+      _showError('Apple sign-in is being set up. Try email code for now.');
+    } finally {
+      if (mounted) setState(() => _socialLoading = false);
+    }
+  }
+
+  Future<void> _handleAdmin() async {
+    try {
+      await context.read<AuthService>().signInAsAdmin();
+      if (mounted) await _afterSignIn();
+    } catch (e) {
+      _showError(e.toString());
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = AppTheme.isDark;
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
               const Center(child: AppLogo(size: 88)),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               Text(
-                _isSignup ? 'Create account' : 'Welcome back!',
+                'Lifeez',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
-                  fontSize: 26,
+                  fontSize: 24,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 24),
               Text(
-                _isSignup
-                    ? 'Sign up to get started with Lifeez'
-                    : 'Log in to continue to Lifeez',
+                'Welcome back',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Enter your email to continue',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   color: AppColors.muted,
                 ),
               ),
-              const SizedBox(height: 32),
-              // Google button
-              ElevatedButton.icon(
-                onPressed: _loading ? null : _handleGoogle,
-                icon: const GoogleLogo(size: 24),
-                label: Text(
-                  'Continue with Google',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  const Expanded(child: Divider()),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      'or',
-                      style: GoogleFonts.poppins(color: AppColors.muted),
-                    ),
-                  ),
-                  const Expanded(child: Divider()),
-                ],
-              ),
-              const SizedBox(height: 20),
-              // Email field
+              const SizedBox(height: 24),
               TextField(
                 controller: _emailCtrl,
                 keyboardType: TextInputType.emailAddress,
                 autocorrect: false,
+                textInputAction: TextInputAction.done,
                 decoration: InputDecoration(
-                  labelText: 'Email',
-                  hintText: 'you@example.com',
+                  hintText: 'Email address',
                   prefixIcon: const Icon(Icons.email_outlined),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              // Password field
-              TextField(
-                controller: _passCtrl,
-                obscureText: _obscurePass,
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePass
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                    ),
-                    onPressed: () =>
-                        setState(() => _obscurePass = !_obscurePass),
-                  ),
-                  border: OutlineInputBorder(
+                  focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
+                    borderSide: const BorderSide(
+                      color: Color(0xFF1A9C63),
+                      width: 2,
+                    ),
                   ),
                 ),
-                onSubmitted: (_) => _handleEmail(),
+                onSubmitted: (_) => _handleContinue(),
               ),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: _loading ? null : _handleForgot,
-                  child: Text(
-                    'Forgot password?',
-                    style: GoogleFonts.poppins(fontSize: 13),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Login/Signup button
+              const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: _loading ? null : _handleEmail,
+                onPressed: _loading ? null : _handleContinue,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.deepGreen,
+                  backgroundColor: const Color(0xFF1A9C63),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
@@ -345,47 +234,106 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       )
                     : Text(
-                        _isSignup ? 'Sign Up' : 'Log In',
+                        'Continue',
                         style: GoogleFonts.poppins(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
               ),
-              const SizedBox(height: 16),
-              // Toggle signup/login
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  const Expanded(child: Divider()),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      'or',
+                      style: GoogleFonts.poppins(color: AppColors.muted),
+                    ),
+                  ),
+                  const Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    _isSignup
-                        ? 'Already have an account? '
-                        : "Don't have an account? ",
-                    style: GoogleFonts.poppins(
-                      fontSize: 14,
-                      color: AppColors.muted,
+                  // Google
+                  GestureDetector(
+                    onTap: _socialLoading ? null : _handleGoogle,
+                    child: Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border:
+                            Border.all(color: Colors.grey.shade300),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.04),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Center(child: GoogleLogo(size: 28)),
                     ),
                   ),
+                  const SizedBox(width: 20),
+                  // Apple
                   GestureDetector(
-                    onTap: () => setState(() => _isSignup = !_isSignup),
-                    child: Text(
-                      _isSignup ? 'Log in' : 'Sign up',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.deepGreen,
+                    onTap: _socialLoading ? null : _handleApple,
+                    child: Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text(
+                          '',
+                          style: GoogleFonts.poppins(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
               Text(
-                'By continuing you agree to the Terms and Privacy Policy.',
+                "We'll email you a login code.\nNo password needed.",
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
                   fontSize: 12,
                   color: AppColors.muted,
+                ),
+              ),
+              const SizedBox(height: 40),
+              // Temporary admin bypass - keep until real auth is verified
+              Center(
+                child: TextButton(
+                  onPressed: _handleAdmin,
+                  child: Text(
+                    'Admin — Enter Directly',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: Colors.grey.shade400,
+                    ),
+                  ),
                 ),
               ),
             ],

@@ -15,12 +15,9 @@ import 'screens/main_tabs.dart';
 import 'screens/whatsapp_chat_screen.dart';
 import 'screens/ai_assistant_screen.dart';
 import 'screens/tasks_screen.dart';
-import 'screens/money_screen.dart';
 import 'screens/calendar_screen.dart';
 import 'screens/more_screen.dart';
 import 'screens/reminders_screen.dart';
-import 'screens/bills_screen.dart';
-import 'screens/subscriptions_screen.dart';
 import 'screens/shopping_screen.dart';
 import 'screens/documents_screen.dart';
 import 'screens/car_screen.dart';
@@ -40,7 +37,6 @@ import 'screens/lent_borrowed_screen.dart';
 import 'screens/subscription_audit_screen.dart';
 import 'screens/cash_flow_screen.dart';
 import 'screens/budget_guard_screen.dart';
-import 'screens/bill_saver_screen.dart';
 import 'screens/ai_daily_briefing_screen.dart';
 import 'screens/weekly_review_screen.dart';
 import 'screens/travel_weather_screen.dart';
@@ -105,14 +101,10 @@ class AiLifeAssistantApp extends StatelessWidget {
           AiAssistantScreen.route: (_) =>
               const AiAssistantScreen(),
           TasksScreen.route: (_) => const TasksScreen(),
-          MoneyScreen.route: (_) => const MoneyScreen(),
           CalendarScreen.route: (_) => const CalendarScreen(),
           MoreScreen.route: (_) => const MoreScreen(),
           RemindersScreen.route: (_) =>
               const RemindersScreen(),
-          BillsScreen.route: (_) => const BillsScreen(),
-          SubscriptionsScreen.route: (_) =>
-              const SubscriptionsScreen(),
           ShoppingScreen.route: (_) =>
               const ShoppingScreen(),
           DocumentsScreen.route: (_) =>
@@ -136,7 +128,6 @@ class AiLifeAssistantApp extends StatelessWidget {
               const LentBorrowedScreen(),
           SubscriptionAuditScreen.route: (_) =>
               const SubscriptionAuditScreen(),
-          BillSaverScreen.route: (_) => const BillSaverScreen(),
           AiDailyBriefingScreen.route: (_) =>
               const AiDailyBriefingScreen(),
           WeeklyReviewScreen.route: (_) => const WeeklyReviewScreen(),

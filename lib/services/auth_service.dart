@@ -251,6 +251,35 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  /// Passwordless email OTP: sends a 6-digit login code (Option A login).
+  Future<void> sendEmailOtp(String email) async {
+    try {
+      await SupabaseService.client.auth.signInWithOtp(
+        email: email.trim(),
+      );
+    } catch (e) {
+      throw AuthSetupException('Could not send code: ${e.toString()}');
+    }
+  }
+
+  /// Verifies the 6-digit email OTP code.
+  Future<void> verifyEmailOtp(String email, String token) async {
+    try {
+      final res = await SupabaseService.client.auth.verifyOTP(
+        email: email.trim(),
+        token: token.trim(),
+        type: OtpType.email,
+      );
+      if (res.session == null) {
+        throw AuthSetupException('Invalid or expired code.');
+      }
+      notifyListeners();
+    } catch (e) {
+      if (e is AuthSetupException) rethrow;
+      throw AuthSetupException('Verification failed: ${e.toString()}');
+    }
+  }
+
   // ----------------------------------------------------------------- Misc
   Future<void> signOut() async {
     try {

@@ -5,14 +5,12 @@ import '../theme/app_theme.dart';
 import '../services/app_state.dart';
 import 'notifications_screen.dart';
 import 'ai_assistant_screen.dart';
-import 'bill_saver_screen.dart';
 import 'ai_daily_briefing_screen.dart';
 import 'weekly_review_screen.dart';
 import 'adhd_mode_screen.dart';
 import 'trip_planner_screen.dart';
 import 'pet_health_ai_screen.dart';
 import 'reminders_screen.dart';
-import 'bills_screen.dart';
 import 'calendar_screen.dart';
 import 'habits_screen.dart';
 
@@ -25,7 +23,6 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
     final name = app.profile?.name ?? 'there';
-    final budgetLeft = app.leftToSpend;
     
     // Build timeline items from all activities
     final items = _buildTimeline(app);
@@ -35,46 +32,26 @@ class HomeScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // Thin budget bar (1 line)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: const Color(0xFF1a9c63).withOpacity(0.1),
-              child: Row(
-                children: [
-                  const Icon(Icons.account_balance_wallet, 
-                    size: 16, color: Color(0xFF1a9c63)),
-                  const SizedBox(width: 8),
-                  Text(
-                    '\$${budgetLeft.toStringAsFixed(0)} left this month',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF1a9c63),
-                    ),
-                  ),
-                  const Spacer(),
-                  GestureDetector(
-                    onTap: () => Navigator.pushNamed(
-                      context, NotificationsScreen.route),
-                    child: const Icon(Icons.notifications_outlined,
-                      size: 20, color: Color(0xFF1a9c63)),
-                  ),
-                ],
-              ),
-            ),
             // Greeting
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Row(
                 children: [
-                  Text(
-                    'Hi $name 👋',
-                    style: GoogleFonts.poppins(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+                  Expanded(
+                    child: Text(
+                      'Hi $name 👋',
+                      style: GoogleFonts.poppins(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
                     ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.pushNamed(
+                        context, NotificationsScreen.route),
+                    child: const Icon(Icons.notifications_outlined,
+                        size: 22, color: Color(0xFF1a9c63)),
                   ),
                 ],
               ),
@@ -146,17 +123,6 @@ class HomeScreen extends StatelessWidget {
         subtitle: 'Reminder',
         icon: Icons.notifications_outlined,
         time: r.remindAt ?? DateTime.now(),
-      ));
-    }
-    
-    // Bills
-    for (final b in app.unpaidBills.take(5)) {
-      items.add(_TimelineEntry(
-        type: 'bill',
-        title: b.name,
-        subtitle: '\$${b.amount.toStringAsFixed(2)} due',
-        icon: Icons.receipt_outlined,
-        time: DateTime.now(),
       ));
     }
     
@@ -268,7 +234,7 @@ class HomeScreen extends StatelessWidget {
               GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 4,
+                crossAxisCount: 3,
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 8,
                 children: [
@@ -276,10 +242,6 @@ class HomeScreen extends StatelessWidget {
                       () {
                     Navigator.pop(ctx);
                     Navigator.pushNamed(ctx, RemindersScreen.route);
-                  }),
-                  _AddOption(Icons.receipt_outlined, 'Bills', () {
-                    Navigator.pop(ctx);
-                    Navigator.pushNamed(ctx, BillsScreen.route);
                   }),
                   _AddOption(Icons.calendar_month_outlined, 'Calendar',
                       () {
@@ -305,10 +267,6 @@ class HomeScreen extends StatelessWidget {
                 crossAxisSpacing: 8,
                 childAspectRatio: 1.05,
                 children: [
-                  _AddOption(Icons.savings_outlined, 'Bill Saver', () {
-                    Navigator.pop(ctx);
-                    Navigator.pushNamed(ctx, BillSaverScreen.route);
-                  }),
                   _AddOption(
                       Icons.wb_sunny_outlined, 'Daily Briefing', () {
                     Navigator.pop(ctx);
