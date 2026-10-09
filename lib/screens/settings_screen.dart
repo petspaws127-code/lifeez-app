@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import '../theme/app_theme.dart';
 import '../widgets/category_icon.dart';
 import '../widgets/ui_kit.dart';
@@ -334,16 +333,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          FutureBuilder<PackageInfo>(
-            future: PackageInfo.fromPlatform(),
-            builder: (context, snapshot) {
-              final version = snapshot.data?.version ?? '...';
-              return Center(
-                child: Text('Lifeez v$version',
-                    style: GoogleFonts.poppins(
-                        fontSize: 12, color: AppColors.muted)),
-              );
-            },
+          Center(
+            child: Text('Lifeez v1.0.0',
+                style: GoogleFonts.poppins(
+                    fontSize: 12, color: AppColors.muted)),
           ),
         ],
       ),
