@@ -5,6 +5,7 @@ import '../theme/app_theme.dart';
 import '../widgets/category_icon.dart';
 import '../widgets/ui_kit.dart';
 import '../services/app_state.dart';
+import '../services/smart_ai_service.dart';
 
 /// Weekly Review: this week's progress across tasks, habits and money.
 class WeeklyReviewScreen extends StatelessWidget {
@@ -14,6 +15,7 @@ class WeeklyReviewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
+    final ai = context.watch<SmartAiService>();
     final done = app.completedTasks.length;
     final open = app.openTasks.length;
     final habits = app.habitsDoneToday;
@@ -92,6 +94,13 @@ class WeeklyReviewScreen extends StatelessWidget {
                 ),
               ],
             ),
+            if (ai.getSmartSuggestions().isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const SectionHeader(title: 'AI Analysis'),
+              ...ai
+                  .getSmartSuggestions()
+                  .map((s) => _AnalysisCard(text: s)),
+            ],
             const SizedBox(height: 16),
             const SectionHeader(title: 'Focus for next week'),
             const EmptyState(
@@ -100,6 +109,37 @@ class WeeklyReviewScreen extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _AnalysisCard extends StatelessWidget {
+  final String text;
+  const _AnalysisCard({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A9C63).withOpacity(0.08),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.auto_awesome_outlined,
+              color: Color(0xFF1A9C63), size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: GoogleFonts.poppins(fontSize: 13.5),
+            ),
+          ),
+        ],
       ),
     );
   }
