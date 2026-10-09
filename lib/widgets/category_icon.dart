@@ -88,11 +88,19 @@ class CategoryIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final spec = iconFor(category);
+    // Flat style matching + sheet: light green bg, green icon
     return Container(
       width: size,
       height: size,
-      decoration: AppTheme.tile3D(spec.colors, radius: size * 0.36),
-      child: Icon(spec.icon, color: Colors.white, size: size * 0.52),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A9C63).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(size * 0.3),
+      ),
+      child: Icon(
+        spec.icon,
+        color: const Color(0xFF1A9C63),
+        size: size * 0.52,
+      ),
     );
   }
 }
