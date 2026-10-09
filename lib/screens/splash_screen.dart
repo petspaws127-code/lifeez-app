@@ -1,124 +1,166 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../theme/app_theme.dart';
+import '../widgets/app_logo.dart';
 import '../services/auth_service.dart';
 import '../services/app_state.dart';
-import '../services/update_service.dart';
+import '../services/whatsapp_service.dart';
 import 'welcome_screen.dart';
-import 'home_screen.dart';
-import '../theme/app_colors.dart';
+import 'main_tabs.dart';
+import '../services/update_service.dart';
 
 class SplashScreen extends StatefulWidget {
+  static const route = '/splash';
   const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _scale;
+  late final Animation<double> _fade;
+
   @override
   void initState() {
     super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _scale = CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut);
+    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeIn);
+    _ctrl.forward();
     _decideNext();
   }
 
-  Future<void> _checkForUpdate() async {
-    try {
-      final updateService = UpdateService();
-      final hasUpdate = await updateService.checkForUpdate();
-      if (hasUpdate && mounted) {
-        final shouldUpdate = await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (_) => AlertDialog(
-            title: Text('Update Available', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-            content: Text('A new version of Lifeez is available. Update now?', style: GoogleFonts.poppins()),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text('Later', style: GoogleFonts.poppins(color: AppColors.muted)),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-                child: Text('Update', style: GoogleFonts.poppins(color: Colors.white)),
-              ),
-            ],
-          ),
-        );
-        if (shouldUpdate == true) {
-          await updateService.downloadAndInstall();
-        }
-      }
-    } catch (_) {}
-  }
-
   Future<void> _decideNext() async {
+    // Check for updates FIRST (await it!)
     await _checkForUpdate();
     await Future.delayed(const Duration(milliseconds: 2300));
     if (!mounted) return;
     final auth = context.read<AuthService>();
-    await auth.init();
-    if (!mounted) return;
-    if (auth.isLoggedIn) {
-      context.read<AppState>().setUser(auth.userId, auth.userName);
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
-    } else {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-      );
+    if (!auth.isSignedIn) {
+      Navigator.pushReplacementNamed(context, WelcomeScreen.route);
+      return;
     }
+    final app = context.read<AppState>();
+    final whatsapp = context.read<WhatsAppService>();
+    await app.loadAll();
+    await whatsapp.restore();
+    if (!mounted) return;
+    // Onboarding removed - go directly to MainTabs
+    // Income/budget setup via popup (Task 5)
+    Navigator.pushReplacementNamed(context, MainTabs.route);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Logo - green rounded square with white L
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(28),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [AppColors.ivory, AppColors.ivoryDeep],
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ScaleTransition(
+                scale: _scale,
+                child: FadeTransition(
+                  opacity: _fade,
+                  child: const AppLogo(size: 110),
+                ),
               ),
-              child: Center(
+              const SizedBox(height: 24),
+              FadeTransition(
+                opacity: _fade,
                 child: Text(
-                  'L',
+                  'Lifeez',
                   style: GoogleFonts.poppins(
-                    fontSize: 72,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.deepGreen,
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Lifeez',
-              style: GoogleFonts.poppins(
-                fontSize: 48,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
+              const SizedBox(height: 8),
+              FadeTransition(
+                opacity: _fade,
+                child: Text(
+                  'Tell it. It remembers it.',
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    color: AppColors.muted,
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Life, made easy.',
-              style: GoogleFonts.poppins(
-                fontSize: 20,
-                color: AppColors.muted,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+  Future<void> _checkForUpdate() async {
+    try {
+      final updateService = UpdateService();
+      final info = await updateService.checkForUpdate();
+      if (info != null && mounted) {
+        // Wait for splash to finish, then show dialog
+        await Future.delayed(const Duration(milliseconds: 1500));
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            title: Text('Update Available: v${info.versionName}'),
+            content: Text(info.notes.isNotEmpty ? info.notes : 'A new version is available!'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Later'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (ctx2) => const AlertDialog(
+                      content: Row(
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(width: 16),
+                          Text('Downloading...'),
+                        ],
+                      ),
+                    ),
+                  );
+                  try {
+                    await updateService.downloadAndInstall(info, (p) {});
+                  } catch (_) {}
+                  if (mounted) Navigator.pop(context);
+                },
+                child: const Text('Update'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (_) {}
+  }
+
 }
