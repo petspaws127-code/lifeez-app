@@ -42,7 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
     Navigator.pushReplacementNamed(
       context,
-      app.profile == null ? OnboardingScreen.route : MainTabs.route,
+      MainTabs.route, // Onboarding hidden for now - direct to dashboard
     );
   }
 
