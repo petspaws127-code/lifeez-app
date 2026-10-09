@@ -328,7 +328,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: GradientButton(
               label: 'Sign out',
               icon: Icons.logout_rounded,
-              colors: const [Color(0xFF6B7280), Color(0xFF4B5563)],
+              colors: const [Color(0xFF1A9C63), Color(0xFF1A9C63)],
               onPressed: _signOut,
             ),
           ),
