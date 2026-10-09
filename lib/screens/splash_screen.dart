@@ -7,7 +7,6 @@ import '../services/auth_service.dart';
 import '../services/app_state.dart';
 import '../services/whatsapp_service.dart';
 import 'welcome_screen.dart';
-import 'onboarding_screen.dart';
 import 'main_tabs.dart';
 import '../services/update_service.dart';
 
@@ -51,11 +50,9 @@ class _SplashScreenState extends State<SplashScreen>
     await app.loadAll();
     await whatsapp.restore();
     if (!mounted) return;
-    if (app.profile == null) {
-      Navigator.pushReplacementNamed(context, OnboardingScreen.route);
-    } else {
-      Navigator.pushReplacementNamed(context, MainTabs.route);
-    }
+    // Onboarding removed - go directly to MainTabs
+    // Income/budget setup via popup (Task 5)
+    Navigator.pushReplacementNamed(context, MainTabs.route);
   }
 
   @override
