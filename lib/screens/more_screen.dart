@@ -37,37 +37,21 @@ class MoreScreen extends StatelessWidget {
   const MoreScreen({super.key});
 
   static const _sections = [
-    _MenuSection('Account', [
+    _MenuSection('All Features', [
       _MenuEntry('My Profile', 'family', ProfileScreen.route),
       _MenuEntry('Lifeez Pro', 'pro', ProScreen.route),
-    ]),
-    _MenuSection('Money', [
       _MenuEntry('Bill Saver', 'money', BillSaverScreen.route),
-    ]),
-    _MenuSection('Smart', [
       _MenuEntry('AI Daily Briefing', 'general', AiDailyBriefingScreen.route),
       _MenuEntry('Weekly Review', 'general', WeeklyReviewScreen.route),
       _MenuEntry('ADHD Mode', 'general', AdhdModeScreen.route),
-    ]),
-    _MenuSection('Travel', [
       _MenuEntry('Travel Weather', 'general', TravelWeatherScreen.route),
       _MenuEntry('Trip Planner', 'general', TripPlannerScreen.route),
-    ]),
-    _MenuSection('Pets', [
       _MenuEntry('Pet Health AI', 'pet', PetHealthAiScreen.route),
-    ]),
-    _MenuSection('Reminders', [
       _MenuEntry('Location Reminders', 'general', LocationRemindersScreen.route),
-    ]),
-    _MenuSection('Support', [
       _MenuEntry('Help & FAQ', 'general', HelpFaqScreen.route),
       _MenuEntry('Contact Support', 'general', ContactSupportScreen.route),
-    ]),
-    _MenuSection('Legal', [
       _MenuEntry('Privacy Policy', 'document', PrivacyPolicyScreen.route),
       _MenuEntry('Terms of Service', 'document', TermsScreen.route),
-    ]),
-    _MenuSection('App', [
       _MenuEntry('Settings', 'general', SettingsScreen.route),
     ]),
   ];
