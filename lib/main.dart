@@ -41,6 +41,13 @@ import 'screens/subscription_audit_screen.dart';
 import 'screens/cash_flow_screen.dart';
 import 'screens/budget_guard_screen.dart';
 import 'screens/bill_saver_screen.dart';
+import 'screens/ai_daily_briefing_screen.dart';
+import 'screens/weekly_review_screen.dart';
+import 'screens/travel_weather_screen.dart';
+import 'screens/adhd_mode_screen.dart';
+import 'screens/trip_planner_screen.dart';
+import 'screens/pet_health_ai_screen.dart';
+import 'screens/location_reminders_screen.dart';
 import 'screens/privacy_policy_screen.dart';
 import 'screens/terms_screen.dart';
 import 'screens/help_faq_screen.dart';
@@ -127,6 +134,16 @@ class AiLifeAssistantApp extends StatelessWidget {
           SubscriptionAuditScreen.route: (_) =>
               const SubscriptionAuditScreen(),
           BillSaverScreen.route: (_) => const BillSaverScreen(),
+          AiDailyBriefingScreen.route: (_) =>
+              const AiDailyBriefingScreen(),
+          WeeklyReviewScreen.route: (_) => const WeeklyReviewScreen(),
+          TravelWeatherScreen.route: (_) =>
+              const TravelWeatherScreen(),
+          AdhdModeScreen.route: (_) => const AdhdModeScreen(),
+          TripPlannerScreen.route: (_) => const TripPlannerScreen(),
+          PetHealthAiScreen.route: (_) => const PetHealthAiScreen(),
+          LocationRemindersScreen.route: (_) =>
+              const LocationRemindersScreen(),
           CashFlowScreen.route: (_) => const CashFlowScreen(),
           BudgetGuardScreen.route: (_) =>
               const BudgetGuardScreen(),
