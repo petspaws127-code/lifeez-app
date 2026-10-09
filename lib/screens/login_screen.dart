@@ -58,7 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Expanded(child: Text(msg, style: const TextStyle(color: Colors.white))),
           ],
         ),
-        backgroundColor: const Color(0xFF2D5A3D),
+        backgroundColor: const Color(0xFF1A9C63),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
