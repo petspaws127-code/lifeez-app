@@ -8,6 +8,7 @@ import '../widgets/ai_input_bar.dart';
 import '../widgets/category_icon.dart';
 import '../widgets/ui_kit.dart';
 import '../services/app_state.dart';
+import '../services/smart_ai_service.dart';
 import '../services/assistant_engine.dart';
 import '../models/task_item.dart';
 import '../services/eastern_time.dart';
@@ -167,7 +168,13 @@ class TasksScreen extends StatelessWidget {
                       ? AppColors.whatsappDark
                       : AppColors.deepGreen,
                 ),
-                onPressed: () => app.toggleTask(t.id),
+                onPressed: () {
+                  if (!t.isDone) {
+                    context.read<SmartAiService>().recordTaskCompleted(
+                        DateTime.now(), t.category);
+                  }
+                  app.toggleTask(t.id);
+                },
               ),
             ),
           ),
