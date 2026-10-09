@@ -11,6 +11,7 @@ import '../widgets/category_icon.dart';
 import '../widgets/suggestion_card.dart';
 import '../widgets/ui_kit.dart';
 import '../services/app_state.dart';
+import '../services/smart_ai_service.dart';
 import '../services/command_parser.dart';
 import '../models/expense.dart';
 import '../models/savings_entry.dart';
@@ -23,6 +24,7 @@ class MoneyScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
+    final ai = context.watch<SmartAiService>();
     final totals = app.categoryTotals;
     final sorted = totals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
@@ -76,6 +78,9 @@ class MoneyScreen extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: 12),
+          _aiPredictionCard(
+              ai.predictOverspend(app.profile?.monthlyBudget ?? 0)),
           const SizedBox(height: 16),
 
           // Savings — ring, saved this month, goal
@@ -659,12 +664,45 @@ class MoneyScreen extends StatelessWidget {
                         spentAt: easternNow(),
                         receiptPath: receiptPath,
                       ));
+                  context.read<SmartAiService>().recordSpending(amt);
                   if (ctx.mounted) Navigator.pop(ctx);
                 },
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// AI budget prediction card (on-device Smart AI).
+  Widget _aiPredictionCard(OverspendPrediction p) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: p.willOverspend
+            ? Colors.red.withOpacity(0.07)
+            : const Color(0xFF1A9C63).withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            p.willOverspend
+                ? Icons.warning_amber_outlined
+                : Icons.auto_awesome_outlined,
+            color: p.willOverspend
+                ? Colors.red
+                : const Color(0xFF1A9C63),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              p.message,
+              style: GoogleFonts.poppins(fontSize: 13),
+            ),
+          ),
+        ],
       ),
     );
   }
