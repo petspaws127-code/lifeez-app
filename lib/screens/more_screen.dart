@@ -11,6 +11,13 @@ import 'privacy_policy_screen.dart';
 import 'terms_screen.dart';
 import 'settings_screen.dart';
 import 'bill_saver_screen.dart';
+import 'ai_daily_briefing_screen.dart';
+import 'weekly_review_screen.dart';
+import 'travel_weather_screen.dart';
+import 'adhd_mode_screen.dart';
+import 'trip_planner_screen.dart';
+import 'pet_health_ai_screen.dart';
+import 'location_reminders_screen.dart';
 
 class _MenuEntry {
   final String label;
@@ -36,6 +43,21 @@ class MoreScreen extends StatelessWidget {
     ]),
     _MenuSection('Money', [
       _MenuEntry('Bill Saver', 'money', BillSaverScreen.route),
+    ]),
+    _MenuSection('Smart', [
+      _MenuEntry('AI Daily Briefing', 'general', AiDailyBriefingScreen.route),
+      _MenuEntry('Weekly Review', 'general', WeeklyReviewScreen.route),
+      _MenuEntry('ADHD Mode', 'general', AdhdModeScreen.route),
+    ]),
+    _MenuSection('Travel', [
+      _MenuEntry('Travel Weather', 'general', TravelWeatherScreen.route),
+      _MenuEntry('Trip Planner', 'general', TripPlannerScreen.route),
+    ]),
+    _MenuSection('Pets', [
+      _MenuEntry('Pet Health AI', 'pet', PetHealthAiScreen.route),
+    ]),
+    _MenuSection('Reminders', [
+      _MenuEntry('Location Reminders', 'general', LocationRemindersScreen.route),
     ]),
     _MenuSection('Support', [
       _MenuEntry('Help & FAQ', 'general', HelpFaqScreen.route),
