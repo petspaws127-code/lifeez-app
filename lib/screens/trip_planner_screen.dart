@@ -609,7 +609,7 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
     );
   }
 
-  Widget _slotIcon(SlotType slot) {
+  IconData _slotIcon(SlotType slot) {
     switch (slot) {
       case SlotType.morning:
         return Icons.wb_sunny_outlined;
