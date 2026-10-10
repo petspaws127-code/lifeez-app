@@ -8,6 +8,7 @@ import 'calendar_screen.dart';
 import 'more_screen.dart';
 import 'pin_lock_screen.dart';
 import '../services/update_service.dart';
+import '../widgets/ai_command_drawer.dart';
 
 /// Bottom navigation with the 5 main tabs.
 /// Shows the PIN lock screen when the app is locked.
@@ -95,6 +96,15 @@ class _MainTabsState extends State<MainTabs> {
     MoreScreen(),
   ];
 
+  void _openAiDrawer() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const AiCommandDrawer(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
@@ -103,6 +113,31 @@ class _MainTabsState extends State<MainTabs> {
     }
     return Scaffold(
       body: IndexedStack(index: _index, children: _screens),
+      floatingActionButton: GestureDetector(
+        onTap: _openAiDrawer,
+        child: Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: const LinearGradient(
+              colors: [Color(0xFF1a9c63), Color(0xFF27c77e)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF1a9c63).withOpacity(0.5),
+                blurRadius: 20,
+                spreadRadius: 4,
+              ),
+            ],
+          ),
+          child: const Icon(Icons.auto_awesome_rounded,
+              color: Colors.white, size: 28),
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _index,
         onTap: (i) => setState(() => _index = i),
