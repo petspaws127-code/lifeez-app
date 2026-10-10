@@ -3,13 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../services/app_state.dart';
-import '../services/auth_service.dart';
 import 'notifications_screen.dart';
-import 'settings_screen.dart';
-import 'reminders_screen.dart';
-import 'pro_screen.dart';
-import 'help_faq_screen.dart';
-import 'login_screen.dart';
 import 'ai_assistant_screen.dart';
 import 'ai_daily_briefing_screen.dart';
 import 'weekly_review_screen.dart';
@@ -59,8 +53,6 @@ class HomeScreen extends StatelessWidget {
                     child: const Icon(Icons.notifications_outlined,
                         size: 22, color: Color(0xFF1a9c63)),
                   ),
-                  const SizedBox(width: 12),
-                  _AccountMenu(name: name),
                 ],
               ),
             ),
@@ -428,147 +420,6 @@ class _TimelineItem extends StatelessWidget {
               ],
             ),
           ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Top-right profile/account avatar. Tapping opens the account popup menu.
-class _AccountMenu extends StatelessWidget {
-  final String name;
-  const _AccountMenu({required this.name});
-
-  Future<void> _signOut(BuildContext context) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Sign out?'),
-        content:
-            const Text('You will need to sign in again to use the app.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
-          TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Sign out')),
-        ],
-      ),
-    );
-    if (ok != true || !context.mounted) return;
-    await context.read<AuthService>().signOut();
-    if (!context.mounted) return;
-    Navigator.pushNamedAndRemoveUntil(
-        context, LoginScreen.route, (_) => false);
-  }
-
-  /// Opens the account popup menu on demand (built only when tapped,
-  /// so the header itself stays a trivial avatar widget).
-  Future<void> _openMenu(BuildContext context) async {
-    final renderBox = context.findRenderObject() as RenderBox?;
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox?;
-    final position = (renderBox != null && overlay != null)
-        ? RelativeRect.fromRect(
-            Rect.fromPoints(
-              renderBox.localToGlobal(Offset.zero, ancestor: overlay),
-              renderBox.localToGlobal(
-                  renderBox.size.bottomRight(Offset.zero),
-                  ancestor: overlay),
-            ),
-            Offset.zero & overlay.size,
-          )
-        : const RelativeRect.fromLTRB(1000, 80, 8, 8);
-
-    final choice = await showMenu<String>(
-      context: context,
-      position: position,
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16)),
-      items: const [
-        PopupMenuItem(
-            value: 'settings',
-            child: _MenuRow(
-                Icons.settings_outlined, 'Account Settings')),
-        PopupMenuItem(
-            value: 'reminders',
-            child: _MenuRow(Icons.notifications_outlined,
-                'Reminders & Notification Preferences')),
-        PopupMenuItem(
-            value: 'habits',
-            child:
-                _MenuRow(Icons.repeat_rounded, 'Habits & Routines')),
-        PopupMenuItem(
-            value: 'pro',
-            child: _MenuRow(Icons.workspace_premium_outlined,
-                'Subscription & Billing')),
-        PopupMenuItem(
-            value: 'help',
-            child:
-                _MenuRow(Icons.help_outline_rounded, 'Help & Support')),
-        PopupMenuDivider(),
-        PopupMenuItem(
-            value: 'signout',
-            child: _MenuRow(Icons.logout_rounded, 'Sign Out')),
-      ],
-    );
-    if (choice == null || !context.mounted) return;
-    switch (choice) {
-      case 'settings':
-        Navigator.pushNamed(context, SettingsScreen.route);
-        break;
-      case 'reminders':
-        Navigator.pushNamed(context, RemindersScreen.route);
-        break;
-      case 'habits':
-        Navigator.pushNamed(context, HabitsScreen.route);
-        break;
-      case 'pro':
-        Navigator.pushNamed(context, ProScreen.route);
-        break;
-      case 'help':
-        Navigator.pushNamed(context, HelpFaqScreen.route);
-        break;
-      case 'signout':
-        _signOut(context);
-        break;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final initial =
-        name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : '?';
-    return GestureDetector(
-      onTap: () => _openMenu(context),
-      child: CircleAvatar(
-        radius: 18,
-        backgroundColor: const Color(0xFF1a9c63),
-        child: Text(initial,
-            style: GoogleFonts.poppins(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 16)),
-      ),
-    );
-  }
-}
-
-class _MenuRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const _MenuRow(this.icon, this.label);
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: const Color(0xFF1a9c63)),
-        const SizedBox(width: 12),
-        Flexible(
-          child: Text(label,
-              style: GoogleFonts.poppins(fontSize: 14)),
         ),
       ],
     );
