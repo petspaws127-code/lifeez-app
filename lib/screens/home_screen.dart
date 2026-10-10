@@ -463,37 +463,30 @@ class _AccountMenu extends StatelessWidget {
         context, LoginScreen.route, (_) => false);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final initial =
-        name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : '?';
-    return PopupMenuButton<String>(
-      offset: const Offset(0, 44),
+  /// Opens the account popup menu on demand (built only when tapped,
+  /// so the header itself stays a trivial avatar widget).
+  Future<void> _openMenu(BuildContext context) async {
+    final renderBox = context.findRenderObject() as RenderBox?;
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    final position = (renderBox != null && overlay != null)
+        ? RelativeRect.fromRect(
+            Rect.fromPoints(
+              renderBox.localToGlobal(Offset.zero, ancestor: overlay),
+              renderBox.localToGlobal(
+                  renderBox.size.bottomRight(Offset.zero),
+                  ancestor: overlay),
+            ),
+            Offset.zero & overlay.size,
+          )
+        : const RelativeRect.fromLTRB(1000, 80, 8, 8);
+
+    final choice = await showMenu<String>(
+      context: context,
+      position: position,
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16)),
-      onSelected: (v) {
-        switch (v) {
-          case 'settings':
-            Navigator.pushNamed(context, SettingsScreen.route);
-            break;
-          case 'reminders':
-            Navigator.pushNamed(context, RemindersScreen.route);
-            break;
-          case 'habits':
-            Navigator.pushNamed(context, HabitsScreen.route);
-            break;
-          case 'pro':
-            Navigator.pushNamed(context, ProScreen.route);
-            break;
-          case 'help':
-            Navigator.pushNamed(context, HelpFaqScreen.route);
-            break;
-          case 'signout':
-            _signOut(context);
-            break;
-        }
-      },
-      itemBuilder: (_) => const [
+      items: const [
         PopupMenuItem(
             value: 'settings',
             child: _MenuRow(
@@ -519,6 +512,36 @@ class _AccountMenu extends StatelessWidget {
             value: 'signout',
             child: _MenuRow(Icons.logout_rounded, 'Sign Out')),
       ],
+    );
+    if (choice == null || !context.mounted) return;
+    switch (choice) {
+      case 'settings':
+        Navigator.pushNamed(context, SettingsScreen.route);
+        break;
+      case 'reminders':
+        Navigator.pushNamed(context, RemindersScreen.route);
+        break;
+      case 'habits':
+        Navigator.pushNamed(context, HabitsScreen.route);
+        break;
+      case 'pro':
+        Navigator.pushNamed(context, ProScreen.route);
+        break;
+      case 'help':
+        Navigator.pushNamed(context, HelpFaqScreen.route);
+        break;
+      case 'signout':
+        _signOut(context);
+        break;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final initial =
+        name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : '?';
+    return GestureDetector(
+      onTap: () => _openMenu(context),
       child: CircleAvatar(
         radius: 18,
         backgroundColor: const Color(0xFF1a9c63),
