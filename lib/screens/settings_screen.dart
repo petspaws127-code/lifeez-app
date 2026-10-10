@@ -311,7 +311,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             materialIcon: Icons.notifications_outlined,
             title: 'Notifications',
             subtitle: 'Reminders & alerts',
-            value: app.notificationsEnabled,
+            value: p?.notificationsEnabled ?? true,
             onChanged: (v) => app.setNotificationsEnabled(v),
           ),
           _switchRow(
@@ -319,7 +319,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             materialIcon: Icons.wb_sunny_outlined,
             title: 'Daily Briefing',
             subtitle: 'Morning summary',
-            value: app.dailyBriefingEnabled,
+            value: p?.dailyBriefingEnabled ?? true,
             onChanged: (v) => app.setDailyBriefingEnabled(v),
           ),
           const SizedBox(height: 8),

@@ -9,7 +9,7 @@ import '../widgets/category_icon.dart';
 import '../widgets/ui_kit.dart';
 import '../services/app_state.dart';
 import '../services/auth_service.dart';
-import '../services/supabase_service.dart';
+import '../services/supabase_client.dart';
 import '../services/update_service.dart';
 import 'login_screen.dart';
 import 'package:package_info_plus/package_info_plus.dart';
