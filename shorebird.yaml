@@ -1,0 +1,7 @@
+# Shorebird configuration for Lifeez.
+# This file is used to configure the Shorebird updater used by the application.
+# Learn more at https://shorebird.dev
+# This file should be checked into version control.
+# This is the unique identifier assigned to the Lifeez app.
+# It is used by the app to request the correct patches from Shorebird servers.
+app_id: 6c93a8a2-2018-4c28-ac96-3ae54517aa0a
