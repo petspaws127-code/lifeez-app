@@ -110,6 +110,21 @@ class AssistantEngine {
             'repeat': repeat ?? 'daily',
           },
         ));
+      case 'createalarm':
+        final alarmHour = when?.hour ?? 8;
+        final alarmMin = when?.minute ?? 0;
+        final isDaily = (repeat == 'daily') ||
+            (whenStr?.toLowerCase().contains('every morning') ?? false) ||
+            (whenStr?.toLowerCase().contains('daily') ?? false);
+        return appState.executeCommand(ParsedCommand(
+          intent: CommandIntent.createAlarm,
+          params: {
+            'label': title,
+            'hour': alarmHour,
+            'minute': alarmMin,
+            'repeatDays': isDaily ? [1, 2, 3, 4, 5, 6, 7] : <int>[],
+          },
+        ));
       case 'querytasks':
         return appState.executeCommand(
             const ParsedCommand(intent: CommandIntent.queryTasks));
@@ -118,19 +133,43 @@ class AssistantEngine {
     }
   }
 
-  /// Smart fallback: never says "I'm best at tasks, try an example".
-  /// Tries to be helpful based on what the user actually typed.
-  String _smartFallback(String original) {
-    final t = original.toLowerCase().trim();
-    // If it looks like they wanted SOMETHING created, offer to do it.
-    if (t.length > 3) {
-      return 'I want to get that right for you. Did you want me to '
-          'create a task or reminder for "$original"? '
-          'Just say "remind me to $original" or "add task $original" '
-          'and I\'ll set it up instantly.';
+  /// Smart fallback: NEVER lectures or asks for keywords.
+  /// Defaults to ACTION — creates a reminder/task from the raw input.
+  Future<String> _smartFallback(String original) async {
+    final t = original.trim();
+    if (t.length <= 3) {
+      return 'What should I set up for you?';
     }
-    return 'I\'m here! Tell me what to organize — a task, reminder, '
-        'habit, or anything on your mind.';
+    // Try to find any time reference → create a reminder.
+    final when = CommandParser.extractDateTime(t);
+    if (when != null) {
+      final title = _cleanTitle(t);
+      return appState.executeCommand(ParsedCommand(
+        intent: CommandIntent.createReminder,
+        params: {
+          'title': title.isEmpty ? t : title,
+          'remindAt': when.toIso8601String(),
+        },
+      ));
+    }
+    // No time found → create a task with the raw input as title.
+    return appState.executeCommand(ParsedCommand(
+      intent: CommandIntent.createTask,
+      params: {
+        'title': _cleanTitle(t),
+        'category': CommandParser.detectTaskCategory(t),
+      },
+    ));
+  }
+
+  /// Clean up raw input for use as a title.
+  String _cleanTitle(String t) {
+    var s = CommandParser.normalizeRomanUrdu(t);
+    s = CommandParser.stripDateWords(s);
+    s = s.replaceAll(RegExp(r'^(please\s+)?(set|create|add|make)\s+'), '');
+    s = s.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (s.isEmpty) return t.trim();
+    return s[0].toUpperCase() + s.substring(1);
   }
 
   /// Friendly replies for greetings, small talk, and help — so the

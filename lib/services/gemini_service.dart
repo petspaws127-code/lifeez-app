@@ -71,11 +71,12 @@ class GeminiService {
     const systemPrompt = '''You are the Lifeez AI action extractor. The user typed something the local parser could not understand. Your job: extract the ACTION they want.
 
 Return ONLY valid JSON, no other text. Format:
-{"intent": "<one of: createTask, createReminder, createHabit, createAlarm, queryTasks, unknown>", "title": "<short title>", "when": "<natural time like 'tomorrow 9am' or null>", "repeat": "<daily/weekly/monthly or null>", "notes": "<extra context or null>"}
+{"intent": "<one of: createTask, createReminder, createAlarm, createHabit, queryTasks, unknown>", "title": "<short title>", "when": "<natural time like 'tomorrow 9am' or null>", "repeat": "<daily/weekly/monthly or null>", "notes": "<extra context or null>"}
 
 Rules:
 - "doctor appointment tomorrow 9am" → createReminder, title "Doctor appointment", when "tomorrow 9am"
-- Roman Urdu: "kl" = tomorrow, "subah" = morning, "baje" = o'clock, "dr" = doctor, "yad dilao" = remind me
+- "set alarm for 8am" / "wake me up at 7" / "alarm lagao" → createAlarm, when "8am", repeat "daily" if "every morning/daily"
+- Roman Urdu: "kl" = tomorrow, "subah" = morning, "baje" = o'clock, "dr" = doctor, "yad dilao" = remind me, "alarm lagao" = set alarm, "utha dena" = wake me up
 - If it's a question or chitchat → intent "unknown"
 - Keep title under 8 words, plain US English.''';
     try {

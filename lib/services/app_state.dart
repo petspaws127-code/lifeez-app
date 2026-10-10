@@ -1221,6 +1221,20 @@ class AppState extends ChangeNotifier {
             ? 'Reminder set: ${p['title']}.'
             : 'Reminder set: ${p['title']} at ${_fmtDateTime(at)}.';
 
+      case CommandIntent.createAlarm:
+        final alarm = Alarm(
+          label: (p['label'] as String?) ?? 'Alarm',
+          hour: (p['hour'] as int?) ?? 8,
+          minute: (p['minute'] as int?) ?? 0,
+          repeatDays: List<int>.from(p['repeatDays'] as List? ?? []),
+        );
+        await addAlarm(alarm);
+        final repeatStr = alarm.repeatDays.length == 7
+            ? 'daily'
+            : alarm.repeatLabel;
+        return 'Done! Alarm set for ${alarm.timeLabel}'
+            '${repeatStr == 'Once' ? '' : ' ($repeatStr)'}.';
+
       case CommandIntent.createExpense:
         final amount = (p['amount'] as num).toDouble();
         final category = (p['category'] as String?) ?? 'Other';

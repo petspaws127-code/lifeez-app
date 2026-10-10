@@ -13,6 +13,7 @@ enum CommandIntent {
   completeTask,
   deleteTask,
   createReminder,
+  createAlarm,
   createExpense,
   createBill,
   markBillPaid,
@@ -78,6 +79,11 @@ class CommandParser {
     t = t.replaceAll(RegExp(r'\bbacha\b|\bbache\b'), ' kid ');
     t = t.replaceAll(RegExp(r'\bami\b|\bammi\b'), ' mom ');
     t = t.replaceAll(RegExp(r'\babu\b|\babba\b'), ' dad ');
+    // --- Alarm words ---
+    t = t.replaceAll(RegExp(r'\balarm lagao\b|\balarm laga do\b'), ' set alarm ');
+    t = t.replaceAll(
+        RegExp(r'\butha dena\b|\buthao\b|\bjagao\b'), ' wake me up ');
+    t = t.replaceAll(RegExp(r'\bneend\b'), ' sleep ');
     // --- Voice-to-text artifacts ---
     t = t.replaceAll(RegExp(r'\bplz\b'), ' please ');
     t = t.replaceAll(RegExp(r'\btmrw\b'), ' tomorrow ');
@@ -140,7 +146,7 @@ class CommandParser {
               r'\b(appointment|meeting|visit|call|doctor|dentist|interview|flight|dinner|lunch|breakfast|party|wedding|birthday|anniversary|deadline|exam|class|gym|workout)\b')
           .hasMatch(t);
       if (when != null && (hasEventWord || _looksLikeReminder(t))) {
-        final title = _titleCase(_stripDateWords(t));
+        final title = _titleCase(stripDateWords(t));
         if (title.isNotEmpty && title.length > 2) {
           return ParsedCommand(
             intent: CommandIntent.createReminder,
@@ -258,6 +264,36 @@ class CommandParser {
       );
     }
 
+    // ------------------------------------------------------------ alarm
+    // "set alarm for 8am" / "set alarm every morning 8am" /
+    // "wake me up at 7" / "alarm lagao subah 6 baje" (normalized).
+    // NEVER ask for rephrasing — always create the alarm immediately.
+    if (RegExp(r'\b(set|create|add)\s+(an?\s+)?alarm\b').hasMatch(t) ||
+        t.contains('wake me up')) {
+      final when = extractDateTime(t);
+      // Default to 8am if no time found.
+      final hour = when?.hour ?? 8;
+      final minute = when?.minute ?? 0;
+      // "every morning" / "daily" / "every day" → repeat all 7 days.
+      final isDaily = t.contains('every morning') ||
+          t.contains('every day') ||
+          t.contains('daily') ||
+          extractRepeat(t) == 'daily';
+      final label = _titleCase(stripDateWords(
+              t.replaceAll(RegExp(r'\b(set|create|add)\s+(an?\s+)?alarm\b'), '')
+                  .replaceAll('wake me up', '')
+                  .trim()));
+      return ParsedCommand(
+        intent: CommandIntent.createAlarm,
+        params: {
+          'label': label.isEmpty ? 'Alarm' : label,
+          'hour': hour,
+          'minute': minute,
+          'repeatDays': isDaily ? [1, 2, 3, 4, 5, 6, 7] : <int>[],
+        },
+      );
+    }
+
     // --------------------------------------------------------- reminder
     // "remind me to pay rent on the 1st" / "remind me to call mom tomorrow 5pm"
     m = RegExp(r'remind me to (.+)').firstMatch(t);
@@ -267,7 +303,7 @@ class CommandParser {
       return ParsedCommand(
         intent: CommandIntent.createReminder,
         params: {
-          'title': _titleCase(_stripDateWords(rest)),
+          'title': _titleCase(stripDateWords(rest)),
           'remindAt': when?.toIso8601String(),
           'repeat': extractRepeat(rest),
         },
@@ -311,7 +347,7 @@ class CommandParser {
     if (m != null) {
       final rest = m.group(3)!;
       final when = extractDateTime(rest);
-      final title = _titleCase(_stripDateWords(rest));
+      final title = _titleCase(stripDateWords(rest));
       return ParsedCommand(
         intent: CommandIntent.createTask,
         params: {
@@ -438,7 +474,8 @@ class CommandParser {
   }
 
   /// Removes date/time words so "buy milk tomorrow 5pm" → "buy milk".
-  static String _stripDateWords(String raw) {
+  /// Public so AssistantEngine can reuse it for fallback titles.
+  static String stripDateWords(String raw) {
     var s = ' $raw ';
     s = s.replaceAll(
         RegExp(
