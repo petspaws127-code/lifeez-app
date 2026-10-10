@@ -9,12 +9,14 @@ class AiInputBar extends StatefulWidget {
   final Future<void> Function(String text) onSubmit;
   final String hint;
   final bool autofocus;
+  final bool autoStartMic;
 
   const AiInputBar({
     super.key,
     required this.onSubmit,
     this.hint = 'Say it or type it… e.g. "I spent \$45 at Walmart"',
     this.autofocus = false,
+    this.autoStartMic = false,
   });
 
   @override
@@ -26,6 +28,17 @@ class _AiInputBarState extends State<AiInputBar> {
   final _stt = SpeechToText();
   bool _listening = false;
   bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // When opened from the center AI button, the mic starts active instantly.
+    if (widget.autoStartMic) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _toggleMic();
+      });
+    }
+  }
 
   @override
   void dispose() {
