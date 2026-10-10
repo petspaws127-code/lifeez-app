@@ -44,10 +44,14 @@ class _AiInputBarState extends State<AiInputBar> {
   }
 
   /// Initialize the speech recognizer once. Called at startup.
+  /// Stores the failure reason so the UI can tell the user exactly why
+  /// voice isn't working (instead of silent failure).
+  String? _sttError;
   Future<void> _initSpeech() async {
     try {
       _sttReady = await _stt.initialize(
         onError: (error) {
+          _sttError = error.errorMsg;
           if (mounted) setState(() => _listening = false);
         },
         onStatus: (status) {
@@ -56,8 +60,13 @@ class _AiInputBarState extends State<AiInputBar> {
           }
         },
       );
-    } catch (_) {
+      if (!_sttReady) {
+        _sttError = 'Speech recognition not available on this device. '
+            'Make sure the Google app is installed and updated.';
+      }
+    } catch (e) {
       _sttReady = false;
+      _sttError = 'Speech init failed: $e';
     }
   }
 
@@ -119,9 +128,12 @@ class _AiInputBarState extends State<AiInputBar> {
       if (!_sttReady) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-                'Voice input is not available on this device right now.'),
+              _sttError ??
+                  'Voice input is not available on this device right now.',
+            ),
+            duration: const Duration(seconds: 5),
           ),
         );
         return;

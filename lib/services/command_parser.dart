@@ -147,16 +147,16 @@ class CommandParser {
     // --------------------------------------- implicit appointment/reminder
     // "doctor appointment tomorrow 9am" / "tomorrow morning 9am doctor"
     // (after Roman Urdu normalization) — no "remind me" prefix needed.
-    // If it has a date/time AND looks like an event, auto-create a reminder.
-    // NEVER hijack explicit "add task" / "create task" commands,
-    // or any text that clearly mentions "task".
+    // ONLY triggers on explicit event words (appointment, meeting, call...).
+    // Plain phrases like "car wash today" become TASKS, not reminders.
+    // NEVER hijack text that clearly mentions "task".
     final isExplicitTask = RegExp(r'\btask\b').hasMatch(t);
     if (!isExplicitTask) {
       final when = extractDateTime(t);
       final hasEventWord = RegExp(
               r'\b(appointment|meeting|visit|call|doctor|dentist|interview|flight|dinner|lunch|breakfast|party|wedding|birthday|anniversary|deadline|exam|class|gym|workout)\b')
           .hasMatch(t);
-      if (when != null && (hasEventWord || _looksLikeReminder(t))) {
+      if (when != null && hasEventWord) {
         final title = _titleCase(stripDateWords(t));
         if (title.isNotEmpty && title.length > 2) {
           return ParsedCommand(
@@ -438,6 +438,28 @@ class CommandParser {
             'repeat': extractRepeat(rest),
           },
         );
+      }
+    }
+
+    // Fallback: plain phrase with a date ("car wash today") → Task.
+    // (Reminders need explicit "remind me" or an event word; those are
+    // handled above.)
+    {
+      final when = extractDateTime(t);
+      if (when != null) {
+        final title = _titleCase(stripDateWords(t));
+        if (title.isNotEmpty && title.length > 2) {
+          return ParsedCommand(
+            intent: CommandIntent.createTask,
+            params: {
+              'title': title,
+              'dueAt': when.toIso8601String(),
+              'hasTime': hasExplicitTime(t),
+              'category': detectTaskCategory(t),
+              'repeat': extractRepeat(t),
+            },
+          );
+        }
       }
     }
 
