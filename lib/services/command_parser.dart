@@ -540,9 +540,9 @@ class CommandParser {
     s = s.replaceAll(
         RegExp(r'\b(on )?the \d{1,2}(st|nd|rd|th)?\b'), ' ');
     s = s.replaceAll(
-        RegExp(r'\bat \d{1,2}(:\d{2})?\s*(am|pm)\b'), ' ');
+        RegExp(r'\bat \d{1,2}(:\d{2})?\s*(a\.?m\.?|p\.?m\.?)\b'), ' ');
     s = s.replaceAll(
-        RegExp(r'\b\d{1,2}(:\d{2})?\s*(am|pm)\b'), ' ');
+        RegExp(r'\b\d{1,2}(:\d{2})?\s*(a\.?m\.?|p\.?m\.?)\b'), ' ');
     return s.replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 

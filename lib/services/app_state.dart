@@ -1219,7 +1219,7 @@ class AppState extends ChangeNotifier {
         )));
         return at == null
             ? 'Reminder set: ${p['title']}.'
-            : 'Reminder set: ${p['title']} at ${_fmtDateTime(at)}.';
+            : 'Reminder set: ${p['title']} — ${_fmtDateTime(at)}.';
 
       case CommandIntent.createAlarm:
         final alarm = Alarm(
