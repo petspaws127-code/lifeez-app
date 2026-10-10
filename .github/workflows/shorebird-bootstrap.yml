@@ -28,6 +28,13 @@ jobs:
         env:
           SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
         run: |
+          # settings.gradle.kts requires android/local.properties with flutter.sdk.
+          # Point it at Shorebird's Flutter.
+          FLUTTER_BIN=$(which flutter)
+          FLUTTER_ROOT=$(dirname $(dirname "$FLUTTER_BIN"))
+          echo "Shorebird Flutter: $FLUTTER_ROOT"
+          printf 'flutter.sdk=%s\n' "$FLUTTER_ROOT" > android/local.properties
+          cat android/local.properties
           # shorebird init creates the app on Shorebird servers and writes shorebird.yaml.
           # Provide answers for interactive prompts: app name = Lifeez.
           printf 'Lifeez\n\n\n' | shorebird init --verbose > init-log.txt 2>&1 || true
