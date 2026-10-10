@@ -61,9 +61,9 @@ jobs:
         run: |
           ver="${{ inputs.release_version }}"
           if [ -z "$ver" ]; then
-            shorebird patch android --verbose -- --dart-define=GEMINI_API_KEY=$GEMINI_API_KEY --dart-define=OWM_API_KEY=$OWM_API_KEY > patch-log.txt 2>&1
+            shorebird patch android --allow-asset-diffs --verbose -- --dart-define=GEMINI_API_KEY=$GEMINI_API_KEY --dart-define=OWM_API_KEY=$OWM_API_KEY > patch-log.txt 2>&1
           else
-            shorebird patch android --verbose --release-version "$ver" -- --dart-define=GEMINI_API_KEY=$GEMINI_API_KEY --dart-define=OWM_API_KEY=$OWM_API_KEY > patch-log.txt 2>&1
+            shorebird patch android --allow-asset-diffs --verbose --release-version "$ver" -- --dart-define=GEMINI_API_KEY=$GEMINI_API_KEY --dart-define=OWM_API_KEY=$OWM_API_KEY > patch-log.txt 2>&1
           fi
           code=$?
           tail -30 patch-log.txt
