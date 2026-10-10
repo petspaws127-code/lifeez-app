@@ -473,11 +473,13 @@ class CommandParser {
     var hour = 9;
     var minute = 0;
     var foundTime = false;
-    final tm = RegExp(r'(\d{1,2})(?::(\d{2}))?\s*(am|pm)').firstMatch(t);
+    // Handle "9am", "9:00am", "9 a.m.", "9:00 p.m." (with or without periods).
+    final tm = RegExp(r'(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)')
+        .firstMatch(t);
     if (tm != null) {
       hour = int.parse(tm.group(1)!);
       minute = tm.group(2) != null ? int.parse(tm.group(2)!) : 0;
-      final ap = tm.group(3)!;
+      final ap = tm.group(3)!.replaceAll('.', '');
       if (ap == 'pm' && hour < 12) hour += 12;
       if (ap == 'am' && hour == 12) hour = 0;
       foundTime = true;

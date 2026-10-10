@@ -148,10 +148,12 @@ class _AiInputBarState extends State<AiInputBar> {
       await _stt.stop();
       setState(() => _listening = false);
     }
+    // Clear the input IMMEDIATELY so the user can type the next message
+    // without waiting for the AI response.
+    _controller.clear();
     setState(() => _busy = true);
     try {
       await widget.onSubmit(text);
-      _controller.clear();
     } finally {
       if (mounted) setState(() => _busy = false);
     }
