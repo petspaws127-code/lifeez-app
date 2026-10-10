@@ -87,7 +87,7 @@ class _AiInputBarState extends State<AiInputBar> {
       setState(() => _listening = true);
       await _stt.listen(
         listenOptions: SpeechListenOptions(
-          pauseFor: const Duration(seconds: 3),
+          pauseFor: const Duration(milliseconds: 1200),
           listenFor: const Duration(seconds: 30),
         ),
         onResult: (result) {
