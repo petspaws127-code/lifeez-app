@@ -28,12 +28,10 @@ jobs:
         env:
           SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
         run: |
-          # Try non-interactive app creation; fall back to init with piped input
-          if shorebird apps --help 2>&1 | grep -q "create"; then
-            shorebird apps create --name Lifeez
-          else
-            printf 'Lifeez\n' | shorebird init || shorebird init
-          fi
+          # shorebird init creates the app on Shorebird servers and writes shorebird.yaml.
+          # Provide answers for interactive prompts: app name = Lifeez.
+          printf 'Lifeez\n\n\n' | shorebird init --verbose > init-log.txt 2>&1 || true
+          tail -40 init-log.txt
           echo "=== apps list ==="
           shorebird apps list || true
           echo "=== shorebird.yaml ==="
