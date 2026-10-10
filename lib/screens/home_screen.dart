@@ -156,11 +156,6 @@ class HomeScreen extends StatelessWidget {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => showAddSheet(context),
-        backgroundColor: const Color(0xFF1a9c63),
-        child: const Icon(Icons.add, color: Colors.white, size: 28),
-      ),
     );
   }
 

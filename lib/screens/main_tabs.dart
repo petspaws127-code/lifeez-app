@@ -115,38 +115,7 @@ class _MainTabsState extends State<MainTabs> {
     }
     return Scaffold(
       body: IndexedStack(index: _index, children: _screens),
-      floatingActionButton: _buildAiFab(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: _buildBottomNav(),
-    );
-  }
-
-  /// Single prominent glowing AI button — floating bottom-center above nav
-  Widget _buildAiFab() {
-    return GestureDetector(
-      onTap: _openAiDrawer,
-      child: Container(
-        width: 60,
-        height: 60,
-        margin: const EdgeInsets.only(bottom: 8),
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const LinearGradient(
-            colors: [Color(0xFF1a9c63), Color(0xFF34A46F)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF1a9c63).withOpacity(0.55),
-              blurRadius: 18,
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: const Icon(Icons.auto_awesome_rounded,
-            color: Colors.white, size: 30),
-      ),
     );
   }
 
@@ -168,21 +137,42 @@ class _MainTabsState extends State<MainTabs> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Slot 1: Home
+            // Home
             _navSlot(index: 0, icon: Icons.home_rounded, label: 'Home'),
-            // Slot 2: Tasks
+            // Tasks
             _navSlot(
                 index: 1,
                 icon: Icons.check_circle_outline_rounded,
                 label: 'Tasks'),
-            // Center gap for the floating AI button
-            const SizedBox(width: 72),
-            // Slot 3: Reminders
+            // AI Assistant — regular nav item, same style as others
+            Expanded(
+              child: InkWell(
+                onTap: _openAiDrawer,
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.auto_awesome_rounded,
+                          color: Colors.grey, size: 26),
+                      const SizedBox(height: 2),
+                      Text('AI',
+                          style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              color: Colors.grey,
+                              fontWeight: FontWeight.w400)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Reminders
             _navSlot(
                 index: 2,
                 icon: Icons.notifications_outlined,
                 label: 'Reminders'),
-            // Slot 4: + Add — opens the add sheet
+            // + Add — opens the add sheet
             Expanded(
               child: InkWell(
                 onTap: () => showAddSheet(context),
