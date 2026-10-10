@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../services/app_state.dart';
+import '../widgets/profile_menu.dart';
 import 'notifications_screen.dart';
 import 'ai_assistant_screen.dart';
 import 'ai_daily_briefing_screen.dart';
@@ -52,6 +53,28 @@ class HomeScreen extends StatelessWidget {
                         context, NotificationsScreen.route),
                     child: const Icon(Icons.notifications_outlined,
                         size: 22, color: Color(0xFF1a9c63)),
+                  ),
+                  const SizedBox(width: 12),
+                  GestureDetector(
+                    onTap: () => ProfileMenu.show(context),
+                    child: Container(
+                      width: 34,
+                      height: 34,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF1a9c63),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Center(
+                        child: Text(
+                          name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                          style: GoogleFonts.poppins(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
