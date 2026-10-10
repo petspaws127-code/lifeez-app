@@ -26,6 +26,15 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Setup android/local.properties
+        shell: bash
+        run: |
+          FLUTTER_BIN="$HOME/.shorebird/bin/cache/flutter/"*/bin/flutter
+          FLUTTER_BIN=$(echo $FLUTTER_BIN | cut -d' ' -f1)
+          FLUTTER_ROOT=$(dirname $(dirname "$FLUTTER_BIN"))
+          printf 'flutter.sdk=%s\n' "$FLUTTER_ROOT" > android/local.properties
+          cat android/local.properties
+
       - name: Shorebird release APK
         id: build_release
         env:
