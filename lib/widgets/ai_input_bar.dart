@@ -28,10 +28,13 @@ class _AiInputBarState extends State<AiInputBar> {
   final _stt = SpeechToText();
   bool _listening = false;
   bool _busy = false;
+  bool _sttReady = false;
 
   @override
   void initState() {
     super.initState();
+    // Initialize speech-to-text once at startup (not on every mic tap).
+    _initSpeech();
     // When opened from the center AI button, the mic starts active instantly.
     if (widget.autoStartMic) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -40,11 +43,48 @@ class _AiInputBarState extends State<AiInputBar> {
     }
   }
 
+  /// Initialize the speech recognizer once. Called at startup.
+  Future<void> _initSpeech() async {
+    try {
+      _sttReady = await _stt.initialize(
+        onError: (error) {
+          if (mounted) setState(() => _listening = false);
+        },
+        onStatus: (status) {
+          if ((status == 'done' || status == 'notListening') && mounted) {
+            setState(() => _listening = false);
+          }
+        },
+      );
+    } catch (_) {
+      _sttReady = false;
+    }
+  }
+
   @override
   void dispose() {
     _controller.dispose();
     _stt.stop();
     super.dispose();
+  }
+
+  /// Watchdog: if listening starts but no speech is detected within
+  /// 10 seconds, stop and inform the user (never infinite loading).
+  void _startWatchdog() {
+    Future.delayed(const Duration(seconds: 10), () async {
+      if (!mounted || !_listening) return;
+      if (_controller.text.trim().isEmpty) {
+        await _stt.stop();
+        if (!mounted) return;
+        setState(() => _listening = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'No speech heard. Check microphone permission and try again.'),
+          ),
+        );
+      }
+    });
   }
 
   Future<void> _toggleMic() async {
@@ -57,35 +97,26 @@ class _AiInputBarState extends State<AiInputBar> {
 
     try {
       // 2. Check the permission status FIRST; don't blindly request.
-      final status = await Permission.microphone.status;
+      var status = await Permission.microphone.status;
 
-      if (status.isGranted) {
-        // Granted: proceed to speech init below.
-      } else if (status.isPermanentlyDenied || status.isRestricted) {
+      if (status.isPermanentlyDenied || status.isRestricted) {
         // Permanently denied: do NOT request again; go straight to settings.
         _showMicSettingsDialog();
         return;
-      } else if (status.isDenied) {
-        final requested = await Permission.microphone.request();
-        if (!requested.isGranted) {
+      } else if (!status.isGranted) {
+        status = await Permission.microphone.request();
+        if (!status.isGranted) {
           _showMicSettingsDialog();
           return;
         }
       }
 
-      // 4. Initialize speech recognition with status tracking so the UI never
-      // gets stuck in the listening state.
-      final available = await _stt.initialize(
-        onError: (error) {
-          if (mounted) setState(() => _listening = false);
-        },
-        onStatus: (status) {
-          if ((status == 'done' || status == 'notListening') && mounted) {
-            setState(() => _listening = false);
-          }
-        },
-      );
-      if (!available) {
+      // 3. Ensure speech recognizer is initialized (init once at startup,
+      // retry here if it failed).
+      if (!_sttReady) {
+        await _initSpeech();
+      }
+      if (!_sttReady) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -96,14 +127,17 @@ class _AiInputBarState extends State<AiInputBar> {
         return;
       }
 
-      // 5. Start listening; auto-submit on final result (existing behavior).
+      // 4. Start listening with watchdog; auto-submit on final result.
       setState(() => _listening = true);
+      _startWatchdog();
       await _stt.listen(
         listenOptions: SpeechListenOptions(
           pauseFor: const Duration(milliseconds: 1200),
           listenFor: const Duration(seconds: 30),
+          partialResults: true,
         ),
         onResult: (result) {
+          if (!mounted) return;
           _controller.text = result.recognizedWords;
           _controller.selection = TextSelection.fromPosition(
             TextPosition(offset: _controller.text.length),
@@ -115,7 +149,7 @@ class _AiInputBarState extends State<AiInputBar> {
         },
       );
     } catch (_) {
-      // 6. Any failure: never leave the UI stuck in listening state.
+      // 5. Any failure: never leave the UI stuck in listening state.
       if (mounted) setState(() => _listening = false);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
