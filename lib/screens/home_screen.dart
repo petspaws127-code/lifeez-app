@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../services/app_state.dart';
+import '../services/supabase_client.dart';
 import '../widgets/profile_menu.dart';
 import '../widgets/add_sheet.dart';
 import 'notifications_screen.dart';
@@ -21,11 +22,37 @@ class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
   static const route = '/home';
 
+  /// Display name: Google account name first, then profile name.
+  /// Returns first name with first letter capitalized.
+  String _displayName(AppState app) {
+    String? raw;
+    // 1. Google account display name (from Supabase auth metadata)
+    try {
+      final user = SupabaseService.client.auth.currentUser;
+      raw = user?.userMetadata?['full_name'] as String?;
+      raw ??= user?.userMetadata?['name'] as String?;
+    } catch (_) {}
+    // 2. Profile name fallback
+    raw ??= app.profile?.name;
+    if (raw == null || raw.trim().isEmpty) return 'there';
+    // First word, first letter capitalized
+    final first = raw.trim().split(RegExp(r'\s+')).first;
+    return first[0].toUpperCase() + first.substring(1);
+  }
+
+  /// Time-based greeting: Good morning / Good afternoon / Good evening
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour >= 5 && hour < 12) return 'Good morning';
+    if (hour >= 12 && hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
-    final name = app.profile?.name ?? 'there';
-    
+    final name = _displayName(app);
+
     // Build timeline items from all activities
     final items = _buildTimeline(app);
     
@@ -41,7 +68,7 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      'Hi $name 👋',
+                      '${_greeting()}, $name 👋',
                       style: GoogleFonts.poppins(
                         fontSize: 22,
                         fontWeight: FontWeight.w600,
