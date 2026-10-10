@@ -14,11 +14,12 @@ enum CommandIntent {
   deleteTask,
   createReminder,
   createAlarm,
+  createHabit,
+  addShoppingItems,
   createExpense,
   createBill,
   markBillPaid,
   createSubscription,
-  addShoppingItems,
   removeShoppingItem,
   setBudget,
   setIncome,
@@ -84,6 +85,13 @@ class CommandParser {
     t = t.replaceAll(
         RegExp(r'\butha dena\b|\buthao\b|\bjagao\b'), ' wake me up ');
     t = t.replaceAll(RegExp(r'\bneend\b'), ' sleep ');
+    // --- Habit words ---
+    t = t.replaceAll(RegExp(r'\broz\b|\bhar roz\b'), ' daily ');
+    t = t.replaceAll(RegExp(r'\badat\b|\baadat\b'), ' habit ');
+    // --- Shopping words ---
+    t = t.replaceAll(RegExp(r'\bgrocery list banao\b|\blist banao\b'), ' add to shopping list ');
+    t = t.replaceAll(RegExp(r'\bkhareedna hai\b|\bkhareedna\b'), ' buy ');
+    t = t.replaceAll(RegExp(r'\blena hai\b'), ' buy ');
     // --- Voice-to-text artifacts ---
     t = t.replaceAll(RegExp(r'\bplz\b'), ' please ');
     t = t.replaceAll(RegExp(r'\btmrw\b'), ' tomorrow ');
@@ -292,6 +300,52 @@ class CommandParser {
           'repeatDays': isDaily ? [1, 2, 3, 4, 5, 6, 7] : <int>[],
         },
       );
+    }
+
+    // ------------------------------------------------------------ habit
+    // "track habit read daily" / "roz exercise karna hai" (→"daily exercise") /
+    // "daily pani peena hai" — no rigid syntax needed.
+    if (t.contains('habit') ||
+        (t.contains('daily') &&
+            RegExp(r'\b(read|exercise|workout|meditat|yoga|water|walk|run|study|practice|pray)\b')
+                .hasMatch(t))) {
+      var title = t
+          .replaceAll(RegExp(r'\btrack habit\b|\bhabit\b'), '')
+          .replaceAll(RegExp(r'\bdaily\b'), '')
+          .trim();
+      title = _titleCase(stripDateWords(title));
+      if (title.isNotEmpty) {
+        return ParsedCommand(
+          intent: CommandIntent.createHabit,
+          params: {'title': title, 'repeat': 'daily'},
+        );
+      }
+    }
+
+    // ---------------------------------------------------------- shopping
+    // "grocery list banao" (→"add to shopping list") / "doodh lena hai" (→"doodh buy") /
+    // "buy milk and eggs" — natural shopping phrases.
+    if (t.contains('add to shopping list') ||
+        (RegExp(r'\bbuy\b').hasMatch(t) &&
+            !t.contains('add task') &&
+            !t.contains('remind'))) {
+      var itemsStr = t
+          .replaceAll('add to shopping list', '')
+          .replaceAll(RegExp(r'^\s*buy\s+'), '')
+          .trim();
+      if (itemsStr.isNotEmpty) {
+        final items = itemsStr
+            .split(RegExp(r',|\band\b'))
+            .map((e) => _titleCase(e.trim()))
+            .where((e) => e.isNotEmpty && e.length > 1)
+            .toList();
+        if (items.isNotEmpty) {
+          return ParsedCommand(
+            intent: CommandIntent.addShoppingItems,
+            params: {'items': items},
+          );
+        }
+      }
     }
 
     // --------------------------------------------------------- reminder

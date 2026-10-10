@@ -100,15 +100,9 @@ class AssistantEngine {
           },
         ));
       case 'createhabit':
-        // Habits go through tasks with daily repeat as a simple mapping.
         return appState.executeCommand(ParsedCommand(
-          intent: CommandIntent.createTask,
-          params: {
-            'title': 'Habit: $title',
-            'dueAt': when?.toIso8601String(),
-            'category': 'habit',
-            'repeat': repeat ?? 'daily',
-          },
+          intent: CommandIntent.createHabit,
+          params: {'title': title, 'repeat': 'daily'},
         ));
       case 'createalarm':
         final alarmHour = when?.hour ?? 8;
@@ -134,13 +128,33 @@ class AssistantEngine {
   }
 
   /// Smart fallback: NEVER lectures or asks for keywords.
-  /// Defaults to ACTION — creates a reminder/task from the raw input.
+  /// Defaults to ACTION — detects habit/shopping/reminder/task automatically.
   Future<String> _smartFallback(String original) async {
     final t = original.trim();
     if (t.length <= 3) {
       return 'What should I set up for you?';
     }
-    // Try to find any time reference → create a reminder.
+    final norm = CommandParser.normalizeRomanUrdu(t).toLowerCase();
+
+    // Habit? ("roz exercise", "daily water", "habit")
+    if (norm.contains('daily') || norm.contains('habit')) {
+      final cmd = CommandParser.parse(t);
+      if (cmd.intent == CommandIntent.createHabit) {
+        return appState.executeCommand(cmd);
+      }
+    }
+
+    // Shopping? ("buy milk", "grocery", "lena hai")
+    if (norm.contains('buy') ||
+        norm.contains('grocery') ||
+        norm.contains('shopping')) {
+      final cmd = CommandParser.parse(t);
+      if (cmd.intent == CommandIntent.addShoppingItems) {
+        return appState.executeCommand(cmd);
+      }
+    }
+
+    // Time reference? → reminder.
     final when = CommandParser.extractDateTime(t);
     if (when != null) {
       final title = _cleanTitle(t);
@@ -152,7 +166,8 @@ class AssistantEngine {
         },
       ));
     }
-    // No time found → create a task with the raw input as title.
+
+    // Default: create a task from the raw input.
     return appState.executeCommand(ParsedCommand(
       intent: CommandIntent.createTask,
       params: {

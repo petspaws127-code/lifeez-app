@@ -1235,6 +1235,19 @@ class AppState extends ChangeNotifier {
         return 'Done! Alarm set for ${alarm.timeLabel}'
             '${repeatStr == 'Once' ? '' : ' ($repeatStr)'}.';
 
+      case CommandIntent.createHabit:
+        final habitTitle = (p['title'] as String?) ?? 'Habit';
+        await addTask(TaskItem(
+          id: _uuid.v4(),
+          userId: uid,
+          title: 'Habit: $habitTitle',
+          category: 'habit',
+          repeat: 'daily',
+          source: 'ai',
+          createdAt: easternNow(),
+        ));
+        return 'Done! Tracking "$habitTitle" daily.';
+
       case CommandIntent.createExpense:
         final amount = (p['amount'] as num).toDouble();
         final category = (p['category'] as String?) ?? 'Other';
