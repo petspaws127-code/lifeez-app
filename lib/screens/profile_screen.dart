@@ -371,22 +371,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SectionHeader(title: 'Preferences'),
           const SizedBox(height: 8),
           _themeRow(app),
-          _switchRow(
-            icon: 'notification',
-            title: 'Notifications',
-            subtitle: 'Activity alerts and reminders',
-            value: p?.notificationsEnabled ?? true,
-            onChanged: (v) =>
-                app.saveProfile(p!.copyWith(notificationsEnabled: v)),
-          ),
-          _switchRow(
-            icon: 'myday',
-            title: 'Daily briefing',
-            subtitle: 'My Day summary each morning',
-            value: p?.dailyBriefingEnabled ?? true,
-            onChanged: (v) =>
-                app.saveProfile(p!.copyWith(dailyBriefingEnabled: v)),
-          ),
           _row(
             icon: 'money',
             title: 'Monthly budget',
