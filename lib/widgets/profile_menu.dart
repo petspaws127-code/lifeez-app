@@ -40,9 +40,9 @@ class ProfileMenu {
       ),
       color: Colors.white,
       elevation: 8,
-      items: [
+      items: <PopupMenuEntry<dynamic>>[
         // Header with user info (non-clickable)
-        PopupMenuItem(
+        PopupMenuItem<dynamic>(
           enabled: false,
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 4),
@@ -140,7 +140,7 @@ class ProfileMenu {
           route: TermsScreen.route,
         ),
         const PopupMenuDivider(),
-        PopupMenuItem(
+        PopupMenuItem<dynamic>(
           onTap: () => _signOut(context),
           child: Row(
             children: [
@@ -164,13 +164,13 @@ class ProfileMenu {
     );
   }
 
-  static PopupMenuItem _menuItem(
+  static PopupMenuEntry<dynamic> _menuItem(
     BuildContext context, {
     required IconData icon,
     required String label,
     required String route,
   }) {
-    return PopupMenuItem(
+    return PopupMenuItem<dynamic>(
       onTap: () {
         // Delay navigation until the menu is fully dismissed.
         Future.delayed(const Duration(milliseconds: 100), () {
