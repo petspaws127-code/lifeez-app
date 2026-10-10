@@ -42,7 +42,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     super.initState();
     _engine = AssistantEngine(context.read<AppState>());
     _messages.add(_Msg(
-        'Hi! Just tell me what to do — I\'ll handle tasks, reminders, habits, pets, trips, and more. Try me in English or Roman Urdu.',
+        'Hi! Just tell me what to do — I\'ll handle tasks, reminders, habits, pets, trips, and more.',
         false));
     _tts.setCompletionHandler(() {
       if (mounted) setState(() => _speaking = false);
