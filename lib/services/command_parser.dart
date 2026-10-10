@@ -148,11 +148,9 @@ class CommandParser {
     // "doctor appointment tomorrow 9am" / "tomorrow morning 9am doctor"
     // (after Roman Urdu normalization) — no "remind me" prefix needed.
     // If it has a date/time AND looks like an event, auto-create a reminder.
-    // NEVER hijack explicit "add task" / "create task" commands.
-    final isExplicitTask = t.contains('add task') ||
-        t.contains('create task') ||
-        t.contains('add a task') ||
-        t.contains('create a task');
+    // NEVER hijack explicit "add task" / "create task" commands,
+    // or any text that clearly mentions "task".
+    final isExplicitTask = RegExp(r'\btask\b').hasMatch(t);
     if (!isExplicitTask) {
       final when = extractDateTime(t);
       final hasEventWord = RegExp(
@@ -419,6 +417,28 @@ class CommandParser {
           'repeat': extractRepeat(rest),
         },
       );
+    }
+
+    // "wash car tomorrow task" — "task" at the end.
+    // Exclude other command verbs (remove/delete/complete/show/list).
+    m = RegExp(r'^(?!remove\b|delete\b|complete\b|done\b|show\b|list\b)(.+?)\s+task$')
+        .firstMatch(t);
+    if (m != null) {
+      final rest = m.group(1)!.trim();
+      if (rest.isNotEmpty) {
+        final when = extractDateTime(rest);
+        final title = _titleCase(stripDateWords(rest));
+        return ParsedCommand(
+          intent: CommandIntent.createTask,
+          params: {
+            'title': title.isEmpty ? _titleCase(rest) : title,
+            'dueAt': when?.toIso8601String(),
+            'hasTime': hasExplicitTime(rest),
+            'category': detectTaskCategory(rest),
+            'repeat': extractRepeat(rest),
+          },
+        );
+      }
     }
 
     // ----------------------------------------------------- subscription
