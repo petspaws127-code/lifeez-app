@@ -148,7 +148,12 @@ class CommandParser {
     // "doctor appointment tomorrow 9am" / "tomorrow morning 9am doctor"
     // (after Roman Urdu normalization) — no "remind me" prefix needed.
     // If it has a date/time AND looks like an event, auto-create a reminder.
-    {
+    // NEVER hijack explicit "add task" / "create task" commands.
+    final isExplicitTask = t.contains('add task') ||
+        t.contains('create task') ||
+        t.contains('add a task') ||
+        t.contains('create a task');
+    if (!isExplicitTask) {
       final when = extractDateTime(t);
       final hasEventWord = RegExp(
               r'\b(appointment|meeting|visit|call|doctor|dentist|interview|flight|dinner|lunch|breakfast|party|wedding|birthday|anniversary|deadline|exam|class|gym|workout)\b')
@@ -166,7 +171,7 @@ class CommandParser {
           );
         }
       }
-    }
+    } // end if (!isExplicitTask)
 
     // ---------------------------------------------------------- queries
     if (RegExp(r'how much.*(left|remain)').hasMatch(t) ||
@@ -397,6 +402,8 @@ class CommandParser {
 
     // --------------------------------------------------------- add task
     // "add task buy milk tomorrow 5pm"
+    // Tasks do NOT get a default time: if the user didn't say a time,
+    // the task is due on that date with no specific time.
     m = RegExp(r'^(add|create)( a| new)? task (.+)').firstMatch(t);
     if (m != null) {
       final rest = m.group(3)!;
@@ -407,6 +414,7 @@ class CommandParser {
         params: {
           'title': title.isEmpty ? _titleCase(rest) : title,
           'dueAt': when?.toIso8601String(),
+          'hasTime': hasExplicitTime(rest),
           'category': detectTaskCategory(rest),
           'repeat': extractRepeat(rest),
         },
@@ -431,6 +439,23 @@ class CommandParser {
   }
 
   // ------------------------------------------------------------- dates
+  /// Returns true if the text contains an explicit time ("5pm", "9:00 am",
+  /// "morning", "evening", etc.). Used so tasks don't get a default time
+  /// the user never asked for.
+  static bool hasExplicitTime(String raw) {
+    final t = raw.toLowerCase();
+    if (RegExp(r'\d{1,2}(?::\d{2})?\s*(a\.?m\.?|p\.?m\.?)').hasMatch(t)) {
+      return true;
+    }
+    return t.contains('morning') ||
+        t.contains('afternoon') ||
+        t.contains('evening') ||
+        t.contains('night') ||
+        t.contains('tonight') ||
+        t.contains('noon') ||
+        t.contains('midnight');
+  }
+
   /// Parses "tomorrow 5pm", "on the 1st", "next monday", "every day", etc.
   static DateTime? extractDateTime(String raw) {
     final t = raw.toLowerCase();

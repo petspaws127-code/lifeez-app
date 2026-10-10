@@ -1176,6 +1176,9 @@ class AppState extends ChangeNotifier {
         final due = p['dueAt'] != null
             ? DateTime.tryParse(p['dueAt'] as String)
             : null;
+        // If the user didn't say a time, show date only ("due tomorrow"),
+        // never a made-up default time.
+        final hasTime = p['hasTime'] as bool? ?? true;
         unawaited(addTask(TaskItem(
           id: _uuid.v4(),
           userId: uid,
@@ -1186,9 +1189,9 @@ class AppState extends ChangeNotifier {
           source: 'whatsapp',
           createdAt: easternNow(),
         )));
-        return due == null
-            ? 'Task added: ${p['title']}.'
-            : 'Task added: ${p['title']} (due ${_fmtDateTime(due)}).';
+        if (due == null) return 'Task added: ${p['title']}.';
+        final dueStr = hasTime ? _fmtDateTime(due) : _fmtDate(due);
+        return 'Task added: ${p['title']} (due $dueStr).';
 
       case CommandIntent.completeTask:
         final q = (p['query'] as String).toLowerCase();
@@ -1390,6 +1393,17 @@ class AppState extends ChangeNotifier {
       }
     }
     return null;
+  }
+
+  /// Date only, no time — for tasks where the user didn't specify a time.
+  String _fmtDate(DateTime d) {
+    final now = easternNow();
+    final today = DateTime(now.year, now.month, now.day);
+    final day = DateTime(d.year, d.month, d.day);
+    final diff = day.difference(today).inDays;
+    if (diff == 0) return 'today';
+    if (diff == 1) return 'tomorrow';
+    return '${d.month}/${d.day}/${d.year}';
   }
 
   String _fmtDateTime(DateTime d) {
