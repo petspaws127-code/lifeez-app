@@ -56,9 +56,12 @@ class CommandParser {
     t = t.replaceAll(RegExp(r'\bdopahar\b|\bdupehar\b|\bdopher\b'), ' afternoon ');
     t = t.replaceAll(RegExp(r'\bsham\b|\bshaam\b'), ' evening ');
     t = t.replaceAll(RegExp(r'\braat\b'), ' night ');
-    // "9 baje" → "9am" (default am; evening/night context handled by parser)
+    // "9 baje" → "9am" (or "9pm" if evening/night context)
+    final isEvening =
+        t.contains(' evening ') || t.contains(' night ') || t.contains(' sham ');
     t = t.replaceAllMapped(
-        RegExp(r'\b(\d{1,2})\s*baj(e|ay)?\b'), (m) => ' ${m.group(1)}am ');
+        RegExp(r'\b(\d{1,2})\s*baj(e|ay)?\b'),
+        (m) => isEvening ? ' ${m.group(1)}pm ' : ' ${m.group(1)}am ');
     // --- Action words ---
     t = t.replaceAll(
         RegExp(r'\byad dilao\b|\byaad dilao\b|\byad dila do\b'), ' remind me ');
