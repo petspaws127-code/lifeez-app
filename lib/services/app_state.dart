@@ -1176,7 +1176,7 @@ class AppState extends ChangeNotifier {
         final due = p['dueAt'] != null
             ? DateTime.tryParse(p['dueAt'] as String)
             : null;
-        await addTask(TaskItem(
+        unawaited(addTask(TaskItem(
           id: _uuid.v4(),
           userId: uid,
           title: (p['title'] as String?) ?? 'Untitled task',
@@ -1185,7 +1185,7 @@ class AppState extends ChangeNotifier {
           repeat: p['repeat'] as String?,
           source: 'whatsapp',
           createdAt: easternNow(),
-        ));
+        )));
         return due == null
             ? 'Task added: ${p['title']}.'
             : 'Task added: ${p['title']} (due ${_fmtDateTime(due)}).';
@@ -1196,27 +1196,27 @@ class AppState extends ChangeNotifier {
         if (match == null) {
           return 'I could not find an open task matching "$q".';
         }
-        await toggleTask(match.id);
+        unawaited(toggleTask(match.id));
         return 'Marked done: ${match.title}. Nice work.';
 
       case CommandIntent.deleteTask:
         final q = (p['query'] as String).toLowerCase();
         final match = _bestTaskMatch(q, includeDone: true);
         if (match == null) return 'No task found matching "$q".';
-        await deleteTask(match.id);
+        unawaited(deleteTask(match.id));
         return 'Deleted task: ${match.title}.';
 
       case CommandIntent.createReminder:
         final at = p['remindAt'] != null
             ? DateTime.tryParse(p['remindAt'] as String)
             : null;
-        await addReminder(Reminder(
+        unawaited(addReminder(Reminder(
           id: _uuid.v4(),
           userId: uid,
           title: (p['title'] as String?) ?? 'Reminder',
           remindAt: at ?? easternNow().add(const Duration(hours: 1)),
           repeat: p['repeat'] as String?,
-        ));
+        )));
         return at == null
             ? 'Reminder set: ${p['title']}.'
             : 'Reminder set: ${p['title']} at ${_fmtDateTime(at)}.';
@@ -1228,7 +1228,7 @@ class AppState extends ChangeNotifier {
           minute: (p['minute'] as int?) ?? 0,
           repeatDays: List<int>.from(p['repeatDays'] as List? ?? []),
         );
-        await addAlarm(alarm);
+        unawaited(addAlarm(alarm));
         final repeatStr = alarm.repeatDays.length == 7
             ? 'daily'
             : alarm.repeatLabel;
@@ -1237,7 +1237,7 @@ class AppState extends ChangeNotifier {
 
       case CommandIntent.createHabit:
         final habitTitle = (p['title'] as String?) ?? 'Habit';
-        await addTask(TaskItem(
+        unawaited(addTask(TaskItem(
           id: _uuid.v4(),
           userId: uid,
           title: 'Habit: $habitTitle',
@@ -1245,14 +1245,14 @@ class AppState extends ChangeNotifier {
           repeat: 'daily',
           source: 'ai',
           createdAt: easternNow(),
-        ));
+        )));
         return 'Done! Tracking "$habitTitle" daily.';
 
       case CommandIntent.createExpense:
         final amount = (p['amount'] as num).toDouble();
         final category = (p['category'] as String?) ?? 'Other';
         final note = (p['note'] as String?) ?? '';
-        await addExpense(Expense(
+        unawaited(addExpense(Expense(
           id: _uuid.v4(),
           userId: uid,
           amount: amount,
@@ -1260,19 +1260,19 @@ class AppState extends ChangeNotifier {
           note: note,
           spentAt: easternNow(),
           source: 'whatsapp',
-        ));
+        )));
         return 'Logged \$${amount.toStringAsFixed(2)} for $category'
             '${note.isNotEmpty ? ' ($note)' : ''}. '
             'You have \$${leftToSpend.toStringAsFixed(2)} left this month.';
 
       case CommandIntent.createBill:
-        await addBill(Bill(
+        unawaited(addBill(Bill(
           id: _uuid.v4(),
           userId: uid,
           name: (p['name'] as String?) ?? 'Bill',
           amount: (p['amount'] as num).toDouble(),
           dueDay: (p['dueDay'] as int?) ?? 1,
-        ));
+        )));
         return 'Bill added: ${p['name']} — \$${(p['amount'] as num).toStringAsFixed(2)} due on the ${p['dueDay']}.';
 
       case CommandIntent.markBillPaid:
@@ -1286,27 +1286,27 @@ class AppState extends ChangeNotifier {
           }
         }
         if (match == null) return 'No bill found matching "$q".';
-        await setBillPaid(match.id, true);
+        unawaited(setBillPaid(match.id, true));
         return 'Marked ${match.name} as paid.';
 
       case CommandIntent.createSubscription:
-        await addSubscription(Subscription(
+        unawaited(addSubscription(Subscription(
           id: _uuid.v4(),
           userId: uid,
           name: (p['name'] as String?) ?? 'Subscription',
           amount: (p['amount'] as num).toDouble(),
           renewalDay: easternNow().day,
-        ));
+        )));
         return 'Subscription added: ${p['name']} at \$${(p['amount'] as num).toStringAsFixed(2)}/month.';
 
       case CommandIntent.addShoppingItems:
         final items = List<String>.from(p['items'] as List);
         for (final name in items) {
-          await addShoppingItem(ShoppingItem(
+          unawaited(addShoppingItem(ShoppingItem(
             id: _uuid.v4(),
             userId: uid,
             name: name,
-          ));
+          )));
         }
         return items.length == 1
             ? 'Added ${items.first} to your shopping list.'
@@ -1322,20 +1322,20 @@ class AppState extends ChangeNotifier {
           }
         }
         if (match == null) return 'No shopping item matching "$q".';
-        await deleteShoppingItem(match.id);
+        unawaited(deleteShoppingItem(match.id));
         return 'Removed ${match.name} from your shopping list.';
 
       case CommandIntent.setBudget:
         final amount = (p['amount'] as num).toDouble();
         if (profile != null) {
-          await saveProfile(profile!.copyWith(monthlyBudget: amount));
+          unawaited(saveProfile(profile!.copyWith(monthlyBudget: amount)));
         }
         return 'Monthly budget set to \$${amount.toStringAsFixed(2)}.';
 
       case CommandIntent.setIncome:
         final amount = (p['amount'] as num).toDouble();
         if (profile != null) {
-          await saveProfile(profile!.copyWith(monthlyIncome: amount));
+          unawaited(saveProfile(profile!.copyWith(monthlyIncome: amount)));
         }
         return 'Monthly income set to \$${amount.toStringAsFixed(2)}.';
 

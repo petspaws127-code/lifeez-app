@@ -40,8 +40,8 @@ class GeminiService {
                 }
               ],
               'generationConfig': {
-                'maxOutputTokens': 300,
-                'temperature': 0.7,
+                'maxOutputTokens': 150,
+                'temperature': 0.3,
               },
             }),
           )
@@ -95,12 +95,12 @@ Rules:
                 }
               ],
               'generationConfig': {
-                'maxOutputTokens': 300,
-                'temperature': 0.3,
+                'maxOutputTokens': 120,
+                'temperature': 0.1,
               },
             }),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 6));
       if (res.statusCode != 200) return null;
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       final candidates = data['candidates'] as List?;
