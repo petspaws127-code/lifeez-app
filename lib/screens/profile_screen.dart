@@ -461,19 +461,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             danger: true,
             onTap: _deleteAccount,
           ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: GradientButton(
-              label: 'Sign out',
-              icon: Icons.logout_rounded,
-              colors: const [
-                Color(0xFF6B7280),
-                Color(0xFF1A9C63)
-              ],
-              onPressed: _signOut,
-            ),
-          ),
           const SizedBox(height: 16),
           Center(
             child: FutureBuilder<PackageInfo>(
