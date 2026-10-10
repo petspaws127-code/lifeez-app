@@ -115,30 +115,6 @@ class ProfileMenu {
           label: 'Settings',
           route: SettingsScreen.route,
         ),
-        _menuItem(
-          context,
-          icon: Icons.help_outline_rounded,
-          label: 'Help & FAQ',
-          route: HelpFaqScreen.route,
-        ),
-        _menuItem(
-          context,
-          icon: Icons.support_agent_outlined,
-          label: 'Contact Support',
-          route: ContactSupportScreen.route,
-        ),
-        _menuItem(
-          context,
-          icon: Icons.privacy_tip_outlined,
-          label: 'Privacy Policy',
-          route: PrivacyPolicyScreen.route,
-        ),
-        _menuItem(
-          context,
-          icon: Icons.description_outlined,
-          label: 'Terms of Service',
-          route: TermsScreen.route,
-        ),
         const PopupMenuDivider(),
         PopupMenuItem<dynamic>(
           onTap: () => _signOut(context),
