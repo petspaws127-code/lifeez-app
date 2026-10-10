@@ -23,29 +23,38 @@ jobs:
           echo "=== apps help ==="
           shorebird apps --help || true
 
-      - name: Create Lifeez app
+      - name: Create Lifeez app via Shorebird API
         shell: bash
         env:
           SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
         run: |
-          # settings.gradle.kts requires android/local.properties with flutter.sdk.
-          # Find Shorebird's Flutter.
-          echo "shorebird bin: $HOME/.shorebird/bin"
-          ls "$HOME/.shorebird/bin/cache/flutter/bin/" 2>/dev/null || true
-          FLUTTER_BIN="$HOME/.shorebird/bin/cache/flutter/bin/flutter"
-          if [ ! -f "$FLUTTER_BIN" ]; then
-            FLUTTER_BIN=$(find "$HOME/.shorebird" -name "flutter" -type f 2>/dev/null | head -1)
+          # Create the app directly via Shorebird API (shorebird init is interactive).
+          # First, get the organization ID.
+          echo "=== organizations ==="
+          ORGS=$(curl -s -H "Authorization: Bearer $SHOREBIRD_TOKEN" \
+            https://api.shorebird.dev/api/v1/organizations)
+          echo "$ORGS" | head -c 500
+          echo ""
+          ORG_ID=$(echo "$ORGS" | grep -o '"id":[0-9]*' | head -1 | grep -o '[0-9]*')
+          echo "ORG_ID=$ORG_ID"
+          # Create the app.
+          echo "=== create app ==="
+          RESULT=$(curl -s -X POST \
+            -H "Authorization: Bearer $SHOREBIRD_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"organization_id\": $ORG_ID, \"display_name\": \"Lifeez\"}" \
+            https://api.shorebird.dev/api/v1/apps)
+          echo "$RESULT" | head -c 1000
+          echo ""
+          # Extract app_id and write shorebird.yaml
+          APP_ID=$(echo "$RESULT" | grep -o '"id":"[a-f0-9-]*"' | head -1 | grep -o '[a-f0-9-]\{36\}')
+          echo "APP_ID=$APP_ID"
+          if [ -n "$APP_ID" ]; then
+            printf '# Shorebird configuration\napp_id: %s\n' "$APP_ID" > shorebird.yaml
+            cat shorebird.yaml
+          else
+            echo "FAILED to get app_id"
+            exit 1
           fi
-          echo "Flutter: $FLUTTER_BIN"
-          FLUTTER_ROOT=$(dirname $(dirname "$FLUTTER_BIN"))
-          echo "Shorebird Flutter root: $FLUTTER_ROOT"
-          printf 'flutter.sdk=%s\n' "$FLUTTER_ROOT" > android/local.properties
-          cat android/local.properties
-          # shorebird init creates the app on Shorebird servers and writes shorebird.yaml.
-          # Provide answers for interactive prompts: app name = Lifeez.
-          printf 'Lifeez\n\n\n' | shorebird init --verbose > init-log.txt 2>&1 || true
-          tail -40 init-log.txt
           echo "=== apps list ==="
           shorebird apps list || true
-          echo "=== shorebird.yaml ==="
-          cat shorebird.yaml || true
