@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../services/app_state.dart';
+import '../widgets/ai_command_drawer.dart';
+import '../widgets/add_sheet.dart';
 import 'home_screen.dart';
 import 'tasks_screen.dart';
 import 'reminders_screen.dart';
-import 'calendar_screen.dart';
-import 'more_screen.dart';
 import 'pin_lock_screen.dart';
 import '../services/update_service.dart';
-import '../widgets/ai_command_drawer.dart';
 
-/// Bottom navigation with the 5 main tabs.
+/// Bottom navigation: Home | Tasks | Reminders | + Add.
+/// The AI assistant is a floating glowing button (bottom-center above nav).
 /// Shows the PIN lock screen when the app is locked.
 class MainTabs extends StatefulWidget {
   static const route = '/home';
@@ -93,9 +94,10 @@ class _MainTabsState extends State<MainTabs> {
     HomeScreen(),
     TasksScreen(),
     RemindersScreen(),
-    MoreScreen(),
   ];
 
+  /// Center AI button: instantly opens the voice/text command drawer
+  /// with the microphone active.
   void _openAiDrawer() {
     showModalBottomSheet(
       context: context,
@@ -113,46 +115,130 @@ class _MainTabsState extends State<MainTabs> {
     }
     return Scaffold(
       body: IndexedStack(index: _index, children: _screens),
-      floatingActionButton: GestureDetector(
-        onTap: _openAiDrawer,
-        child: Container(
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              colors: [Color(0xFF1a9c63), Color(0xFF27c77e)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF1a9c63).withOpacity(0.5),
-                blurRadius: 20,
-                spreadRadius: 4,
-              ),
-            ],
+      floatingActionButton: _buildAiFab(),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: _buildBottomNav(),
+    );
+  }
+
+  /// Single prominent glowing AI button — floating bottom-center above nav
+  Widget _buildAiFab() {
+    return GestureDetector(
+      onTap: _openAiDrawer,
+      child: Container(
+        width: 60,
+        height: 60,
+        margin: const EdgeInsets.only(bottom: 8),
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const LinearGradient(
+            colors: [Color(0xFF1a9c63), Color(0xFF34A46F)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-          child: const Icon(Icons.auto_awesome_rounded,
-              color: Colors.white, size: 28),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF1a9c63).withOpacity(0.55),
+              blurRadius: 18,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: const Icon(Icons.auto_awesome_rounded,
+            color: Colors.white, size: 30),
+      ),
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 12,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Slot 1: Home
+            _navSlot(index: 0, icon: Icons.home_rounded, label: 'Home'),
+            // Slot 2: Tasks
+            _navSlot(
+                index: 1,
+                icon: Icons.check_circle_outline_rounded,
+                label: 'Tasks'),
+            // Center gap for the floating AI button
+            const SizedBox(width: 72),
+            // Slot 3: Reminders
+            _navSlot(
+                index: 2,
+                icon: Icons.notifications_outlined,
+                label: 'Reminders'),
+            // Slot 4: + Add — opens the add sheet
+            Expanded(
+              child: InkWell(
+                onTap: () => showAddSheet(context),
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.add_circle_outline_rounded,
+                          color: Colors.grey, size: 26),
+                      const SizedBox(height: 2),
+                      Text('Add',
+                          style: GoogleFonts.poppins(
+                              fontSize: 11,
+                              color: Colors.grey,
+                              fontWeight: FontWeight.w400)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _index,
-        onTap: (i) => setState(() => _index = i),
-        items: const [
-          BottomNavigationBarItem(
-              icon: Icon(Icons.home_rounded), label: 'Home'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.check_circle_outline_rounded),
-              label: 'Tasks'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.notifications_outlined),
-              label: 'Reminders'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.grid_view_rounded), label: 'More'),
-        ],
+    );
+  }
+
+  Widget _navSlot(
+      {required int index,
+      required IconData icon,
+      required String label}) {
+    final selected = _index == index;
+    final color =
+        selected ? const Color(0xFF1a9c63) : Colors.grey;
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _index = index),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 26),
+              const SizedBox(height: 2),
+              Text(label,
+                  style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      color: color,
+                      fontWeight: selected
+                          ? FontWeight.w600
+                          : FontWeight.w400)),
+            ],
+          ),
+        ),
       ),
     );
   }
