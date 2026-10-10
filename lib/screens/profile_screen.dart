@@ -186,6 +186,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (ok != true || !mounted) return;
     final auth = context.read<AuthService>();
     final app = context.read<AppState>();
+    // Push any pending offline writes to the cloud before wiping local.
+    await app.flushBeforeSignOut();
+    app.clearLocal();
     await auth.signOut();
     if (!mounted) return;
     Navigator.pushNamedAndRemoveUntil(

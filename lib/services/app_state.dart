@@ -76,6 +76,17 @@ class AppState extends ChangeNotifier {
     return 'lifeez_local_data_v1_${uid ?? "guest"}';
   }
 
+  /// User-scoped pending-sync queue key. Survives restarts so offline
+  /// writes are never lost — they flush when connectivity returns.
+  static String get _pendingKey {
+    final uid = SupabaseService.currentUserId;
+    return 'lifeez_pending_sync_v1_${uid ?? "guest"}';
+  }
+
+  /// In-memory pending operations: {op: 'upsert'|'delete', table, id, row}
+  List<Map<String, dynamic>> _pendingOps = [];
+  bool _flushing = false;
+
   @override
   void notifyListeners() {
     // Debounced auto-save: any state change persists locally within 1s.
@@ -179,6 +190,8 @@ class AppState extends ChangeNotifier {
     // Load local data first so the UI shows instantly, then refresh
     // from Supabase when available.
     await _loadLocal();
+    // Load any pending offline writes from disk.
+    await _loadPendingSync();
     notifyListeners();
     try {
       final uid = _uid;
@@ -250,12 +263,21 @@ class AppState extends ChangeNotifier {
           list(results[17]).map(LentBorrowed.fromJson).toList();
       _pinUnlocked = false;
       refreshNotifications();
+      // We're online (cloud fetch succeeded): flush any pending
+      // offline writes now.
+      await _flushPendingSync();
     } catch (e) {
       error = 'Could not load your data: $e';
     } finally {
       loading = false;
       notifyListeners();
     }
+  }
+
+  /// Best-effort flush before sign-out so pending offline writes
+  /// reach the cloud before local data is wiped.
+  Future<void> flushBeforeSignOut() async {
+    await _flushPendingSync();
   }
 
   void clearLocal() {
@@ -290,18 +312,112 @@ class AppState extends ChangeNotifier {
   Future<void> _save(String table, Map<String, dynamic> row) async {
     try {
       await SupabaseService.client.from(table).upsert(row);
+      // Opportunistic flush: a successful write means we're online,
+      // so drain any queued ops too.
+      _flushPendingSync();
     } catch (e) {
-      error = 'Sync issue ($table): $e';
+      // Offline or transient failure: queue for later retry instead
+      // of silently dropping the write.
+      _queueOp('upsert', table, row['id']?.toString() ?? '', row);
+      error = 'Sync queued ($table): will retry when online';
     }
   }
 
   Future<void> _delete(String table, String id) async {
     try {
       await SupabaseService.client.from(table).delete().eq('id', id);
+      _flushPendingSync();
     } catch (e) {
-      error = 'Sync issue ($table): $e';
+      _queueOp('delete', table, id, null);
+      error = 'Sync queued ($table): will retry when online';
     }
   }
+
+  /// Add an operation to the persistent pending-sync queue.
+  Future<void> _queueOp(
+      String op, String table, String id, Map<String, dynamic>? row) async {
+    // Replace any existing pending op for the same table+id (last wins).
+    _pendingOps.removeWhere((p) => p['table'] == table && p['id'] == id);
+    _pendingOps.add({
+      'op': op,
+      'table': table,
+      'id': id,
+      if (row != null) 'row': row,
+      'queuedAt': DateTime.now().toIso8601String(),
+    });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final encoded = _pendingOps
+          .map((p) => jsonEncode(p))
+          .toList();
+      await prefs.setStringList(_pendingKey, encoded);
+    } catch (_) {}
+    notifyListeners();
+  }
+
+  /// Load the pending queue from disk (called on startup).
+  Future<void> _loadPendingSync() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final encoded = prefs.getStringList(_pendingKey) ?? [];
+      _pendingOps = encoded
+          .map((s) {
+            try {
+              return Map<String, dynamic>.from(jsonDecode(s));
+            } catch (_) {
+              return <String, dynamic>{};
+            }
+          })
+          .where((p) => p.isNotEmpty && p['table'] != null)
+          .toList();
+    } catch (_) {
+      _pendingOps = [];
+    }
+  }
+
+  /// Retry all queued operations. Called on startup, after loadAll,
+  /// and opportunistically after any successful cloud write.
+  Future<void> _flushPendingSync() async {
+    if (_flushing || _pendingOps.isEmpty) return;
+    _flushing = true;
+    try {
+      final remaining = <Map<String, dynamic>>[];
+      for (final p in List<Map<String, dynamic>>.from(_pendingOps)) {
+        try {
+          final table = p['table'] as String;
+          if (p['op'] == 'delete') {
+            await SupabaseService.client
+                .from(table)
+                .delete()
+                .eq('id', p['id']);
+          } else {
+            final row = Map<String, dynamic>.from(p['row'] as Map);
+            await SupabaseService.client.from(table).upsert(row);
+          }
+          // Success: don't re-add to remaining.
+        } catch (_) {
+          remaining.add(p);
+        }
+      }
+      _pendingOps = remaining;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setStringList(
+            _pendingKey, remaining.map((p) => jsonEncode(p)).toList());
+      } catch (_) {}
+      if (remaining.isEmpty) {
+        error = null;
+      } else {
+        error = '${remaining.length} change(s) waiting to sync';
+      }
+    } finally {
+      _flushing = false;
+    }
+    notifyListeners();
+  }
+
+  /// Number of pending sync operations (for UI badge if needed).
+  int get pendingSyncCount => _pendingOps.length;
 
   // ------------------------------------------------------------- profile
   Future<void> saveProfile(Profile p) async {

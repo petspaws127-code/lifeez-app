@@ -147,6 +147,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (ok != true || !mounted) return;
     final auth = context.read<AuthService>();
     final appState = context.read<AppState>();
+    // Push any pending offline writes to the cloud before signing out.
+    await appState.flushBeforeSignOut();
+    appState.clearLocal();
     await auth.signOut();
     // Data kept on logout - user data persists;
     if (!mounted) return;
