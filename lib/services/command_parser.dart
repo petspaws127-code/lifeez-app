@@ -328,10 +328,15 @@ class CommandParser {
     // ---------------------------------------------------------- shopping
     // "grocery list banao" (→"add to shopping list") / "doodh lena hai" (→"doodh buy") /
     // "buy milk and eggs" — natural shopping phrases.
+    // BUT: if there's a date ("buy eggs tomorrow"), it's a TASK, not shopping.
+    // Shopping is for dateless item lists; dated "buy" phrases fall through
+    // to the task handlers below.
+    final hasDateRef = extractDateTime(t) != null;
     if (t.contains('add to shopping list') ||
         (RegExp(r'\bbuy\b').hasMatch(t) &&
             !t.contains('add task') &&
-            !t.contains('remind'))) {
+            !t.contains('remind') &&
+            !hasDateRef)) {
       var itemsStr = t
           .replaceAll('add to shopping list', '')
           .replaceAll(RegExp(r'^\s*buy\s+'), '')
