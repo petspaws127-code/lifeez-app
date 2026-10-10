@@ -24,6 +24,7 @@ jobs:
           cache: true
 
       - name: Get dependencies
+        shell: bash
         run: flutter pub get
 
       - name: Setup android/local.properties
@@ -37,14 +38,15 @@ jobs:
 
       - name: Shorebird release APK
         id: build_release
+        shell: bash
         env:
           SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           OWM_API_KEY: ${{ secrets.OWM_API_KEY }}
         run: |
-          shorebird release android --artifact apk --verbose -- --dart-define=GEMINI_API_KEY=$env:GEMINI_API_KEY --dart-define=OWM_API_KEY=$env:OWM_API_KEY > build-release-log.txt 2>&1
-          $code = $LASTEXITCODE
-          Get-Content build-release-log.txt | Select-Object -Last 30
+          shorebird release android --artifact apk --verbose -- --dart-define=GEMINI_API_KEY=$GEMINI_API_KEY --dart-define=OWM_API_KEY=$OWM_API_KEY > build-release-log.txt 2>&1
+          code=$?
+          tail -30 build-release-log.txt
           exit $code
 
       - name: Upload release build log
@@ -63,4 +65,5 @@ jobs:
 
       - name: Fail if build failed
         if: steps.build_release.outcome != 'success'
+        shell: bash
         run: exit 1
