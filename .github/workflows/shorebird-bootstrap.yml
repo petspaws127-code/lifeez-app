@@ -1,0 +1,40 @@
+name: Shorebird Bootstrap (one-time)
+
+# One-time job to create the Lifeez app on Shorebird and print the app_id.
+# Trigger manually, then delete this file.
+on:
+  workflow_dispatch:
+
+jobs:
+  bootstrap:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Shorebird
+        uses: shorebirdtech/setup-shorebird@v1
+        with:
+          cache: true
+
+      - name: Check CLI commands
+        shell: bash
+        run: |
+          shorebird --version
+          echo "=== apps help ==="
+          shorebird apps --help || true
+
+      - name: Create Lifeez app
+        shell: bash
+        env:
+          SHOREBIRD_TOKEN: ${{ secrets.SHOREBIRD_TOKEN }}
+        run: |
+          # Try non-interactive app creation; fall back to init with piped input
+          if shorebird apps --help 2>&1 | grep -q "create"; then
+            shorebird apps create --name Lifeez
+          else
+            printf 'Lifeez\n' | shorebird init || shorebird init
+          fi
+          echo "=== apps list ==="
+          shorebird apps list || true
+          echo "=== shorebird.yaml ==="
+          cat shorebird.yaml || true

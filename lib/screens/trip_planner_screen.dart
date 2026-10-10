@@ -6,7 +6,6 @@ import 'package:uuid/uuid.dart';
 import '../theme/app_theme.dart';
 import '../widgets/category_icon.dart';
 import '../widgets/ui_kit.dart';
-import '../data/usa_states.dart';
 import '../models/trip_models.dart';
 import '../models/task_item.dart';
 import '../models/reminder.dart';
@@ -27,7 +26,7 @@ const _green = Color(0xFF1A9C63);
 /// - Result shown in 3 tabs: Itinerary | Packing List | Expenses.
 /// - "Sync to Reminders" writes real tasks + reminders into the
 ///   Lifeez Tasks/Calendar module.
-/// - Existing "My trips" list + USA states quick-add stay as-is below.
+/// - Existing "My trips" list stays as-is below.
 class TripPlannerScreen extends StatefulWidget {
   static const route = '/trip-planner';
   const TripPlannerScreen({super.key});
@@ -48,8 +47,6 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
   // Smart input state.
   final _destCtrl = TextEditingController();
   final _budgetCtrl = TextEditingController();
-  final _searchCtrl = TextEditingController();
-  String _query = '';
   DateTime? _startDate;
   DateTime? _endDate;
   TripType _tripType = TripType.solo;
@@ -71,7 +68,6 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
   void dispose() {
     _destCtrl.dispose();
     _budgetCtrl.dispose();
-    _searchCtrl.dispose();
     _stt.stop();
     super.dispose();
   }
@@ -293,17 +289,6 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
   }
 
   // ---------------------------------------------------------- existing bits
-  /// Fully automated: one tap on a state creates a complete trip plan.
-  void _autoTrip(Map<String, dynamic> s) {
-    final attractions = (s['attractions'] as List).join(', ');
-    setState(() => _trips.add({
-          'name': '${s['state']} Adventure',
-          'detail':
-              '${s['capital']} • Best: ${s['best']}\nTop spots: $attractions',
-        }));
-    _snack('${s['state']} trip added!');
-  }
-
   void _addTrip() {
     final nameCtrl = TextEditingController();
     final detailCtrl = TextEditingController();
@@ -1184,7 +1169,6 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
   // ---------------------------------------------------------- build
   @override
   Widget build(BuildContext context) {
-    final states = UsaStates.search(_query);
     return Scaffold(
       appBar: AppBar(title: const Text('Trips')),
       floatingActionButton: FloatingActionButton(
@@ -1260,71 +1244,6 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
           if (_plan != null && !_generating) _buildResultCard(),
           if (_plan != null && !_generating)
             const SizedBox(height: 12),
-          const SizedBox(height: 4),
-          const SectionHeader(title: 'Explore USA — tap a state'),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _searchCtrl,
-            onChanged: (v) => setState(() => _query = v),
-            decoration: InputDecoration(
-              hintText: 'Search states…',
-              prefixIcon: const Icon(Icons.search_outlined),
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14)),
-              contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 12),
-            ),
-          ),
-          const SizedBox(height: 8),
-          ...states.map((s) => Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: ListTile(
-                  leading: Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: _green.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Center(
-                      child: Text(
-                        (s['state'] as String).substring(0, 2),
-                        style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w800,
-                          color: _green,
-                        ),
-                      ),
-                    ),
-                  ),
-                  title: Text(s['state'] as String,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.poppins(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15)),
-                  subtitle: Text(s['tag'] as String,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          color: Colors.grey[600])),
-                  trailing: const Icon(
-                      Icons.add_circle_outline_rounded,
-                      color: _green),
-                  onTap: () => _autoTrip(s),
-                ),
-              )),
           const SizedBox(height: 16),
           const SectionHeader(title: 'My trips'),
           if (_trips.isEmpty)
