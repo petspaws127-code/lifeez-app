@@ -51,8 +51,9 @@ jobs:
         id: build_release
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          OWM_API_KEY: ${{ secrets.OWM_API_KEY }}
         run: |
-          flutter build apk --release --dart-define=GEMINI_API_KEY=$env:GEMINI_API_KEY --verbose > build-release-log.txt 2>&1
+          flutter build apk --release --split-per-abi --dart-define=GEMINI_API_KEY=$env:GEMINI_API_KEY --dart-define=OWM_API_KEY=$env:OWM_API_KEY --verbose > build-release-log.txt 2>&1
           $code = $LASTEXITCODE
           Get-Content build-release-log.txt | Select-Object -Last 30
           exit $code
@@ -69,7 +70,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lifeez-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/*-release.apk
 
       - name: Fail if build failed
         if: steps.build.outcome != 'success'

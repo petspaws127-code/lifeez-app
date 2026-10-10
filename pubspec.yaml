@@ -1,7 +1,7 @@
 name: ai_life_assistant
 description: "Lifeez — tell it, it remembers it. WhatsApp-first AI life management."
 publish_to: "none"
-version: 1.4.7+32
+version: 1.4.8+33
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -33,6 +33,7 @@ dependencies:
   app_links: ^6.1.0
   flutter_tts: ^4.2.3
   package_info_plus: ^8.0.0
+  device_info_plus: ^11.3.0
   path_provider: ^2.1.4
   open_filex: ^4.3.0
   shared_preferences: ^2.3.0

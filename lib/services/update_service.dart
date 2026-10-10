@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_filex/open_filex.dart';
 
@@ -46,6 +47,9 @@ class UpdateService {
         versionName: data['versionName']?.toString() ?? '$latest',
         versionCode: latest,
         apkUrl: data['apkUrl']?.toString() ?? '',
+        apkUrlArm64: data['apkUrlArm64']?.toString() ?? '',
+        apkUrlV7: data['apkUrlV7']?.toString() ?? '',
+        apkUrlX86: data['apkUrlX86_64']?.toString() ?? '',
         notes: data['notes']?.toString() ?? '',
       );
       _lastCheck = DateTime.now();
@@ -55,6 +59,31 @@ class UpdateService {
     }
   }
 
+  /// Picks the right split-APK URL for this device's ABI.
+  /// Release builds use --split-per-abi, so each ABI gets a small APK
+  /// (~48 MB) instead of one ~99 MB fat APK. Falls back to [apkUrl].
+  static Future<String> apkUrlForDevice(UpdateInfo info) async {
+    try {
+      if (Platform.isAndroid) {
+        final abis = await DeviceInfoPlugin().androidInfo.then(
+              (d) => d.supportedAbis,
+            );
+        for (final abi in abis) {
+          switch (abi.toLowerCase()) {
+            case 'arm64-v8a':
+              if (info.apkUrlArm64.isNotEmpty) return info.apkUrlArm64;
+            case 'armeabi-v7a':
+              if (info.apkUrlV7.isNotEmpty) return info.apkUrlV7;
+            case 'x86_64':
+              if (info.apkUrlX86.isNotEmpty) return info.apkUrlX86;
+          }
+        }
+      }
+    } catch (_) {}
+    if (info.apkUrl.isNotEmpty) return info.apkUrl;
+    return info.apkUrlArm64; // last resort
+  }
+
   /// Downloads the APK to temp storage and opens it for install.
   /// Returns true if the install intent was launched.
   /// Robust: retries up to 3 times with resume support for large files.
@@ -62,7 +91,8 @@ class UpdateService {
     UpdateInfo info,
     void Function(double progress) onProgress,
   ) async {
-    if (info.apkUrl.isEmpty) return false;
+    final apkUrl = await apkUrlForDevice(info);
+    if (apkUrl.isEmpty) return false;
 
     final dir = await getTemporaryDirectory();
     final file = File('${dir.path}/lifeez-update.apk');
@@ -73,7 +103,7 @@ class UpdateService {
         final existingLength = await file.exists() ? await file.length() : 0;
 
         final client = http.Client();
-        final req = http.Request('GET', Uri.parse(info.apkUrl));
+        final req = http.Request('GET', Uri.parse(apkUrl));
         // Resume from where we left off
         if (existingLength > 0) {
           req.headers['Range'] = 'bytes=$existingLength-';
@@ -156,12 +186,22 @@ class UpdateService {
 class UpdateInfo {
   final String versionName;
   final int versionCode;
+
+  /// Default/fallback APK URL (arm64).
   final String apkUrl;
+
+  /// Per-ABI split APK URLs (from --split-per-abi builds).
+  final String apkUrlArm64;
+  final String apkUrlV7;
+  final String apkUrlX86;
   final String notes;
   UpdateInfo({
     required this.versionName,
     required this.versionCode,
     required this.apkUrl,
+    this.apkUrlArm64 = '',
+    this.apkUrlV7 = '',
+    this.apkUrlX86 = '',
     required this.notes,
   });
 }
@@ -180,9 +220,10 @@ class _UpdateDialogState extends State<_UpdateDialog> {
   bool _failed = false;
 
   Future<void> _start() async {
-    // Open download URL in browser (reliable, no in-app download issues)
+    // Open the per-ABI download URL in browser (reliable, no in-app download issues)
     try {
-      final uri = Uri.parse(widget.info.apkUrl);
+      final url = await UpdateService.apkUrlForDevice(widget.info);
+      final uri = Uri.parse(url);
       await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (mounted) Navigator.pop(context);
     } catch (_) {
