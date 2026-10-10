@@ -247,23 +247,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 12),
+          // === Security ===
+          const SectionHeader(title: 'Security'),
+          const SizedBox(height: 8),
           _row(
-            icon: 'money',
-            title: 'Monthly budget',
-            subtitle:
-                '\$${(p?.monthlyBudget ?? 0).toStringAsFixed(2)}',
-            onTap: () => _editBudget(context),
-          ),
-          _row(
-            icon: 'pro',
-            title: 'Lifeez Pro',
-            subtitle: (p?.isPro ?? false)
-                ? 'Active${p?.trialEndsAt != null && (app.trialDaysLeft ?? 0) > 0 ? ' • trial' : ''}'
-                : 'Free plan • 14-day trial available',
-            onTap: () =>
-                Navigator.pushNamed(context, '/pro'),
-          ),
-          _row(
+            materialIcon: Icons.lock_outline_rounded,
             icon: 'pin',
             title: 'App PIN lock',
             subtitle: app.hasPin
@@ -297,33 +285,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _toggleBiometric(fingerprint: false, enable: v),
             ),
           ],
+          const SizedBox(height: 4),
+          // === Preferences ===
+          const SectionHeader(title: 'Preferences'),
+          const SizedBox(height: 8),
           _row(
-            icon: 'task',
-            title: 'Privacy Policy',
-            subtitle: 'How your data is handled',
-            onTap: () =>
-                Navigator.pushNamed(context, '/privacy'),
+            materialIcon: Icons.attach_money_rounded,
+            icon: 'money',
+            title: 'Currency',
+            subtitle: 'Display currency',
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(p?.currency ?? 'USD',
+                    style: GoogleFonts.poppins(
+                        fontSize: 13.5, color: AppColors.muted)),
+                const Icon(Icons.chevron_right_rounded,
+                    color: AppColors.muted),
+              ],
+            ),
+            onTap: () => _editCurrency(context, app),
           ),
-          _row(
-            icon: 'document',
-            title: 'Terms of Service',
-            subtitle: 'The fine print',
-            onTap: () =>
-                Navigator.pushNamed(context, '/terms'),
-          ),
-          _row(
+          _switchRow(
             icon: 'other',
-            title: 'Help & FAQ',
-            subtitle: 'Answers to common questions',
-            onTap: () =>
-                Navigator.pushNamed(context, '/help'),
+            materialIcon: Icons.notifications_outlined,
+            title: 'Notifications',
+            subtitle: 'Reminders & alerts',
+            value: app.notificationsEnabled,
+            onChanged: (v) => app.setNotificationsEnabled(v),
           ),
-          _row(
+          _switchRow(
             icon: 'other',
-            title: 'Delete my data',
-            subtitle: 'Remove everything permanently',
-            danger: true,
-            onTap: _deleteData,
+            materialIcon: Icons.wb_sunny_outlined,
+            title: 'Daily Briefing',
+            subtitle: 'Morning summary',
+            value: app.dailyBriefingEnabled,
+            onChanged: (v) => app.setDailyBriefingEnabled(v),
           ),
           const SizedBox(height: 8),
           SizedBox(
@@ -346,6 +343,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _switchRow({
+    required String icon,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+    IconData? materialIcon,
+  }) {
+    final leading = materialIcon != null
+        ? Container(
+            width: 42,
+            height: 42,
+            decoration: const BoxDecoration(
+              color: AppColors.greenSoft,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(materialIcon,
+                color: AppColors.deepGreen, size: 22),
+          )
+        : CategoryIcon(category: icon, size: 42);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: AppTheme.card3D(radius: 18),
+      child: ListTile(
+        leading: leading,
+        title: Text(title,
+            style:
+                GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        subtitle: Text(subtitle,
+            style: GoogleFonts.poppins(
+                fontSize: 12.5, color: AppColors.muted)),
+        trailing: Switch.adaptive(
+          value: value,
+          activeThumbColor: AppColors.deepGreen,
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+
   Widget _row({
     required String icon,
     required String title,
@@ -353,12 +390,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Widget? trailing,
     VoidCallback? onTap,
     bool danger = false,
+    IconData? materialIcon,
   }) {
+    final leading = materialIcon != null
+        ? Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: danger
+                  ? AppColors.danger.withOpacity(0.12)
+                  : AppColors.greenSoft,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(materialIcon,
+                color:
+                    danger ? AppColors.danger : AppColors.deepGreen,
+                size: 22),
+          )
+        : CategoryIcon(category: icon, size: 42);
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: AppTheme.card3D(radius: 18),
       child: ListTile(
-        leading: CategoryIcon(category: icon, size: 42),
+        leading: leading,
         title: Text(title,
             style: GoogleFonts.poppins(
                 fontWeight: FontWeight.w600,
@@ -437,6 +491,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
             child: const Text('Change PIN'),
           ),
+        ],
+      ),
+    );
+  }
+
+  void _editCurrency(BuildContext context, AppState app) {
+    final currencies = ['USD', 'EUR', 'GBP', 'PKR', 'INR', 'AED'];
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Currency'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: currencies
+              .map((c) => ListTile(
+                    title: Text(c),
+                    trailing: (app.profile?.currency ?? 'USD') == c
+                        ? const Icon(Icons.check_rounded,
+                            color: AppColors.deepGreen)
+                        : null,
+                    onTap: () async {
+                      await app.setCurrency(c);
+                      if (ctx.mounted) Navigator.pop(ctx);
+                    },
+                  ))
+              .toList(),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel')),
         ],
       ),
     );

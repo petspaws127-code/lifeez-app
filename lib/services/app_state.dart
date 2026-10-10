@@ -439,6 +439,21 @@ class AppState extends ChangeNotifier {
     await saveProfile(profile!.copyWith(themeMode: mode));
   }
 
+  Future<void> setNotificationsEnabled(bool v) async {
+    if (profile == null) return;
+    await saveProfile(profile!.copyWith(notificationsEnabled: v));
+  }
+
+  Future<void> setDailyBriefingEnabled(bool v) async {
+    if (profile == null) return;
+    await saveProfile(profile!.copyWith(dailyBriefingEnabled: v));
+  }
+
+  Future<void> setCurrency(String currency) async {
+    if (profile == null) return;
+    await saveProfile(profile!.copyWith(currency: currency));
+  }
+
   /// Generates a referral code once, the first time it is needed.
   Future<void> ensureReferralCode() async {
     if (profile == null || profile!.referralCode.isNotEmpty) return;
