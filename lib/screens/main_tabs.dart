@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../services/app_state.dart';
-import '../widgets/ai_command_drawer.dart';
 import 'home_screen.dart';
 import 'tasks_screen.dart';
+import 'reminders_screen.dart';
+import 'calendar_screen.dart';
+import 'more_screen.dart';
 import 'pin_lock_screen.dart';
 import '../services/update_service.dart';
 
-/// Bottom navigation: Home | Tasks | AI (center glowing button) | Reserved.
-/// The manual '+' FAB lives on the Home screen (bottom-right corner).
+/// Bottom navigation with the 5 main tabs.
 /// Shows the PIN lock screen when the app is locked.
 class MainTabs extends StatefulWidget {
   static const route = '/home';
@@ -91,18 +91,9 @@ class _MainTabsState extends State<MainTabs> {
   static const _screens = [
     HomeScreen(),
     TasksScreen(),
+    RemindersScreen(),
+    MoreScreen(),
   ];
-
-  /// Center AI button: instantly opens the voice/text command drawer
-  /// with the microphone active.
-  void _openAiDrawer() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => const AiCommandDrawer(),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -112,109 +103,21 @@ class _MainTabsState extends State<MainTabs> {
     }
     return Scaffold(
       body: IndexedStack(index: _index, children: _screens),
-      bottomNavigationBar: _buildBottomNav(),
-    );
-  }
-
-  Widget _buildBottomNav() {
-    return SafeArea(
-      top: false,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 12,
-              offset: const Offset(0, -2),
-            ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Slot 1: Home (Timeline-first view)
-            _navSlot(
-                index: 0,
-                icon: Icons.home_rounded,
-                label: 'Home'),
-            // Slot 2: Tasks
-            _navSlot(
-                index: 1,
-                icon: Icons.check_circle_outline_rounded,
-                label: 'Tasks'),
-            // Slot 3: AI Assistant — center prominent glowing button
-            Expanded(
-              child: Center(
-                child: GestureDetector(
-                  onTap: _openAiDrawer,
-                  child: Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [
-                          Color(0xFF1a9c63),
-                          Color(0xFF34A46F)
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF1a9c63)
-                              .withOpacity(0.55),
-                          blurRadius: 18,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                        Icons.auto_awesome_rounded,
-                        color: Colors.white,
-                        size: 30),
-                  ),
-                ),
-              ),
-            ),
-            // Slot 4: empty / reserved for future tabs
-            const Expanded(child: SizedBox()),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _navSlot(
-      {required int index,
-      required IconData icon,
-      required String label}) {
-    final selected = _index == index;
-    final color =
-        selected ? const Color(0xFF1a9c63) : Colors.grey;
-    return Expanded(
-      child: InkWell(
-        onTap: () => setState(() => _index = index),
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: color, size: 26),
-              const SizedBox(height: 2),
-              Text(label,
-                  style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      color: color,
-                      fontWeight: selected
-                          ? FontWeight.w600
-                          : FontWeight.w400)),
-            ],
-          ),
-        ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _index,
+        onTap: (i) => setState(() => _index = i),
+        items: const [
+          BottomNavigationBarItem(
+              icon: Icon(Icons.home_rounded), label: 'Home'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.check_circle_outline_rounded),
+              label: 'Tasks'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.notifications_outlined),
+              label: 'Reminders'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.grid_view_rounded), label: 'More'),
+        ],
       ),
     );
   }
