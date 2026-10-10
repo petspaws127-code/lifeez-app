@@ -33,7 +33,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   static const _examples = [
     'Add task buy milk tomorrow 5pm',
     'Remind me to pay rent on the 1st',
-    'kl subah 9 baje dr ke pas jana hai',
+    'Set alarm tomorrow 9am',
     'Plan my day for me',
   ];
 
