@@ -23,6 +23,15 @@ jobs:
         with:
           cache: true
 
+      - name: Add Shorebird Flutter to PATH
+        shell: bash
+        run: |
+          FLUTTER_BIN_DIR=$(echo "$HOME/.shorebird/bin/cache/flutter/"*/bin)
+          FLUTTER_BIN_DIR=$(echo $FLUTTER_BIN_DIR | cut -d' ' -f1)
+          echo "Adding to PATH: $FLUTTER_BIN_DIR"
+          echo "$FLUTTER_BIN_DIR" >> "$GITHUB_PATH"
+          echo "$HOME/.shorebird/bin" >> "$GITHUB_PATH"
+
       - name: Get dependencies
         shell: bash
         run: flutter pub get
