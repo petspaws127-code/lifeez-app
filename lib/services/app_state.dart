@@ -1341,8 +1341,11 @@ class AppState extends ChangeNotifier {
             '"done with grocery run".';
 
       case CommandIntent.unknown:
-        return 'Got it! I\'m best at tasks, reminders, alarms, habits, pets, and trips. '
-            'Try "help" to see examples, or tell me what you\'d like to organize.';
+        // This should rarely trigger now (engine tries Gemini first),
+        // but never sound robotic if it does.
+        return 'I want to get that right. Tell me a bit more — '
+            'for example "remind me to call mom tomorrow 6pm" '
+            'or "add task buy milk".';
     }
   }
 

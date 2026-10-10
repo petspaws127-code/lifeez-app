@@ -6,7 +6,6 @@ import '../theme/app_theme.dart';
 import '../widgets/ai_input_bar.dart';
 import '../services/app_state.dart';
 import '../services/assistant_engine.dart';
-import '../services/gemini_service.dart';
 
 class _Msg {
   final String text;
@@ -34,24 +33,16 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   static const _examples = [
     'Add task buy milk tomorrow 5pm',
     'Remind me to pay rent on the 1st',
-    'How can I be more productive?',
+    'kl subah 9 baje dr ke pas jana hai',
     'Plan my day for me',
   ];
-
-  /// System context so Gemini answers as the Lifeez assistant.
-  static const _systemPrompt =
-      'You are Lifeez AI, a friendly personal life assistant inside the Lifeez app. '
-      'The app helps users manage tasks, reminders, calendar events, habits, and pets. '
-      'Keep answers short, warm, and practical. Use plain US English. '
-      'If the user asks to create something (task, reminder, habit), confirm what you understood in one line. '
-      'Never mention money, budgets, bills, or finances — those features were removed from the app.';
 
   @override
   void initState() {
     super.initState();
     _engine = AssistantEngine(context.read<AppState>());
     _messages.add(_Msg(
-        'Hi! Tell me what to do — tasks, reminders, habits, pets, and more. Try an example below.',
+        'Hi! Just tell me what to do — I\'ll handle tasks, reminders, habits, pets, trips, and more. Try me in English or Roman Urdu.',
         false));
     _tts.setCompletionHandler(() {
       if (mounted) setState(() => _speaking = false);
@@ -100,14 +91,13 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   Future<void> _send(String text) async {
     setState(() => _messages.add(_Msg(text, true)));
     _scrollDown();
-    // Advanced AI first (Gemini), local engine as fallback.
-    String? reply =
-        await GeminiService.ask(text, systemContext: _systemPrompt);
-    reply ??= await _engine.handleText(text);
+    // ACTION-FIRST: local engine parses + executes instantly (<100ms).
+    // Gemini is only used inside the engine for truly ambiguous input.
+    String reply = await _engine.handleText(text);
     if (!mounted) return;
-    setState(() => _messages.add(_Msg(reply!, false)));
+    setState(() => _messages.add(_Msg(reply, false)));
     _scrollDown();
-    if (_speakReplies) _speak(reply!);
+    if (_speakReplies) _speak(reply);
   }
 
   @override

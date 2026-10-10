@@ -43,13 +43,112 @@ class ParsedCommand {
 }
 
 class CommandParser {
+  /// Roman Urdu → English normalization map.
+  /// Applied before parsing so "kl subah 9 baje dr ke pas jana hai"
+  /// becomes "tomorrow morning 9 doctor".
+  static String normalizeRomanUrdu(String input) {
+    var t = ' ${input.toLowerCase()} ';
+    // --- Time words ---
+    t = t.replaceAll(RegExp(r'\bkl\b|\bkal\b'), ' tomorrow ');
+    t = t.replaceAll(RegExp(r'\baj\b|\baaj\b'), ' today ');
+    t = t.replaceAll(RegExp(r'\bparson\b|\bparso\b'), ' day after tomorrow ');
+    t = t.replaceAll(RegExp(r'\bsubah\b|\bsubha\b|\bsobh\b'), ' morning ');
+    t = t.replaceAll(RegExp(r'\bdopahar\b|\bdupehar\b|\bdopher\b'), ' afternoon ');
+    t = t.replaceAll(RegExp(r'\bsham\b|\bshaam\b'), ' evening ');
+    t = t.replaceAll(RegExp(r'\braat\b'), ' night ');
+    // "9 baje" → "9am" (default am; evening/night context handled by parser)
+    t = t.replaceAllMapped(
+        RegExp(r'\b(\d{1,2})\s*baj(e|ay)?\b'), (m) => ' ${m.group(1)}am ');
+    // --- Action words ---
+    t = t.replaceAll(
+        RegExp(r'\byad dilao\b|\byaad dilao\b|\byad dila do\b'), ' remind me ');
+    t = t.replaceAll(RegExp(r'\bjana hai\b|\bjana he\b|\bjana\b'), ' ');
+    t = t.replaceAll(RegExp(r'\bkarna hai\b|\bkrna hai\b|\bkrna he\b'), ' ');
+    t = t.replaceAll(RegExp(r'\bke pas\b|\bk pas\b|\bke paas\b'), ' ');
+    t = t.replaceAll(RegExp(r'\bkaam\b|\bkam\b'), ' task ');
+    // --- Common nouns ---
+    t = t.replaceAll(RegExp(r'\bdr\b|\bdctr\b|\bdocter\b'), ' doctor ');
+    t = t.replaceAll(RegExp(r'\bdawai\b|\bdawa\b|\bmedicin\b'), ' medicine ');
+    t = t.replaceAll(RegExp(r'\bpaise\b|\bpese\b'), ' money ');
+    t = t.replaceAll(RegExp(r'\bdaftar\b|\bofis\b'), ' office ');
+    t = t.replaceAll(RegExp(r'\bghar\b'), ' home ');
+    t = t.replaceAll(RegExp(r'\bbacha\b|\bbache\b'), ' kid ');
+    t = t.replaceAll(RegExp(r'\bami\b|\bammi\b'), ' mom ');
+    t = t.replaceAll(RegExp(r'\babu\b|\babba\b'), ' dad ');
+    // --- Voice-to-text artifacts ---
+    t = t.replaceAll(RegExp(r'\bplz\b'), ' please ');
+    t = t.replaceAll(RegExp(r'\btmrw\b'), ' tomorrow ');
+    t = t.replaceAll(RegExp(r'\bdoc\b'), ' doctor ');
+    t = t.replaceAll(RegExp(r'\bappt\b|\bappoinment\b'), ' appointment ');
+    return t.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  /// Typo-tolerant keyword check: matches if the word is within
+  /// 1 edit distance, or is a close substring.
+  static bool fuzzyContains(String text, String keyword) {
+    if (text.contains(keyword)) return true;
+    final words = text.split(' ');
+    for (final w in words) {
+      if (_editDistance(w, keyword) <= 1 && w.length >= 4) return true;
+    }
+    return false;
+  }
+
+  static int _editDistance(String a, String b) {
+    if (a == b) return 0;
+    if (a.isEmpty) return b.length;
+    if (b.isEmpty) return a.length;
+    final dp =
+        List.generate(a.length + 1, (_) => List.filled(b.length + 1, 0));
+    for (var i = 0; i <= a.length; i++) dp[i][0] = i;
+    for (var j = 0; j <= b.length; j++) dp[0][j] = j;
+    for (var i = 1; i <= a.length; i++) {
+      for (var j = 1; j <= b.length; j++) {
+        dp[i][j] = a[i - 1] == b[j - 1]
+            ? dp[i - 1][j - 1]
+            : 1 +
+                [dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]]
+                    .reduce((x, y) => x < y ? x : y);
+      }
+    }
+    return dp[a.length][b.length];
+  }
+
   static ParsedCommand parse(String raw) {
     final input = raw.trim();
-    final t = input.toLowerCase();
-    if (t.isEmpty) return const ParsedCommand(intent: CommandIntent.unknown);
+    if (input.isEmpty) {
+      return const ParsedCommand(intent: CommandIntent.unknown);
+    }
+    // Normalize Roman Urdu / typos / voice artifacts BEFORE parsing.
+    final normalized = normalizeRomanUrdu(input);
+    final t = normalized.toLowerCase();
 
     if (t == 'help' || t.contains('what can you do')) {
       return const ParsedCommand(intent: CommandIntent.help);
+    }
+
+    // --------------------------------------- implicit appointment/reminder
+    // "doctor appointment tomorrow 9am" / "tomorrow morning 9am doctor"
+    // (after Roman Urdu normalization) — no "remind me" prefix needed.
+    // If it has a date/time AND looks like an event, auto-create a reminder.
+    {
+      final when = extractDateTime(t);
+      final hasEventWord = RegExp(
+              r'\b(appointment|meeting|visit|call|doctor|dentist|interview|flight|dinner|lunch|breakfast|party|wedding|birthday|anniversary|deadline|exam|class|gym|workout)\b')
+          .hasMatch(t);
+      if (when != null && (hasEventWord || _looksLikeReminder(t))) {
+        final title = _titleCase(_stripDateWords(t));
+        if (title.isNotEmpty && title.length > 2) {
+          return ParsedCommand(
+            intent: CommandIntent.createReminder,
+            params: {
+              'title': title,
+              'remindAt': when.toIso8601String(),
+              'repeat': extractRepeat(t),
+            },
+          );
+        }
+      }
     }
 
     // ---------------------------------------------------------- queries
@@ -402,6 +501,20 @@ class CommandParser {
     if (any(['clean', 'laundry', 'home', 'house'])) return 'home';
     if (any(['call ', 'mom', 'dad'])) return 'calls';
     return 'general';
+  }
+
+  /// Heuristic: does this look like something the user wants to be
+  /// reminded about? Used for implicit reminder detection.
+  static bool _looksLikeReminder(String t) {
+    // Has a time reference but no explicit action verb — likely an appointment.
+    final hasTime = RegExp(
+            r'\b(tomorrow|today|tonight|morning|afternoon|evening|night|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d{1,2}\s*(am|pm))\b')
+        .hasMatch(t);
+    final hasActionVerb = RegExp(
+            r'\b(add|create|remind|set|buy|get|do|make|send|pay|call|book)\b')
+        .hasMatch(t);
+    // Time + noun phrase without action verb = implicit reminder.
+    return hasTime && !hasActionVerb && t.split(' ').length >= 2;
   }
 
   // ------------------------------------------------------------ helpers
