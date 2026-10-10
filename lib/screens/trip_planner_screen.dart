@@ -188,20 +188,24 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('New trip', style: GoogleFonts.poppins()),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(
-                  labelText: 'Trip name (e.g. Beach Weekend)'),
-            ),
-            TextField(
-              controller: detailCtrl,
-              decoration: const InputDecoration(
-                  labelText: 'Destination, dates, budget'),
-            ),
-          ],
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'Trip name (e.g. Beach Weekend)'),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: detailCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'Destination, dates, budget'),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -309,62 +313,6 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          const SectionHeader(title: 'My trips'),
-          if (_trips.isEmpty)
-            const EmptyState(
-              icon: Icons.flight_outlined,
-              message: 'No trips yet. Tap + to plan your first trip!',
-            )
-          else
-            ..._trips.map((t) => Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      const CategoryIcon(
-                          category: 'transport', size: 44),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              t['name'] ?? '',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Text(
-                              t['detail'] ?? '',
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.poppins(
-                                fontSize: 13,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                )),
-          const SizedBox(height: 16),
           const SectionHeader(title: 'Explore USA — tap a state'),
           const SizedBox(height: 8),
           TextField(
@@ -430,6 +378,62 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
                   onTap: () => _autoTrip(s),
                 ),
               )),
+          const SizedBox(height: 16),
+          const SectionHeader(title: 'My trips'),
+          if (_trips.isEmpty)
+            const EmptyState(
+              icon: Icons.flight_outlined,
+              message: 'No trips yet. Tap a state above!',
+            )
+          else
+            ..._trips.map((t) => Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      const CategoryIcon(
+                          category: 'transport', size: 44),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              t['name'] ?? '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              t['detail'] ?? '',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
         ],
       ),
     );

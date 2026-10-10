@@ -9,18 +9,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'supabase_client.dart';
 
-/// Authentication for the 4 login options: Google, WhatsApp, Apple, Facebook.
-///
-/// Every provider calls its REAL native SDK / API. Nothing here is simulated:
-/// each method throws a clear [AuthSetupException] naming the exact credential
-/// that must be configured when a TODO below is still unfilled.
-///
-/// Setup checklist (details in README.md):
-///  1. Google  → Google Cloud OAuth client IDs (Android + iOS + Web).
-///  2. Apple   → Apple Services ID + redirect URI, enabled in Supabase Auth.
-///  3. Facebook→ Meta App ID in AndroidManifest / Info.plist + Supabase Auth.
-///  4. WhatsApp→ Supabase Edge Function `whatsapp-otp` + WhatsApp Business
-///               Cloud API token & phone number ID.
+/// Authentication for Lifeez login:
+///   1. Email  -> 6-digit OTP code (passwordless, via Supabase Auth).
+///   2. Google -> Supabase OAuth (system browser, PKCE + deep-link callback).
+///   3. Apple  -> native Sign in with Apple, verified via Supabase.
+/// plus the temporary Admin bypass (kept until real auth is verified).
 class AuthSetupException implements Exception {
   final String message;
   const AuthSetupException(this.message);
@@ -43,7 +36,9 @@ class AuthService extends ChangeNotifier {
 
   String? get userId => SupabaseService.currentUserId ?? (_adminSignedIn ? 'admin-local' : null);
 
-  /// Deep link listener for magic-link / OAuth callbacks.
+  /// Deep link listener for the Google OAuth callback.
+  /// (Email login is pure 6-digit OTP — no link needed. The token_hash
+  /// branch below stays only as a silent fallback.)
   /// Call once at app startup.
   StreamSubscription<Uri>? _linkSub;
   final _appLinks = AppLinks();
@@ -168,18 +163,26 @@ class AuthService extends ChangeNotifier {
 
   // ---------------------------------------------------------------- Google
   Future<void> signInWithGoogle() async {
-    // Uses Supabase OAuth via system browser - no SHA-1 needed.
-    // Google provider must be enabled in Supabase dashboard.
+    // Supabase OAuth via system browser. The Google provider in Supabase
+    // Auth is configured with a valid OAuth client (fixed Oct 10, 2026);
+    // the Supabase callback URL is
+    // https://mxoejkweedxhndzwpxmj.supabase.co/auth/v1/callback
+    // and the app receives the result at io.supabase.lifeez://login-callback.
     try {
       await SupabaseService.client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: 'io.supabase.lifeez://login-callback/',
+        redirectTo: 'io.supabase.lifeez://login-callback',
         queryParams: {'prompt': 'select_account'},
       );
     } catch (e) {
       final msg = e.toString().toLowerCase();
+      if (msg.contains('disabled_client') || msg.contains('401')) {
+        throw const AuthSetupException(
+          'Google sign-in is not configured correctly (disabled OAuth '
+          'client). Please contact support.');
+      }
       if (msg.contains('access blocked') || msg.contains('403')) {
-        throw AuthSetupException(
+        throw const AuthSetupException(
           'Google has blocked this sign-in. The app owner needs to publish '
           'the OAuth consent screen in Google Cloud Console, or add your '
           'email as a test user.');
@@ -330,20 +333,23 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  /// Passwordless email OTP: sends a 6-digit login code (Option A login).
-  /// The email also contains a magic login link that opens the app directly.
+  /// Passwordless email login: sends a 6-digit OTP code via
+  /// `supabase.auth.signInWithOtp({ email })`.
+  /// Pure code flow — no magic link is used by the app.
+  /// New users are created automatically (signup is enabled in Supabase).
   Future<void> sendEmailOtp(String email) async {
     try {
       await SupabaseService.client.auth.signInWithOtp(
         email: email.trim(),
-        emailRedirectTo: 'io.supabase.lifeez://login-callback/',
       );
     } catch (e) {
       throw AuthSetupException('Could not send code: ${e.toString()}');
     }
   }
 
-  /// Verifies the 6-digit email OTP code.
+  /// Verifies the 6-digit email OTP code via
+  /// `supabase.auth.verifyOtp({ email, token, type: 'email' })`.
+  /// On success the user has a real session.
   Future<void> verifyEmailOtp(String email, String token) async {
     try {
       final res = await SupabaseService.client.auth.verifyOTP(

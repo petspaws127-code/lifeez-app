@@ -126,7 +126,8 @@ class _LoginScreenState extends State<LoginScreen> {
       await context.read<AuthService>().signInWithGoogle();
       if (mounted) await _afterSignIn();
     } catch (e) {
-      _showError('Google sign-in is being set up. Try email code for now.');
+      // AuthService throws friendly messages for known config problems.
+      _showError(e.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _socialLoading = false);
     }

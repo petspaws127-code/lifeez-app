@@ -33,8 +33,8 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
   @override
   void initState() {
     super.initState();
-    // If the user taps the magic login link in the email instead of
-    // typing the code, the deep-link handler signs them in — jump ahead.
+    // Fallback: if the deep-link handler signs the user in
+    // (e.g. OAuth callback), jump ahead to Home.
     _authListener = () {
       if (!_navigated &&
           mounted &&
@@ -170,15 +170,6 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
                   fontSize: 14,
-                  color: AppColors.muted,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Tip: you can also tap the login link in the email.',
-                textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
                   color: AppColors.muted,
                 ),
               ),
