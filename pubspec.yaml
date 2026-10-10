@@ -52,6 +52,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - shorebird.yaml
     - assets/lifeez_logo.png
     - assets/lifeez_logo_dark.png
     - assets/google_g.png
