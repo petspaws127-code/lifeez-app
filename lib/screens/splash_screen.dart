@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
@@ -38,9 +39,11 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _decideNext() async {
-    // Check for updates FIRST (await it!)
-    await _checkForUpdate();
-    await Future.delayed(const Duration(milliseconds: 2300));
+    // FAST SPLASH: Navigate within ~1.5s. All heavy work happens in background.
+    // 1. Start update check in background (don't block).
+    unawaited(_checkForUpdate());
+    // 2. Brief delay for logo animation only.
+    await Future.delayed(const Duration(milliseconds: 1500));
     if (!mounted) return;
     final auth = context.read<AuthService>();
     if (!auth.isSignedIn) {
@@ -48,14 +51,14 @@ class _SplashScreenState extends State<SplashScreen>
       Navigator.pushReplacementNamed(context, LoginScreen.route);
       return;
     }
+    // 3. Navigate immediately; load data in background.
+    if (!mounted) return;
+    Navigator.pushReplacementNamed(context, MainTabs.route);
+    // 4. Heavy initialization happens after navigation (background).
     final app = context.read<AppState>();
     final whatsapp = context.read<WhatsAppService>();
-    await app.loadAll();
-    await whatsapp.restore();
-    if (!mounted) return;
-    // Onboarding removed - go directly to MainTabs
-    // Income/budget setup via popup (Task 5)
-    Navigator.pushReplacementNamed(context, MainTabs.route);
+    unawaited(app.loadAll());
+    unawaited(whatsapp.restore());
   }
 
   @override
