@@ -8,8 +8,9 @@ import '../theme/app_theme.dart';
 import '../widgets/category_icon.dart';
 import '../widgets/ui_kit.dart';
 import '../services/app_state.dart';
-import '../services/update_service.dart';
 import '../services/auth_service.dart';
+import '../services/supabase_service.dart';
+import '../services/update_service.dart';
 import 'login_screen.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -24,6 +25,40 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  /// Google account display name from Supabase auth, fallback to local profile.
+  String _authDisplayName(AppState app) {
+    String? raw;
+    try {
+      final user = SupabaseService.client.auth.currentUser;
+      raw = user?.userMetadata?['full_name'] as String?;
+      raw ??= user?.userMetadata?['name'] as String?;
+    } catch (_) {}
+    raw ??= app.profile?.name;
+    if (raw == null || raw.trim().isEmpty) return 'Lifeez User';
+    return raw.trim();
+  }
+
+  /// Google account email from Supabase auth, fallback to local profile.
+  String _authEmail(AppState app) {
+    String? email;
+    try {
+      email = SupabaseService.client.auth.currentUser?.email;
+    } catch (_) {}
+    email ??= app.profile?.email;
+    return email ?? '';
+  }
+
+  /// Google profile photo URL from Supabase auth metadata.
+  String? _authPhotoUrl() {
+    try {
+      final user = SupabaseService.client.auth.currentUser;
+      final url = user?.userMetadata?['avatar_url'] as String?;
+      if (url != null && url.isNotEmpty) return url;
+      final pic = user?.userMetadata?['picture'] as String?;
+      if (pic != null && pic.isNotEmpty) return pic;
+    } catch (_) {}
+    return null;
+  }
   final _picker = ImagePicker();
 
   Future<void> _changePhoto() async {
@@ -235,7 +270,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
           // Header card: photo, name, email, edit.
-          Container(
+          // Uses Google account info from auth, falls back to local profile.
+          Builder(builder: (context) {
+            final displayName = _authDisplayName(app);
+            final displayEmail = _authEmail(app);
+            final googlePhoto = _authPhotoUrl();
+            final localPhoto = (app.profile?.photoPath ?? '').isNotEmpty
+                ? app.profile!.photoPath!
+                : null;
+            return Container(
             decoration: AppTheme.card3D(),
             padding: const EdgeInsets.all(18),
             child: Row(
@@ -247,15 +290,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       CircleAvatar(
                         radius: 34,
                         backgroundColor: AppColors.greenSoft,
-                        backgroundImage:
-                            (p?.photoPath ?? '').isNotEmpty
-                                ? FileImage(File(p!.photoPath!))
-                                : null,
-                        child: (p?.photoPath ?? '').isEmpty
+                        backgroundImage: localPhoto != null
+                            ? FileImage(File(localPhoto))
+                            : (googlePhoto != null
+                                ? NetworkImage(googlePhoto)
+                                : null) as ImageProvider?,
+                        child: (localPhoto == null && googlePhoto == null)
                             ? Text(
-                                (p?.name.isNotEmpty ?? false)
-                                    ? p!.name[0].toUpperCase()
-                                    : '?',
+                                displayName[0].toUpperCase(),
                                 style: GoogleFonts.poppins(
                                     color: AppColors.deepGreen,
                                     fontSize: 28,
@@ -284,12 +326,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(p?.name ?? '—',
+                      Text(displayName,
                           style: GoogleFonts.poppins(
                               fontSize: 18,
                               fontWeight: FontWeight.w700)),
-                      if ((p?.email ?? '').isNotEmpty)
-                        Text(p!.email,
+                      if (displayEmail.isNotEmpty)
+                        Text(displayEmail,
                             style: GoogleFonts.poppins(
                                 fontSize: 13,
                                 color: AppColors.muted)),
@@ -314,7 +356,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: const Text('Edit')),
               ],
             ),
-          ),
+            );
+          }),
           const SizedBox(height: 12),
 
           // Pro status.
@@ -366,6 +409,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SectionHeader(title: 'Support'),
           const SizedBox(height: 8),
           _row(
+            materialIcon: Icons.help_outline_rounded,
             icon: 'other',
             title: 'Help & FAQ',
             subtitle: 'Answers to common questions',
@@ -410,6 +454,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onTap: _shareApp,
           ),
           _row(
+            materialIcon: Icons.delete_outline_rounded,
             icon: 'other',
             title: 'Delete account',
             subtitle: 'Remove your account and all data',
@@ -448,60 +493,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _themeRow(AppState app) {
     final mode = app.profile?.themeMode ?? 'system';
+    // Clean single-row layout: icon + label + current mode picker.
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: AppTheme.card3D(radius: 18),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const CategoryIcon(category: 'other', size: 42),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Appearance',
-                        style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600)),
-                    Text('Light, dark, or follow system',
-                        style: GoogleFonts.poppins(
-                            fontSize: 12.5,
-                            color: AppColors.muted)),
-                  ],
-                ),
-              ),
-            ],
+      child: ListTile(
+        leading: Container(
+          width: 42,
+          height: 42,
+          decoration: const BoxDecoration(
+            color: AppColors.greenSoft,
+            shape: BoxShape.circle,
           ),
-          const SizedBox(height: 10),
-          SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(
-                  value: 'system',
-                  label: Text('System'),
-                  icon: Icon(Icons.settings_suggest_rounded,
-                      size: 18)),
-              ButtonSegment(
-                  value: 'light',
-                  label: Text('Light'),
-                  icon: Icon(Icons.light_mode_rounded, size: 18)),
-              ButtonSegment(
-                  value: 'dark',
-                  label: Text('Dark'),
-                  icon:
-                      Icon(Icons.dark_mode_rounded, size: 18)),
+          child: const Icon(Icons.palette_outlined,
+              color: AppColors.deepGreen, size: 22),
+        ),
+        title: Text('Appearance',
+            style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+        trailing: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: mode,
+            icon: const Icon(Icons.chevron_right_rounded,
+                color: AppColors.muted),
+            style: GoogleFonts.poppins(
+                fontSize: 13.5, color: AppColors.muted),
+            items: const [
+              DropdownMenuItem(
+                  value: 'system', child: Text('System')),
+              DropdownMenuItem(
+                  value: 'light', child: Text('Light')),
+              DropdownMenuItem(value: 'dark', child: Text('Dark')),
             ],
-            selected: {mode},
-            onSelectionChanged: (s) =>
-                app.setThemeMode(s.first),
-            style: SegmentedButton.styleFrom(
-              selectedBackgroundColor: AppColors.deepGreen,
-              selectedForegroundColor: Colors.white,
-            ),
+            onChanged: (v) {
+              if (v != null) app.setThemeMode(v);
+            },
           ),
-        ],
+        ),
       ),
     );
   }
@@ -537,12 +564,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String subtitle,
     VoidCallback? onTap,
     bool danger = false,
+    IconData? materialIcon,
   }) {
+    final leading = materialIcon != null
+        ? Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: danger
+                  ? AppColors.danger.withOpacity(0.12)
+                  : AppColors.greenSoft,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(materialIcon,
+                color: danger ? AppColors.danger : AppColors.deepGreen,
+                size: 22),
+          )
+        : CategoryIcon(category: icon, size: 42);
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: AppTheme.card3D(radius: 18),
       child: ListTile(
-        leading: CategoryIcon(category: icon, size: 42),
+        leading: leading,
         title: Text(title,
             style: GoogleFonts.poppins(
                 fontWeight: FontWeight.w600,
