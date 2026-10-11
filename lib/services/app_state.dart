@@ -1524,6 +1524,11 @@ class AppState extends ChangeNotifier {
         )));
         return 'Done! Tracking "$habitTitle" daily.';
 
+      case CommandIntent.navigate:
+        final dest = (p['destination'] as String?) ?? '';
+        // NAVIGATE:destination — UI layer intercepts this to switch tabs.
+        return 'NAVIGATE:$dest';
+
       case CommandIntent.createExpense:
         final amount = (p['amount'] as num).toDouble();
         final category = (p['category'] as String?) ?? 'Other';
