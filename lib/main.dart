@@ -84,6 +84,17 @@ class AiLifeAssistantApp extends StatelessWidget {
           final dark =
               mode == ThemeMode.dark || (mode == ThemeMode.system && systemDark);
           AppTheme.setDark(dark);
+          // Show PIN lock screen when app is locked
+          if (app.isLocked) {
+            return MaterialApp(
+              title: 'Lifeez',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.light(),
+              darkTheme: AppTheme.dark(),
+              themeMode: mode,
+              home: const PinLockScreen(),
+            );
+          }
           return MaterialApp(
             title: 'Lifeez',
             debugShowCheckedModeBanner: false,
