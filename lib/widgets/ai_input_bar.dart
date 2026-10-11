@@ -143,10 +143,12 @@ class _AiInputBarState extends State<AiInputBar> {
       setState(() => _listening = true);
       _startWatchdog();
       await _stt.listen(
+        localeId: 'en_US',
         listenOptions: SpeechListenOptions(
           pauseFor: const Duration(milliseconds: 1200),
           listenFor: const Duration(seconds: 30),
           partialResults: true,
+          onDevice: false,
         ),
         onResult: (result) {
           if (!mounted) return;
