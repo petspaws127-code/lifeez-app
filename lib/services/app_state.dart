@@ -1086,6 +1086,13 @@ class AppState extends ChangeNotifier {
     _cachedPin = null;
   }
 
+  /// Lock the app (e.g. when going to background). Next foreground
+  /// will require PIN/biometric if one is set.
+  void lockApp() {
+    _pinUnlocked = false;
+    notifyListeners();
+  }
+
   // ------------------------------------------------------------ Biometrics
   /// True when the device can perform biometric checks.
   Future<bool> canUseBiometrics() async {
