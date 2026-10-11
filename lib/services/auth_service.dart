@@ -340,9 +340,6 @@ class AuthService extends ChangeNotifier {
     try {
       await GoogleSignIn().signOut();
     } catch (_) {}
-    try {
-      await FacebookAuth.instance.logOut();
-    } catch (_) {}
     // Clear admin session too
     try {
       final prefs = await SharedPreferences.getInstance();
