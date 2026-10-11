@@ -193,59 +193,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        children: [
-          // Account
-          GestureDetector(
-            onTap: () => Navigator.pushNamed(
-                context, ProfileScreen.route),
-            child: Container(
-              decoration: AppTheme.card3D(),
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                Container(
-                  decoration: AppTheme.tile3D(
-                    const [
-                      AppColors.deepGreen,
-                      AppColors.greenMid
-                    ],
-                    radius: 16,
-                  ),
-                  width: 52,
-                  height: 52,
-                  alignment: Alignment.center,
-                  child: Text(
-                    (p?.name.isNotEmpty ?? false)
-                        ? p!.name[0].toUpperCase()
-                        : '?',
-                    style: GoogleFonts.poppins(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
-                    children: [
-                      Text(p?.name ?? '—',
-                          style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700)),
-                      Text(
-                          'Plan: ${(p?.plan ?? 'free').toUpperCase()} • ${(p?.currency ?? 'USD')}',
-                          style: GoogleFonts.poppins(
-                              fontSize: 12.5,
-                              color: AppColors.muted)),
-                    ],
-                  ),
-                ),
-              ],
-              ),
-            ),
-          ),
           const SizedBox(height: 12),
           // === Security ===
           const SectionHeader(title: 'Security'),
