@@ -41,6 +41,7 @@ dependencies:
   # Notifications, biometrics, bill OCR
   flutter_local_notifications: ^17.2.3
   timezone: ^0.9.4
+  flutter_secure_storage: ^9.0.0
   local_auth: ^2.3.0
   google_mlkit_text_recognition: ^0.13.1
 
