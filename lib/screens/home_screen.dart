@@ -107,8 +107,8 @@ class HomeScreen extends StatelessWidget {
                       ),
                       child: const Center(
                         child: Icon(
-                          Icons.person_rounded,
-                          size: 20,
+                          Icons.person_outline_rounded,
+                          size: 22,
                           color: Colors.white,
                         ),
                       ),
