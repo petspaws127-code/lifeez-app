@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../services/app_state.dart';
 import '../services/supabase_service.dart';
-import '../screens/profile_screen.dart';
 import '../screens/pro_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/help_faq_screen.dart';
@@ -113,12 +112,6 @@ class ProfileMenu {
           ),
         ),
         const PopupMenuDivider(),
-        _menuItem(
-          context,
-          icon: Icons.person_outline_rounded,
-          label: 'My Profile',
-          route: ProfileScreen.route,
-        ),
         _menuItem(
           context,
           icon: Icons.star_outline_rounded,
