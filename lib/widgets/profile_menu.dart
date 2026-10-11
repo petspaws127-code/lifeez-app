@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -68,7 +69,9 @@ class ProfileMenu {
                   radius: 22,
                   backgroundColor: const Color(0xFF1a9c63),
                   backgroundImage: photoUrl != null && photoUrl.isNotEmpty
-                      ? NetworkImage(photoUrl)
+                      ? (photoUrl.startsWith('http')
+                          ? NetworkImage(photoUrl)
+                          : FileImage(File(photoUrl)) as ImageProvider)
                       : null,
                   child: photoUrl != null && photoUrl.isNotEmpty
                       ? null
