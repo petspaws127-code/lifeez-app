@@ -444,12 +444,23 @@ class CommandParser {
       if (rest.isNotEmpty) {
         final when = extractDateTime(rest);
         final title = _titleCase(stripDateWords(rest));
+        // Strict time → Reminder with notification.
+        if (hasExplicitTime(rest)) {
+          return ParsedCommand(
+            intent: CommandIntent.createReminder,
+            params: {
+              'title': title.isEmpty ? _titleCase(rest) : title,
+              'remindAt': when?.toIso8601String(),
+              'repeat': extractRepeat(rest),
+            },
+          );
+        }
         return ParsedCommand(
           intent: CommandIntent.createTask,
           params: {
             'title': title.isEmpty ? _titleCase(rest) : title,
             'dueAt': when?.toIso8601String(),
-            'hasTime': hasExplicitTime(rest),
+            'hasTime': false,
             'category': detectTaskCategory(rest),
             'repeat': extractRepeat(rest),
           },
