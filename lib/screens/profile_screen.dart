@@ -359,53 +359,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             );
           }),
           const SizedBox(height: 12),
-
-          // Pro status.
-          _ProStatusCard(onTap: () {
-            if (!(p?.isPro ?? false)) {
-              Navigator.pushNamed(context, '/pro');
-            }
-          }),
-          const SizedBox(height: 12),
-
-          const SectionHeader(title: 'Preferences'),
-          const SizedBox(height: 8),
-          _themeRow(app),
-          const SizedBox(height: 4),
-          const SectionHeader(title: 'Rewards'),
-          const SizedBox(height: 8),
-          _row(
-            icon: 'pro',
-            title: 'Refer & earn Pro days',
-            subtitle:
-                '${p?.referralCount ?? 0} referrals • ${p?.proDaysEarned ?? 0} Pro days earned',
-            onTap: () =>
-                Navigator.pushNamed(context, '/referrals'),
-          ),
-          const SizedBox(height: 4),
-          const SectionHeader(title: 'App'),
-          const SizedBox(height: 8),
-          _row(
-            icon: 'pro',
-            title: 'Rate Lifeez',
-            subtitle: 'Love the app? Leave a rating',
-            onTap: _rateApp,
-          ),
-          _row(
-            icon: 'share',
-            title: 'Share Lifeez',
-            subtitle: 'Tell a friend about the app',
-            onTap: _shareApp,
-          ),
-          _row(
-            materialIcon: Icons.delete_outline_rounded,
-            icon: 'other',
-            title: 'Delete account',
-            subtitle: 'Remove your account and all data',
-            danger: true,
-            onTap: _deleteAccount,
-          ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           Center(
             child: FutureBuilder<PackageInfo>(
               future: PackageInfo.fromPlatform(),
