@@ -145,14 +145,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _handleAdmin() async {
-    try {
-      await context.read<AuthService>().signInAsAdmin();
-      if (mounted) await _afterSignIn();
-    } catch (e) {
-      _showError(e.toString());
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -314,20 +306,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: GoogleFonts.poppins(
                   fontSize: 12,
                   color: AppColors.muted,
-                ),
-              ),
-              const SizedBox(height: 40),
-              // Temporary admin bypass - keep until real auth is verified
-              Center(
-                child: TextButton(
-                  onPressed: _handleAdmin,
-                  child: Text(
-                    'Admin — Enter Directly',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: Colors.grey.shade400,
-                    ),
-                  ),
                 ),
               ),
             ],
