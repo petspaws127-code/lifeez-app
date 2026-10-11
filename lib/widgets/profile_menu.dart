@@ -75,13 +75,10 @@ class ProfileMenu {
                       : null,
                   child: photoUrl != null && photoUrl.isNotEmpty
                       ? null
-                      : Text(
-                          initial,
-                          style: GoogleFonts.poppins(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
+                      : const Icon(
+                          Icons.person_rounded,
+                          size: 24,
+                          color: Colors.white,
                         ),
                 ),
                 const SizedBox(width: 12),
