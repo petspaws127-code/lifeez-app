@@ -105,14 +105,11 @@ class HomeScreen extends StatelessWidget {
                         color: Color(0xFF1a9c63),
                         shape: BoxShape.circle,
                       ),
-                      child: Center(
-                        child: Text(
-                          name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                          style: GoogleFonts.poppins(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.person_rounded,
+                          size: 20,
+                          color: Colors.white,
                         ),
                       ),
                     ),
