@@ -371,13 +371,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SectionHeader(title: 'Preferences'),
           const SizedBox(height: 8),
           _themeRow(app),
-          _row(
-            icon: 'money',
-            title: 'Monthly budget',
-            subtitle:
-                '\$${(p?.monthlyBudget ?? 0).toStringAsFixed(2)}',
-            onTap: () => _editBudget(context, app),
-          ),
           const SizedBox(height: 4),
           const SectionHeader(title: 'Rewards'),
           const SizedBox(height: 8),
