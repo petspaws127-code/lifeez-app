@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../services/app_state.dart';
+import '../services/supabase_service.dart';
 import '../screens/profile_screen.dart';
 import '../screens/pro_screen.dart';
 import '../screens/settings_screen.dart';
@@ -19,9 +20,25 @@ class ProfileMenu {
   /// Shows the account popup anchored near the top-right (below the avatar).
   static Future<void> show(BuildContext context) async {
     final app = context.read<AppState>();
-    final name = app.profile?.name ?? 'User';
-    final email = app.profile?.email ?? '';
-    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'U';
+    // Dynamic user data from Supabase auth (Google Sign-In), fallback to local profile.
+    String displayName = 'User';
+    String email = '';
+    String? photoUrl;
+    try {
+      final user = SupabaseService.client.auth.currentUser;
+      final meta = user?.userMetadata;
+      final rawName = (meta?['full_name'] as String?) ?? (meta?['name'] as String?);
+      if (rawName != null && rawName.trim().isNotEmpty) displayName = rawName.trim();
+      photoUrl = (meta?['avatar_url'] as String?) ?? (meta?['picture'] as String?);
+      final authEmail = user?.email;
+      if (authEmail != null && authEmail.isNotEmpty) email = authEmail;
+    } catch (_) {}
+    if (displayName == 'User') {
+      final localName = app.profile?.name;
+      if (localName != null && localName.trim().isNotEmpty) displayName = localName.trim();
+    }
+    if (email.isEmpty) email = app.profile?.email ?? '';
+    final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U';
 
     // Position near top-right, below the header.
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
@@ -48,23 +65,22 @@ class ProfileMenu {
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Row(
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF1a9c63),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      initial,
-                      style: GoogleFonts.poppins(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
+                CircleAvatar(
+                  radius: 22,
+                  backgroundColor: const Color(0xFF1a9c63),
+                  backgroundImage: photoUrl != null && photoUrl.isNotEmpty
+                      ? NetworkImage(photoUrl)
+                      : null,
+                  child: photoUrl != null && photoUrl.isNotEmpty
+                      ? null
+                      : Text(
+                          initial,
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -72,7 +88,7 @@ class ProfileMenu {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        name,
+                        displayName,
                         style: GoogleFonts.poppins(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
