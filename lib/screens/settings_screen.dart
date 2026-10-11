@@ -53,10 +53,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _toggleBiometric(
       {required bool fingerprint, required bool enable}) async {
     final bio = BiometricService.instance;
+    final app = context.read<AppState>();
     if (enable) {
-      final ok = await bio.authenticate(fingerprint
-          ? 'Confirm to enable fingerprint unlock'
-          : 'Confirm to enable face unlock');
+      final ok = await app.authenticateWithBiometrics();
       if (!mounted) return;
       if (!ok) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -80,6 +79,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _faceEnabled = enable;
       }
     });
+    // Keep the AppState-level biometric preference in sync.
+    await app.setBiometricEnabled(_fingerprintEnabled || _faceEnabled);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
           content: Text(enable
@@ -259,7 +260,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: 'Notifications',
             subtitle: 'Reminders & alerts',
             value: p?.notificationsEnabled ?? true,
-            onChanged: (v) => app.setNotificationsEnabled(v),
+            onChanged: (v) async {
+              if (v) {
+                final granted = await app.requestNotificationPermission();
+                if (mounted && !granted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text(
+                            'Notification permission was denied. Enable it in system settings to receive alerts.')),
+                  );
+                }
+              }
+              await app.setNotificationsEnabled(v);
+            },
           ),
           _switchRow(
             icon: 'other',
@@ -267,7 +280,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: 'Daily Briefing',
             subtitle: 'Morning summary',
             value: p?.dailyBriefingEnabled ?? true,
-            onChanged: (v) => app.setDailyBriefingEnabled(v),
+            onChanged: (v) async {
+              if (v) {
+                final granted = await app.requestNotificationPermission();
+                if (mounted && !granted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text(
+                            'Notification permission was denied. Enable it in system settings to receive the morning briefing.')),
+                  );
+                }
+              }
+              await app.setDailyBriefingEnabled(v);
+            },
           ),
           const SizedBox(height: 16),
           Center(

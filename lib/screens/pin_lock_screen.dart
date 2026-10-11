@@ -95,7 +95,7 @@ class _PinLockScreenState extends State<PinLockScreen> {
     setState(() => _busy = true);
     await Future.delayed(const Duration(milliseconds: 250));
     if (!mounted) return;
-    final ok = context.read<AppState>().verifyPin(_pin);
+    final ok = await context.read<AppState>().verifyPin(_pin);
     setState(() => _busy = false);
     if (!ok && mounted) {
       setState(() {

@@ -4,6 +4,9 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:uuid/uuid.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:local_auth/local_auth.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'supabase_client.dart';
 import 'command_parser.dart';
 import 'notification_service.dart';
@@ -58,6 +61,14 @@ class AppState extends ChangeNotifier {
 
   // PIN lock: unlocked for this session once verified.
   bool _pinUnlocked = false;
+
+  // Secure PIN storage + biometrics.
+  final _secureStorage = const FlutterSecureStorage();
+  final _localAuth = LocalAuthentication();
+  static const _pinKey = 'lifeez_app_pin';
+  String? _cachedPin; // PIN loaded from secure storage at startup.
+  bool _biometricEnabled = false;
+  bool get biometricEnabled => _biometricEnabled;
 
   // Notification center: generated feed + last-seen marker.
   List<AppNotification> notifications = [];
@@ -190,6 +201,9 @@ class AppState extends ChangeNotifier {
     // Load local data first so the UI shows instantly, then refresh
     // from Supabase when available.
     await _loadLocal();
+    // Load the secure PIN + biometric preference from the device.
+    await _loadSecurePin();
+    await loadBiometricPreference();
     // Load any pending offline writes from disk.
     await _loadPendingSync();
     notifyListeners();
@@ -973,6 +987,7 @@ class AppState extends ChangeNotifier {
 
   // ------------------------------------------------------------ PIN lock
   /// Simple (non-cryptographic) PIN hash for the local lock screen.
+  /// Kept only to migrate legacy PINs that were stored in the profile.
   static String hashPin(String pin) {
     var h = 0;
     const salted = 'lifeez::';
@@ -982,14 +997,51 @@ class AppState extends ChangeNotifier {
     return h.toRadixString(16);
   }
 
+  /// Loads the PIN from secure storage into memory at startup.
+  Future<void> _loadSecurePin() async {
+    try {
+      _cachedPin = await _secureStorage.read(key: _pinKey);
+    } catch (_) {
+      _cachedPin = null;
+    }
+  }
+
+  /// True when a PIN exists in secure storage.
+  Future<bool> get hasSecurePin async {
+    try {
+      return (await _secureStorage.read(key: _pinKey)) != null;
+    } catch (_) {
+      return _cachedPin != null && _cachedPin!.isNotEmpty;
+    }
+  }
+
+  /// Synchronous PIN check for the UI (backed by the secure-storage cache,
+  /// with a legacy profile-hash fallback for migration).
   bool get hasPin =>
-      profile?.pinHash != null && profile!.pinHash!.isNotEmpty;
+      (_cachedPin != null && _cachedPin!.isNotEmpty) ||
+      (profile?.pinHash != null && profile!.pinHash!.isNotEmpty);
 
   bool get isLocked => hasPin && !_pinUnlocked;
 
-  bool verifyPin(String pin) {
-    final ok = hasPin && hashPin(pin) == profile!.pinHash;
+  /// Verifies the PIN against secure storage. Falls back to the legacy
+  /// profile hash once and migrates the PIN into secure storage.
+  Future<bool> verifyPin(String pin) async {
+    if (_cachedPin != null && _cachedPin!.isNotEmpty) {
+      final ok = _cachedPin == pin;
+      if (ok) {
+        _pinUnlocked = true;
+        notifyListeners();
+      }
+      return ok;
+    }
+    final ok = profile?.pinHash != null &&
+        profile!.pinHash!.isNotEmpty &&
+        hashPin(pin) == profile!.pinHash;
     if (ok) {
+      try {
+        await _secureStorage.write(key: _pinKey, value: pin);
+      } catch (_) {}
+      _cachedPin = pin;
       _pinUnlocked = true;
       notifyListeners();
     }
@@ -1002,16 +1054,99 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Saves the 4-digit PIN in secure storage (never in the profile).
   Future<void> setPin(String pin) async {
-    if (profile == null) return;
+    try {
+      await _secureStorage.write(key: _pinKey, value: pin);
+    } catch (_) {}
+    _cachedPin = pin;
     _pinUnlocked = true;
-    await saveProfile(profile!.copyWith(pinHash: hashPin(pin)));
+    // Clear any legacy hash so secure storage is the single source of truth.
+    if (profile != null &&
+        profile!.pinHash != null &&
+        profile!.pinHash!.isNotEmpty) {
+      await saveProfile(profile!.copyWith(clearPin: true));
+    } else {
+      notifyListeners();
+    }
   }
 
   Future<void> removePin() async {
-    if (profile == null) return;
+    await clearSecurePin();
     _pinUnlocked = true;
+    if (profile == null) return;
     await saveProfile(profile!.copyWith(clearPin: true));
+  }
+
+  /// Deletes the PIN from secure storage.
+  Future<void> clearSecurePin() async {
+    try {
+      await _secureStorage.delete(key: _pinKey);
+    } catch (_) {}
+    _cachedPin = null;
+  }
+
+  // ------------------------------------------------------------ Biometrics
+  /// True when the device can perform biometric checks.
+  Future<bool> canUseBiometrics() async {
+    try {
+      return await _localAuth.canCheckBiometrics;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Runs the native biometric prompt. Returns true only on success.
+  Future<bool> authenticateWithBiometrics() async {
+    try {
+      final ok = await _localAuth.authenticate(
+        localizedReason: 'Unlock Lifeez',
+        options: const AuthenticationOptions(
+          biometricOnly: true,
+          stickyAuth: true,
+        ),
+      );
+      if (ok) {
+        _pinUnlocked = true;
+        notifyListeners();
+      }
+      return ok;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Saves the biometric-unlock preference on this device.
+  Future<void> setBiometricEnabled(bool v) async {
+    _biometricEnabled = v;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('biometric_unlock_enabled', v);
+    } catch (_) {}
+    notifyListeners();
+  }
+
+  /// Loads the biometric preference at startup.
+  Future<void> loadBiometricPreference() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _biometricEnabled = prefs.getBool('biometric_unlock_enabled') ?? false;
+    } catch (_) {
+      _biometricEnabled = false;
+    }
+  }
+
+  // --------------------------------------------------------- Notifications
+  /// Requests the OS notification permission. Returns true if granted.
+  Future<bool> requestNotificationPermission() async {
+    try {
+      final status = await Permission.notification.status;
+      if (status.isGranted) return true;
+      final result = await Permission.notification.request();
+      return result.isGranted;
+    } catch (_) {
+      return false;
+    }
   }
 
   // -------------------------------------------------------- Pro & trial
