@@ -390,39 +390,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Navigator.pushNamed(context, '/referrals'),
           ),
           const SizedBox(height: 4),
-          const SectionHeader(title: 'Support'),
-          const SizedBox(height: 8),
-          _row(
-            materialIcon: Icons.help_outline_rounded,
-            icon: 'other',
-            title: 'Help & FAQ',
-            subtitle: 'Answers to common questions',
-            onTap: () => Navigator.pushNamed(context, '/help'),
-          ),
-          _row(
-            icon: 'family',
-            title: 'Contact Support',
-            subtitle: 'Get help from our team',
-            onTap: () =>
-                Navigator.pushNamed(context, '/support'),
-          ),
-          const SizedBox(height: 4),
-          const SectionHeader(title: 'Legal'),
-          const SizedBox(height: 8),
-          _row(
-            icon: 'document',
-            title: 'Privacy Policy',
-            subtitle: 'How your data is handled',
-            onTap: () =>
-                Navigator.pushNamed(context, '/privacy'),
-          ),
-          _row(
-            icon: 'task',
-            title: 'Terms of Service',
-            subtitle: 'The fine print',
-            onTap: () => Navigator.pushNamed(context, '/terms'),
-          ),
-          const SizedBox(height: 4),
           const SectionHeader(title: 'App'),
           const SizedBox(height: 8),
           _row(
