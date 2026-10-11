@@ -372,6 +372,20 @@ class CommandParser {
     }
 
     // --------------------------------------------------------- reminder
+    // "add reminder call mom at 10am" / "create reminder eggs tomorrow"
+    m = RegExp(r'^(add|create)( a| new)? reminder (.+)').firstMatch(t);
+    if (m != null) {
+      final rest = m.group(3)!;
+      final when = extractDateTime(rest);
+      return ParsedCommand(
+        intent: CommandIntent.createReminder,
+        params: {
+          'title': _titleCase(stripDateWords(rest)),
+          'remindAt': when?.toIso8601String(),
+          'repeat': extractRepeat(rest),
+        },
+      );
+    }
     // "remind me to pay rent on the 1st" / "remind me to call mom tomorrow 5pm"
     m = RegExp(r'remind me to (.+)').firstMatch(t);
     if (m != null) {
