@@ -14,7 +14,6 @@ dependencies:
   supabase_flutter: ^2.5.6
   google_sign_in: ^6.3.0
   sign_in_with_apple: ^6.1.1
-  flutter_facebook_auth: ^7.1.1
 
   # UI
   google_fonts: ^6.2.1
