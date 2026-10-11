@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
-import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:app_links/app_links.dart';
@@ -235,37 +234,6 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // -------------------------------------------------------------- Facebook
-  Future<void> signInWithFacebook() async {
-    // TODO: Meta for Developers (https://developers.facebook.com):
-    //   1. Create an app, add the Facebook Login product.
-    //   2. Put the App ID in android/app/src/main/AndroidManifest.xml
-    //      (<meta-data android:name="com.facebook.sdk.ApplicationId" .../>)
-    //      and in ios/Runner/Info.plist (FacebookAppID).
-    //   3. Enable the Facebook provider in Supabase → Authentication → Providers.
-    final result = await FacebookAuth.instance.login(
-      permissions: const ['email', 'public_profile'],
-    );
-
-    if (result.status == LoginStatus.cancelled) return;
-    if (result.status != LoginStatus.success) {
-      throw AuthSetupException(
-        'Facebook login failed: ${result.message ?? result.status.name}. '
-        'Make sure your Meta App ID is configured (see TODO above).',
-      );
-    }
-    final token = result.accessToken?.tokenString;
-    if (token == null) {
-      throw const AuthSetupException(
-          'Facebook did not return an access token.');
-    }
-    // Supabase accepts the Facebook access token via signInWithIdToken.
-    await SupabaseService.client.auth.signInWithIdToken(
-      provider: OAuthProvider.facebook,
-      idToken: token,
-    );
-    notifyListeners();
-  }
 
   // -------------------------------------------------------------- WhatsApp
   /// Step 1: ask the Edge Function to send a 6-digit code to [phone]
