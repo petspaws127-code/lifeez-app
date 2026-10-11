@@ -21,12 +21,13 @@ class MainTabs extends StatefulWidget {
   State<MainTabs> createState() => _MainTabsState();
 }
 
-class _MainTabsState extends State<MainTabs> {
+class _MainTabsState extends State<MainTabs> with WidgetsBindingObserver {
   int _index = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Auto-check for updates on app start
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) _checkForUpdateAuto();
@@ -105,6 +106,22 @@ class _MainTabsState extends State<MainTabs> {
       backgroundColor: Colors.transparent,
       builder: (_) => const AiCommandDrawer(),
     );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Auto-lock when app goes to background (if PIN is set)
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      final app = context.read<AppState>();
+      app.lockApp();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   @override
