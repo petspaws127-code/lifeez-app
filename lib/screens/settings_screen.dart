@@ -269,16 +269,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: p?.dailyBriefingEnabled ?? true,
             onChanged: (v) => app.setDailyBriefingEnabled(v),
           ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: GradientButton(
-              label: 'Sign out',
-              icon: Icons.logout_rounded,
-              colors: const [Color(0xFF1A9C63), Color(0xFF1A9C63)],
-              onPressed: _signOut,
-            ),
-          ),
           const SizedBox(height: 16),
           Center(
             child: Text('Lifeez v1.0.0',
