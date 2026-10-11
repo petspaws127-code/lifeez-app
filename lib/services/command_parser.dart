@@ -26,6 +26,7 @@ enum CommandIntent {
   queryLeft,
   queryTasks,
   queryBills,
+  navigate,
   help,
   unknown,
 }
