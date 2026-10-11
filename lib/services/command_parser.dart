@@ -140,6 +140,20 @@ class CommandParser {
     final normalized = normalizeRomanUrdu(input);
     final t = normalized.toLowerCase();
 
+    // ------------------------------------------------------ navigation
+    // "open settings" / "go to profile" / "show my habits" / "open tasks"
+    final navMatch = RegExp(
+      r'^(open|go to|show|take me to)\s+(my\s+)?(settings|profile|habits|tasks|reminders|alarms|home|planner|ai chat|chat)\b'
+    ).firstMatch(t);
+    if (navMatch != null) {
+      var dest = navMatch.group(3)!.replaceAll(' ', '');
+      if (dest == 'aichat') dest = 'ai';
+      return ParsedCommand(
+        intent: CommandIntent.navigate,
+        params: {'destination': dest},
+      );
+    }
+
     if (t == 'help' || t.contains('what can you do')) {
       return const ParsedCommand(intent: CommandIntent.help);
     }
