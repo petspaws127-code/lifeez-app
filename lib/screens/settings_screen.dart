@@ -193,7 +193,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          const SizedBox(height: 12),
+        children: [
           // === Security ===
           const SectionHeader(title: 'Security'),
           const SizedBox(height: 8),
