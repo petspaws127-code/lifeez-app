@@ -515,8 +515,14 @@ class AppState extends ChangeNotifier {
       if (oauthName.isEmpty && oauthPhoto.isEmpty) return;
 
       final current = profile;
-      final needsName =
-          current == null || current.name.trim().isEmpty;
+      // Sync if name is empty OR still the default placeholder.
+      // (New profiles are created as "Lifeez User" — that must be
+      // replaced by the real OAuth name.)
+      final nameEmpty = current == null || current.name.trim().isEmpty;
+      final nameIsDefault = current != null &&
+          (current.name.trim() == 'Lifeez User' ||
+              current.name.trim() == 'User');
+      final needsName = nameEmpty || nameIsDefault;
       final needsPhoto = current == null ||
           (current.photoPath ?? '').trim().isEmpty;
 
