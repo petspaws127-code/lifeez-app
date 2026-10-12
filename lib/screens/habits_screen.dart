@@ -134,9 +134,25 @@ class _HabitsScreenState extends State<HabitsScreen> {
 
   Widget _habitCard(BuildContext context, AppState app, Habit h) {
     final week = h.weekCount;
+    // Mockup has no visible delete button — swipe to delete instead.
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: V2Card(
+      child: Dismissible(
+        key: ValueKey(h.id),
+        direction: DismissDirection.endToStart,
+        background: Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 22),
+          decoration: BoxDecoration(
+            color: V2.danger,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: const Icon(Icons.delete_outline_rounded,
+              color: Colors.white),
+        ),
+        confirmDismiss: (_) =>
+            _confirmDelete(context, app, h).then((_) => false),
+        child: V2Card(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -153,7 +169,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
-                            fontSize: 16.5,
+                            fontSize: 20,
                             fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 6),
@@ -185,11 +201,6 @@ class _HabitsScreenState extends State<HabitsScreen> {
                     ],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.delete_outline_rounded,
-                      color: V2.muted, size: 20),
-                  onPressed: () => _confirmDelete(context, app, h),
-                ),
               ],
             ),
             const SizedBox(height: 14),
@@ -205,6 +216,7 @@ class _HabitsScreenState extends State<HabitsScreen> {
             const SizedBox(height: 6),
             V2ProgressBar(value: week / 7),
           ],
+        ),
         ),
       ),
     );

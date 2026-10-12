@@ -62,6 +62,18 @@ class TodayScreen extends StatelessWidget {
         ));
       }
     }
+    // Habits belong on the Today timeline too (mockup shows a habit card
+    // with its streak). They sit in the evening group, like the mockup.
+    for (final h in app.habits) {
+      items.add(_DayItem(
+        id: h.id,
+        kind: _Kind.habit,
+        title: h.title,
+        time: null,
+        isDone: h.isDoneToday,
+        streak: h.streak,
+      ));
+    }
     items.sort((a, b) {
       final at = a.time ?? DateTime(now.year, now.month, now.day, 23, 59);
       final bt = b.time ?? DateTime(now.year, now.month, now.day, 23, 59);
@@ -76,7 +88,11 @@ class TodayScreen extends StatelessWidget {
     final items = _items(app);
     final groups = <int, List<_DayItem>>{0: [], 1: [], 2: []};
     for (final i in items) {
-      groups[_groupOf(i.time ?? DateTime.now())]!.add(i);
+      // Habits have no time — they live in the evening group (mockup).
+      final g = i.kind == _Kind.habit
+          ? 2
+          : _groupOf(i.time ?? DateTime.now());
+      groups[g]!.add(i);
     }
 
     const groupNames = ['MORNING', 'AFTERNOON', 'EVENING'];
@@ -185,8 +201,11 @@ class TodayScreen extends StatelessWidget {
                                     final a = context.read<AppState>();
                                     if (item.kind == _Kind.task) {
                                       a.toggleTask(item.id);
-                                    } else {
+                                    } else if (item.kind ==
+                                        _Kind.reminder) {
                                       a.toggleReminder(item.id);
+                                    } else {
+                                      a.toggleHabitToday(item.id);
                                     }
                                   },
                                 ),
@@ -206,7 +225,7 @@ class TodayScreen extends StatelessWidget {
   }
 }
 
-enum _Kind { task, reminder }
+enum _Kind { task, reminder, habit }
 
 class _DayItem {
   final String id;
@@ -214,12 +233,14 @@ class _DayItem {
   final String title;
   final DateTime? time;
   final bool isDone;
+  final int streak; // habits only
   _DayItem({
     required this.id,
     required this.kind,
     required this.title,
     required this.time,
     required this.isDone,
+    this.streak = 0,
   });
 }
 
@@ -238,6 +259,18 @@ class _ItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isTask = item.kind == _Kind.task;
+    final isHabit = item.kind == _Kind.habit;
+    // Habit cards (mockup): fire icon + "N-day streak" in green on the right.
+    final IconData icon;
+    if (item.isDone) {
+      icon = Icons.check_rounded;
+    } else if (isHabit) {
+      icon = Icons.local_fire_department_rounded;
+    } else {
+      icon = isTask
+          ? Icons.check_circle_outline_rounded
+          : Icons.notifications_outlined;
+    }
     return V2Card(
       onTap: onToggle,
       child: Row(
@@ -253,11 +286,7 @@ class _ItemCard extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                item.isDone
-                    ? Icons.check_rounded
-                    : (isTask
-                        ? Icons.check_circle_outline_rounded
-                        : Icons.notifications_outlined),
+                icon,
                 color: item.isDone ? Colors.white : V2.green,
                 size: 28,
               ),
@@ -278,7 +307,22 @@ class _ItemCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          if (timeLabel != null) ...[
+          if (isHabit) ...[
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                '${item.streak}-day streak',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: V2.green,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+              ),
+            ),
+          ] else if (timeLabel != null) ...[
             const SizedBox(width: 8),
             Flexible(
               child: Text(

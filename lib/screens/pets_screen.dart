@@ -68,16 +68,19 @@ class _PetsScreenState extends State<PetsScreen> {
                     V2Pill(
                         label: 'Pets',
                         selected: _tab == 0,
+                        outlined: true,
                         onTap: () => setState(() => _tab = 0)),
                     const SizedBox(width: 10),
                     V2Pill(
                         label: 'Health',
                         selected: _tab == 1,
+                        outlined: true,
                         onTap: () => setState(() => _tab = 1)),
                     const SizedBox(width: 10),
                     V2Pill(
                         label: 'Memories',
                         selected: _tab == 2,
+                        outlined: true,
                         onTap: () => setState(() => _tab = 2)),
                   ],
                 ),

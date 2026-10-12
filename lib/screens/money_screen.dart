@@ -315,8 +315,8 @@ class _MoneyScreenState extends State<MoneyScreen> {
 
   // -------------------------------------------------------------------- build
 
-  /// Money tab pill — same tokens as V2Pill, but stretched full-width
-  /// with a centered label (matches the mockup).
+  /// Money tab pill — same tokens as V2Pill (grey unselected per mockup),
+  /// but stretched full-width with a centered label.
   Widget _tabPill(String label, int index) {
     final selected = _tab == index;
     return GestureDetector(
@@ -326,7 +326,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
             const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? V2.green : V2.chip,
+          color: selected ? V2.green : const Color(0xFFE9E9E2),
           borderRadius: BorderRadius.circular(24),
         ),
         child: Text(
@@ -334,7 +334,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
           style: GoogleFonts.poppins(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: selected ? Colors.white : V2.green,
+            color: selected ? Colors.white : V2.ink,
           ),
         ),
       ),

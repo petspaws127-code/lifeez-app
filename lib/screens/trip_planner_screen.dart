@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:uuid/uuid.dart';
+import 'dart:convert';
 import '../widgets/v2_kit.dart';
 import '../models/trip_models.dart';
 import '../models/task_item.dart';
@@ -27,13 +29,30 @@ class TripPlannerScreen extends StatefulWidget {
 }
 
 class _TripPlannerScreenState extends State<TripPlannerScreen> {
-  // Existing "My trips" list (kept working).
-  final List<Map<String, String>> _trips = [
-    {
-      'name': 'Beach Weekend',
-      'detail': 'Miami - Dec 12 to Dec 14 - \$400 budget',
-    },
-  ];
+  // "My trips" list — persisted per user (no fake sample trips).
+  final List<Map<String, String>> _trips = [];
+
+  String _tripsKey() =>
+      'v2_trips_${SupabaseService.currentUserId ?? "guest"}';
+
+  Future<void> _loadTrips() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_tripsKey());
+      if (raw == null || raw.isEmpty) return;
+      final list = (jsonDecode(raw) as List)
+          .map((e) => Map<String, String>.from(e as Map))
+          .toList();
+      if (mounted) setState(() => _trips.addAll(list));
+    } catch (_) {}
+  }
+
+  Future<void> _saveTrips() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_tripsKey(), jsonEncode(_trips));
+    } catch (_) {}
+  }
 
   // Smart input state.
   final _destCtrl = TextEditingController();
@@ -54,6 +73,12 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
   // Sync state.
   bool _syncing = false;
   bool _synced = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTrips();
+  }
 
   @override
   void dispose() {
@@ -208,12 +233,15 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
         _packedIds
             .addAll(plan.packing.where((p) => p.isPacked).map((p) => p.id));
       });
-      // Also reflect in the "My trips" list.
+      // Also reflect in the "My trips" list, with the real planned total
+      // so the budget bar shows honest data (never a fake 0 bar).
       setState(() => _trips.add({
             'name': 'AI: $dest',
             'detail':
                 '${_fmtDate(_startDate!)} to ${_fmtDate(_endDate!)} - ${_fmtMoney(budget)} budget',
+            'planned': plan.totalExpenses.toStringAsFixed(2),
           }));
+      _saveTrips();
     } catch (e) {
       _snack('Could not generate the trip. Please try again.', ok: false);
     } finally {
@@ -335,6 +363,7 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
                         'name': nameCtrl.text.trim(),
                         'detail': detailCtrl.text.trim(),
                       }));
+                  _saveTrips();
                 }
                 Navigator.pop(ctx);
               },
@@ -367,6 +396,7 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
     );
     if (ok == true) {
       setState(() => _trips.removeAt(index));
+      _saveTrips();
       _snack('Trip deleted.');
     }
   }
@@ -418,6 +448,8 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
     final parsed = _parseTrip(t);
     final name = (t['name'] ?? '').trim();
     final title = name.isEmpty ? parsed.dest : name;
+    // Real planned total from a linked AI plan (never a fake 0 bar).
+    final planned = double.tryParse(t['planned'] ?? '') ?? 0;
     final metaBits = <String>[];
     if (parsed.dest.isNotEmpty &&
         parsed.dest.toLowerCase() != title.toLowerCase()) {
@@ -509,18 +541,33 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
                         style: V2.sub(13.5)),
                   ],
                   const SizedBox(height: 10),
-                  if (parsed.budget > 0) ...[
-                    const V2ProgressBar(value: 0),
+                  // Honest budget bar: only when we have real planned data.
+                  // Never a fake 0 bar. Mockup style: bold amount + grey rest.
+                  if (parsed.budget > 0 && planned > 0) ...[
+                    V2ProgressBar(
+                        value: (planned / parsed.budget).clamp(0.0, 1.0)),
                     const SizedBox(height: 6),
-                    Text(
-                      '${_fmtWhole(0)} of ${_fmtWhole(parsed.budget)}',
-                      style: GoogleFonts.poppins(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w500,
-                        color: V2.ink,
+                    RichText(
+                      text: TextSpan(
+                        style: GoogleFonts.poppins(
+                            fontSize: 13.5, color: V2.muted),
+                        children: [
+                          TextSpan(
+                            text: _fmtWhole(planned),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                color: V2.ink),
+                          ),
+                          TextSpan(
+                              text:
+                                  ' of ${_fmtWhole(parsed.budget)}'),
+                        ],
                       ),
                     ),
-                  ] else
+                  ] else if (parsed.budget > 0)
+                    Text('Budget ${_fmtWhole(parsed.budget)}',
+                        style: V2.sub(13))
+                  else
                     Text('No budget set', style: V2.sub(13)),
                 ],
               ),

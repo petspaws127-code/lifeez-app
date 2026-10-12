@@ -172,8 +172,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
+  /// Only task/reminder-linked notifications are actionable (mockup shows
+  /// Snooze/Done only on the reminder card, not on info cards).
+  bool _actionable(AppNotification n) =>
+      n.id.startsWith('task-') ||
+      n.id.startsWith('nag-') ||
+      n.id.startsWith('rem-');
+
   Widget _card(AppNotification n) {
     final unread = _unreadIds.contains(n.id);
+    final actionable = _actionable(n);
     return V2Card(
       onTap: n.route == null ? null : () => _open(n),
       child: Stack(
@@ -230,6 +238,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 ],
               ),
               const SizedBox(height: 12),
+              // Mockup: Snooze/Done only on actionable (reminder) cards.
+              if (actionable)
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [

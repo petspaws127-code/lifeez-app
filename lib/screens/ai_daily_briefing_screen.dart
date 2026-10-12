@@ -166,7 +166,7 @@ class _AiDailyBriefingScreenState extends State<AiDailyBriefingScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Daily Briefing', style: V2.display(32)),
+                Text('Daily Briefing', style: V2.display(40)),
                 const SizedBox(height: 4),
                 Padding(
                   padding: const EdgeInsets.only(left: 4),
@@ -326,20 +326,20 @@ class _AiDailyBriefingScreenState extends State<AiDailyBriefingScreen> {
         onTap: onTap,
         child: Row(
           children: [
-            V2IconTile(icon, size: 56),
+            V2IconTile(icon, size: 60),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: V2.title(17.5)),
+                  Text(title, style: V2.title(20)),
                   const SizedBox(height: 3),
                   Text(
                     subtitle,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.poppins(
-                      fontSize: 13.5,
+                      fontSize: 15,
                       color: V2.ink,
                       height: 1.35,
                     ),

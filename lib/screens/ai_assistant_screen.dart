@@ -45,13 +45,11 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   bool _speaking = false;
   bool _initialSent = false;
 
+  // Mockup: exactly these two suggestion chips.
   static const _chips = [
     _Chip('Plan my day', Icons.calendar_month_outlined,
         'Plan my day for me'),
     _Chip('Add habit', Icons.add_circle_outline_rounded, 'Add habit'),
-    _Chip('Remind me', Icons.notifications_outlined,
-        'Remind me to pay rent on the 1st'),
-    _Chip('Set alarm', Icons.alarm_outlined, 'Set alarm tomorrow 9am'),
   ];
 
   @override
@@ -310,18 +308,17 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header: back | ✨ AI Assistant | voice toggle
+            // Header: centered ✨ AI Assistant (mockup). No back button —
+            // the bottom nav is always visible. Voice toggle stays so the
+            // voice-reply feature remains reachable.
             Padding(
               padding:
                   const EdgeInsets.fromLTRB(8, 8, 8, 4),
               child: Row(
                 children: [
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.arrow_back_rounded,
-                        color: V2.ink),
-                  ),
+                  const Expanded(child: SizedBox()),
                   Expanded(
+                    flex: 3,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
@@ -344,17 +341,22 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                       ],
                     ),
                   ),
-                  IconButton(
-                    icon: Icon(
-                      _speakReplies
-                          ? Icons.volume_up_rounded
-                          : Icons.volume_off_outlined,
-                      color: _speakReplies ? V2.green : V2.muted,
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: IconButton(
+                        icon: Icon(
+                          _speakReplies
+                              ? Icons.volume_up_rounded
+                              : Icons.volume_off_outlined,
+                          color: _speakReplies ? V2.green : V2.muted,
+                        ),
+                        tooltip: _speakReplies
+                            ? 'Voice replies on — tap to mute'
+                            : 'Tap for voice replies',
+                        onPressed: _toggleSpeak,
+                      ),
                     ),
-                    tooltip: _speakReplies
-                        ? 'Voice replies on — tap to mute'
-                        : 'Tap for voice replies',
-                    onPressed: _toggleSpeak,
                   ),
                 ],
               ),

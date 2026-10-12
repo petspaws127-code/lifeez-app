@@ -5,12 +5,18 @@ import 'package:speech_to_text/speech_to_text.dart';
 import 'v2_kit.dart';
 
 /// The AI input bar: text field + microphone + send.
+/// Two mockup-driven variants:
+/// - chat (default): white text bar with mic INSIDE + separate green send
+///   circle outside (AI Assistant mockup).
+/// - home (homeStyle: true): [sparkle tile][text][mic circle] in one white
+///   bar with a green glow; the mic becomes send while typing (Home mockup).
 /// Used on Home, Tasks (quick add), AI Assistant, and WhatsApp chat.
 class AiInputBar extends StatefulWidget {
   final Future<void> Function(String text) onSubmit;
   final String hint;
   final bool autofocus;
   final bool autoStartMic;
+  final bool homeStyle;
 
   const AiInputBar({
     super.key,
@@ -18,6 +24,7 @@ class AiInputBar extends StatefulWidget {
     this.hint = 'Say it or type it… e.g. "I spent \$45 at Walmart"',
     this.autofocus = false,
     this.autoStartMic = false,
+    this.homeStyle = false,
   });
 
   @override
@@ -32,10 +39,16 @@ class _AiInputBarState extends State<AiInputBar> {
   bool _sttReady = false;
   double _soundLevel = 0.0;
   String? _sttLocale;
+  bool _hasText = false;
 
   @override
   void initState() {
     super.initState();
+    // Track typing so the home bar can swap mic -> send.
+    _controller.addListener(() {
+      final t = _controller.text.trim().isNotEmpty;
+      if (t != _hasText && mounted) setState(() => _hasText = t);
+    });
     // Initialize speech-to-text once at startup (not on every mic tap).
     _initSpeech();
     // When opened from the center AI button, the mic starts active instantly.
@@ -266,6 +279,7 @@ class _AiInputBarState extends State<AiInputBar> {
     required VoidCallback? onTap,
     required Color color,
     required String tooltip,
+    double size = 48,
     Widget? child,
   }) {
     return Tooltip(
@@ -273,15 +287,15 @@ class _AiInputBarState extends State<AiInputBar> {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          width: 48,
-          height: 48,
+          width: size,
+          height: size,
           decoration: BoxDecoration(
             color: onTap == null ? color.withValues(alpha: 0.55) : color,
             shape: BoxShape.circle,
             boxShadow: V2.softShadow,
           ),
           child: child ??
-              Icon(icon, color: Colors.white, size: 22),
+              Icon(icon, color: Colors.white, size: size * 0.46),
         ),
       ),
     );
@@ -289,63 +303,157 @@ class _AiInputBarState extends State<AiInputBar> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.homeStyle) return _homeBar();
+    return _chatRow();
+  }
+
+  /// The shared text field.
+  Widget _textField() {
+    return TextField(
+      controller: _controller,
+      autofocus: widget.autofocus,
+      textInputAction: TextInputAction.send,
+      onSubmitted: (_) => _submit(),
+      style: GoogleFonts.poppins(fontSize: 15, color: V2.ink),
+      decoration: InputDecoration(
+        hintText: widget.hint,
+        hintStyle: GoogleFonts.poppins(fontSize: 14, color: V2.muted),
+        filled: false,
+        border: InputBorder.none,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+      ),
+    );
+  }
+
+  /// Grey mic icon button that lives INSIDE the chat text bar.
+  Widget _micInside() {
+    return IconButton(
+      onPressed: _toggleMic,
+      tooltip: 'Voice input',
+      icon: Icon(
+        _listening ? Icons.mic_rounded : Icons.mic_none_rounded,
+        color: _listening ? V2.danger : V2.muted,
+        size: 24,
+      ),
+    );
+  }
+
+  /// Chat variant (AI Assistant mockup):
+  /// [white bar: text + mic inside] [separate green send circle].
+  Widget _chatRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: V2.softShadow,
+            ),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            child: Row(
+              children: [
+                Expanded(child: _textField()),
+                if (_listening)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: _MicWave(level: _soundLevel),
+                  ),
+                _micInside(),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        _circleButton(
+          icon: Icons.send_rounded,
+          color: V2.green,
+          tooltip: 'Send',
+          onTap: _busy ? null : _submit,
+          size: 54,
+          child: _busy
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.send_rounded,
+                  color: Colors.white, size: 24),
+        ),
+      ],
+    );
+  }
+
+  /// Home variant (Home mockup):
+  /// [sparkle tile][text][mic circle] in one glowing white bar.
+  /// While typing, the mic circle becomes the send circle.
+  Widget _homeBar() {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(28),
-        boxShadow: V2.softShadow,
+        boxShadow: [
+          BoxShadow(
+            color: V2.green.withOpacity(0.22),
+            blurRadius: 26,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       child: Row(
         children: [
-          _circleButton(
-            icon: _listening ? Icons.mic_rounded : Icons.mic_none_rounded,
-            color: _listening ? V2.danger : V2.green,
-            tooltip: 'Voice input',
-            onTap: _toggleMic,
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              autofocus: widget.autofocus,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => _submit(),
-              style: GoogleFonts.poppins(
-                  fontSize: 15, color: V2.ink),
-              decoration: InputDecoration(
-                hintText: widget.hint,
-                hintStyle: GoogleFonts.poppins(
-                    fontSize: 14, color: V2.muted),
-                filled: false,
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 4, vertical: 10),
-              ),
+          Container(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(
+              color: V2.chip,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.auto_awesome_rounded,
+              color: V2.green,
+              size: 24,
             ),
           ),
+          const SizedBox(width: 4),
+          Expanded(child: _textField()),
           if (_listening)
             Padding(
-              padding: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.only(right: 4),
               child: _MicWave(level: _soundLevel),
             ),
-          _circleButton(
-            icon: Icons.send_rounded,
-            color: V2.green,
-            tooltip: 'Send',
-            onTap: _busy ? null : _submit,
-            child: _busy
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Icon(Icons.send_rounded,
-                    color: Colors.white, size: 20),
-          ),
+          if (_hasText || _busy)
+            _circleButton(
+              icon: Icons.send_rounded,
+              color: V2.green,
+              tooltip: 'Send',
+              onTap: _busy ? null : _submit,
+              child: _busy
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.send_rounded,
+                      color: Colors.white, size: 20),
+            )
+          else
+            _circleButton(
+              icon:
+                  _listening ? Icons.mic_rounded : Icons.mic_none_rounded,
+              color: _listening ? V2.danger : V2.green,
+              tooltip: 'Voice input',
+              onTap: _toggleMic,
+            ),
         ],
       ),
     );

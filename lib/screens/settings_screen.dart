@@ -326,12 +326,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     constraints: const BoxConstraints(),
                   ),
                   const SizedBox(width: 4),
-                  Text('Settings', style: V2.display(32)),
+                  Text('Settings', style: V2.display(40)),
                 ],
               ),
               const SizedBox(height: 16),
 
-              const V2SectionLabel('General'),
+              _plainLabel('General'),
               _group([
                 _navRow(
                   icon: Icons.wb_sunny_outlined,
@@ -355,7 +355,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ]),
               const SizedBox(height: 18),
 
-              const V2SectionLabel('Notifications'),
+              _plainLabel('Notifications'),
               _group([
                 _toggleRow(
                   icon: Icons.notifications_outlined,
@@ -379,7 +379,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ]),
               const SizedBox(height: 18),
 
-              const V2SectionLabel('Data'),
+              _plainLabel('Data'),
               _group([
                 _navRow(
                   icon: Icons.cloud_outlined,
@@ -395,7 +395,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ]),
               const SizedBox(height: 18),
 
-              const V2SectionLabel('About'),
+              _plainLabel('About'),
               _group([
                 _navRow(
                   icon: Icons.shield_outlined,
@@ -423,6 +423,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
       bottomNavigationBar: const V2SubNav(),
+    );
+  }
+
+  /// Normal-case grey section label (Settings mockup).
+  Widget _plainLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 8, top: 4),
+      child: Text(
+        text,
+        style: GoogleFonts.poppins(
+          fontSize: 17,
+          fontWeight: FontWeight.w500,
+          color: V2.muted,
+        ),
+      ),
     );
   }
 

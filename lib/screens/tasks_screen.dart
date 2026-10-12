@@ -203,8 +203,8 @@ class _TasksScreenState extends State<TasksScreen> {
               onTap: () => _toggle(context, t),
               borderRadius: BorderRadius.circular(20),
               child: Container(
-                width: 30,
-                height: 30,
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: done ? V2.green : Colors.transparent,
@@ -214,7 +214,7 @@ class _TasksScreenState extends State<TasksScreen> {
                 ),
                 child: done
                     ? const Icon(Icons.check_rounded,
-                        color: Colors.white, size: 18)
+                        color: Colors.white, size: 20)
                     : null,
               ),
             ),
@@ -228,7 +228,7 @@ class _TasksScreenState extends State<TasksScreen> {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.poppins(
-                      fontSize: 15,
+                      fontSize: 17,
                       fontWeight: FontWeight.w700,
                       color: done ? V2.muted : V2.ink,
                       decoration:

@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../widgets/v2_kit.dart';
-import '../widgets/add_sheet.dart';
 import '../services/app_state.dart';
 import '../services/eastern_time.dart';
 
@@ -165,13 +164,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ],
                 ),
               ),
-              V2TitleRow(
-                title: 'Calendar',
-                trailing: V2AddButton(
-                  onTap: () =>
-                      showAddSheet(context, initialType: 'event'),
-                ),
-              ),
+              // Mockup has no + button on this screen.
+              const V2TitleRow(title: 'Calendar'),
               V2Card(
                 padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
                 child: Column(
@@ -211,7 +205,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ),
               ),
               const SizedBox(height: 18),
-              const V2SectionLabel('Selected day'),
+              // Mockup: "Selected day" in normal case (not uppercase).
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 8),
+                child: Text('Selected day', style: V2.title(20)),
+              ),
               if (selectedEvents.isEmpty)
                 V2Card(
                   child: Row(

@@ -163,7 +163,7 @@ class HomeScreen extends StatelessWidget {
                     Text(
                       _greeting(),
                       style: GoogleFonts.playfairDisplay(
-                        fontSize: 34,
+                        fontSize: 44,
                         fontWeight: FontWeight.w700,
                         color: V2.ink,
                         height: 1.15,
@@ -172,7 +172,7 @@ class HomeScreen extends StatelessWidget {
                     Text(
                       name,
                       style: GoogleFonts.playfairDisplay(
-                        fontSize: 34,
+                        fontSize: 44,
                         fontWeight: FontWeight.w700,
                         color: V2.ink,
                         height: 1.15,
@@ -214,22 +214,11 @@ class HomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: 18),
 
-          // Hero AI command bar
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(22),
-              boxShadow: [
-                BoxShadow(
-                  color: V2.green.withOpacity(0.22),
-                  blurRadius: 26,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: AiInputBar(
-              onSubmit: (text) => _submitToAssistant(context, text),
-              hint: 'Tell it. It remembers it...',
-            ),
+          // Hero AI command bar (home mockup: sparkle + mic, green glow)
+          AiInputBar(
+            onSubmit: (text) => _submitToAssistant(context, text),
+            hint: 'Tell it. It remembers it...',
+            homeStyle: true,
           ),
           const SizedBox(height: 18),
 
@@ -237,7 +226,7 @@ class HomeScreen extends StatelessWidget {
           Row(
             children: [
               _HintChip(
-                icon: Icons.list_rounded,
+                icon: Icons.list_outlined,
                 label: 'Task',
                 onTap: () =>
                     showAddSheet(context, initialType: 'task'),

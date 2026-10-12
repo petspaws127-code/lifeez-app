@@ -141,34 +141,56 @@ class V2SectionLabel extends StatelessWidget {
 }
 
 /// Selectable filter pill, e.g. All | Today | Upcoming | Done.
+/// Mockups: stadium pill; selected = green fill + white text; unselected =
+/// grey fill + ink text (Tasks/Money) or white + grey border (outlined=true,
+/// Pets tabs).
 class V2Pill extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final bool outlined;
 
   const V2Pill({
     super.key,
     required this.label,
     required this.selected,
     required this.onTap,
+    this.outlined = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final Color bg;
+    final Color fg;
+    final Border? border;
+    if (selected) {
+      bg = V2.green;
+      fg = Colors.white;
+      border = null;
+    } else if (outlined) {
+      bg = Colors.white;
+      fg = V2.muted;
+      border = Border.all(color: const Color(0xFFD8D8D2), width: 1.2);
+    } else {
+      bg = const Color(0xFFE9E9E2);
+      fg = V2.ink;
+      border = null;
+    }
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? V2.green : V2.chip,
+          color: bg,
           borderRadius: BorderRadius.circular(24),
+          border: border,
         ),
         child: Text(
           label,
           style: GoogleFonts.poppins(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: selected ? Colors.white : V2.green,
+            color: fg,
           ),
         ),
       ),
@@ -285,6 +307,7 @@ class V2PrimaryButton extends StatelessWidget {
 }
 
 /// Large screen title row with optional trailing action.
+/// Mockups use a ~40pt extra-bold hero title.
 class V2TitleRow extends StatelessWidget {
   final String title;
   final Widget? trailing;
@@ -297,7 +320,7 @@ class V2TitleRow extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(4, 8, 4, 16),
       child: Row(
         children: [
-          Expanded(child: Text(title, style: V2.display(32))),
+          Expanded(child: Text(title, style: V2.display(40))),
           if (trailing != null) trailing!,
         ],
       ),
@@ -373,11 +396,16 @@ class V2BottomNav extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    _slot(0, Icons.home_rounded, 'Home'),
-                    _slot(1, Icons.calendar_today_rounded, 'Today'),
+                    // Mockups: house, list (Today), clock (Upcoming), person.
+                    // Active = filled green icon, inactive = outline grey.
+                    _slot(0, Icons.home_rounded, Icons.home_outlined, 'Home'),
+                    _slot(1, Icons.format_list_bulleted_rounded,
+                        Icons.format_list_bulleted_outlined, 'Today'),
                     const Expanded(child: SizedBox()),
-                    _slot(2, Icons.schedule_rounded, 'Upcoming'),
-                    _slot(3, Icons.person_outline_rounded, 'Profile'),
+                    _slot(2, Icons.schedule_rounded, Icons.schedule_outlined,
+                        'Upcoming'),
+                    _slot(3, Icons.person_rounded,
+                        Icons.person_outline_rounded, 'Profile'),
                   ],
                 ),
               ),
@@ -421,7 +449,7 @@ class V2BottomNav extends StatelessWidget {
     );
   }
 
-  Widget _slot(int index, IconData icon, String label) {
+  Widget _slot(int index, IconData filled, IconData outline, String label) {
     final selected = activeIndex == index;
     final color = selected ? V2.green : V2.muted;
     return Expanded(
@@ -433,7 +461,8 @@ class V2BottomNav extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: color, size: 24),
+              // Mockups: active tab = filled icon, inactive = outline.
+              Icon(selected ? filled : outline, color: color, size: 24),
               const SizedBox(height: 2),
               Text(
                 label,

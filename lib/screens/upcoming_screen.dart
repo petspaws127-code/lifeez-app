@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../services/app_state.dart';
 import '../widgets/v2_kit.dart';
-import '../widgets/add_sheet.dart';
 
 /// V2 Upcoming screen: day groups (Tomorrow, then dates) with green count
 /// badges. Items from future tasks + future reminders.
@@ -116,13 +115,9 @@ class UpcomingScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          V2TitleRow(
-            title: 'Upcoming',
-            trailing: V2AddButton(
-              onTap: () =>
-                  showAddSheet(context, initialType: 'task'),
-            ),
-          ),
+          // Mockup has no + button on this screen — adding happens from
+          // Home quick-add, Today, or the Quick Add sheet.
+          const V2TitleRow(title: 'Upcoming'),
           if (groups.isEmpty)
             V2Card(
               child: Row(
@@ -135,7 +130,8 @@ class UpcomingScreen extends StatelessWidget {
                       children: [
                         Text('Nothing coming up', style: V2.title(16)),
                         const SizedBox(height: 2),
-                        Text('Plan something with the + button.',
+                        Text(
+                            'Add tasks or reminders from the Home tab.',
                             style: V2.sub()),
                       ],
                     ),
