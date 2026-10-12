@@ -249,9 +249,17 @@ class AppState extends ChangeNotifier {
           r == null ? [] : List<Map<String, dynamic>>.from(r as List);
 
       final p = results[0];
-      profile = p == null
-          ? null
-          : Profile.fromJson(Map<String, dynamic>.from(p as Map));
+      // CRITICAL: Don't overwrite local profile with stale Supabase data
+      // if there are pending unsynced profile changes. The user's latest
+      // edits must win until they reach the cloud.
+      final hasPendingProfileOp = _pendingOps.any((op) =>
+          op['table'] == 'profiles');
+      if (!hasPendingProfileOp) {
+        profile = p == null
+            ? null
+            : Profile.fromJson(Map<String, dynamic>.from(p as Map));
+      }
+      // If we kept the local profile, persist it so _loadLocal stays consistent.
       tasks = list(results[1]).map(TaskItem.fromJson).toList();
       expenses = list(results[2]).map(Expense.fromJson).toList();
       bills = list(results[3]).map(Bill.fromJson).toList();

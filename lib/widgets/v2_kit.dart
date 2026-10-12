@@ -317,8 +317,9 @@ class V2TitleRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Responsive: scale down on narrow screens to prevent overflow.
+    // User feedback: headings were too big — kept compact on all sizes.
     final width = MediaQuery.of(context).size.width;
-    final fontSize = width < 360 ? 32.0 : (width < 400 ? 36.0 : 40.0);
+    final fontSize = width < 360 ? 26.0 : (width < 400 ? 28.0 : 30.0);
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 8, 4, 16),
       child: Row(
