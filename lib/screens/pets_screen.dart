@@ -1,17 +1,58 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../widgets/v2_kit.dart';
 import '../services/app_state.dart';
 import '../services/eastern_time.dart';
+import '../services/supabase_client.dart';
 import '../models/pet.dart';
 import '../models/reminder.dart';
 import 'pet_health_ai_screen.dart';
+
+/// Per-pet daily care tracking (Feed / Walk / Medicine).
+/// Stored per-user per-day in SharedPreferences.
+class PetCareTracker {
+  PetCareTracker._();
+
+  static String _key(String petId) {
+    final uid = SupabaseService.currentUserId ?? 'guest';
+    final date = DateFormat('yyyy-MM-dd').format(easternNow());
+    return 'pet_care_${uid}_${petId}_$date';
+  }
+
+  /// Returns {feed: bool, walk: bool, medicine: bool} for today.
+  static Future<Map<String, bool>> load(String petId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_key(petId));
+      if (raw == null) return {'feed': false, 'walk': false, 'medicine': false};
+      final json = jsonDecode(raw) as Map<String, dynamic>;
+      return {
+        'feed': json['feed'] == true,
+        'walk': json['walk'] == true,
+        'medicine': json['medicine'] == true,
+      };
+    } catch (_) {
+      return {'feed': false, 'walk': false, 'medicine': false};
+    }
+  }
+
+  static Future<void> toggle(String petId, String type) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final current = await load(petId);
+      current[type] = !(current[type] ?? false);
+      await prefs.setString(_key(petId), jsonEncode(current));
+    } catch (_) {}
+  }
+}
 
 /// V2 Pets screen: Pets | Health | Memories tabs (V2 pill style).
 /// Keeps all existing logic: pets CRUD (with photos), pet reminders,
@@ -47,6 +88,12 @@ class _PetsScreenState extends State<PetsScreen> {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
+    final pets = app.pets;
+    // Selected pet for the care dashboard (defaults to first pet).
+    final selectedId = _petId != null && pets.any((p) => p.id == _petId)
+        ? _petId
+        : (pets.isEmpty ? null : pets.first.id);
+
     return Scaffold(
       backgroundColor: V2.bg,
       body: SafeArea(
@@ -61,42 +108,320 @@ class _PetsScreenState extends State<PetsScreen> {
                   onTap: () => _showEditPet(context, app, null),
                 ),
               ),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    V2Pill(
-                        label: 'Pets',
-                        selected: _tab == 0,
-                        outlined: true,
-                        onTap: () => setState(() => _tab = 0)),
-                    const SizedBox(width: 10),
-                    V2Pill(
-                        label: 'Health',
-                        selected: _tab == 1,
-                        outlined: true,
-                        onTap: () => setState(() => _tab = 1)),
-                    const SizedBox(width: 10),
-                    V2Pill(
-                        label: 'Memories',
-                        selected: _tab == 2,
-                        outlined: true,
-                        onTap: () => setState(() => _tab = 2)),
-                  ],
+              if (pets.isEmpty)
+                _noPetState(context, app)
+              else ...[
+                // Pet selector — horizontal avatars.
+                _petSelector(context, app, pets, selectedId),
+                const SizedBox(height: 20),
+                // Today's care — one-tap Feed / Walk / Medicine.
+                _todaysCare(context, app, selectedId!),
+                const SizedBox(height: 20),
+                // Upcoming — vet visits & vaccinations.
+                _upcomingSection(context, app, selectedId),
+                const SizedBox(height: 16),
+                // Health quick-log.
+                OutlinedButton.icon(
+                  onPressed: () =>
+                      _showAddVaccine(context, app, petId: selectedId),
+                  icon: const Icon(Icons.add_rounded, color: V2.green),
+                  label: Text('+ Health quick-log',
+                      style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: V2.green)),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: V2.green, width: 1.5),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              if (_tab == 0)
-                _petsTab(context, app)
-              else if (_tab == 1)
-                _healthTab(context, app)
-              else
-                _memoriesTab(context, app),
+                const SizedBox(height: 20),
+                // Details tabs (existing functionality).
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      V2Pill(
+                          label: 'Details',
+                          selected: _tab == 0,
+                          outlined: true,
+                          onTap: () => setState(() => _tab = 0)),
+                      const SizedBox(width: 10),
+                      V2Pill(
+                          label: 'Health',
+                          selected: _tab == 1,
+                          outlined: true,
+                          onTap: () => setState(() => _tab = 1)),
+                      const SizedBox(width: 10),
+                      V2Pill(
+                          label: 'Memories',
+                          selected: _tab == 2,
+                          outlined: true,
+                          onTap: () => setState(() => _tab = 2)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                if (_tab == 0)
+                  _petsTab(context, app)
+                else if (_tab == 1)
+                  _healthTab(context, app)
+                else
+                  _memoriesTab(context, app),
+              ],
             ],
           ),
         ),
       ),
       bottomNavigationBar: const V2SubNav(),
+    );
+  }
+
+  /// Horizontal pet avatar selector.
+  Widget _petSelector(BuildContext context, AppState app,
+      List<PetProfile> pets, String? selectedId) {
+    return SizedBox(
+      height: 96,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: pets.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 20),
+        itemBuilder: (ctx, i) {
+          final pet = pets[i];
+          final selected = pet.id == selectedId;
+          return GestureDetector(
+            onTap: () => setState(() => _petId = pet.id),
+            child: Column(
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: selected ? V2.green : Colors.transparent,
+                      width: 3,
+                    ),
+                  ),
+                  child: CircleAvatar(
+                    radius: 34,
+                    backgroundColor: V2.chip,
+                    backgroundImage: _photoOk(pet.photoPath)
+                        ? FileImage(File(pet.photoPath!))
+                        : null,
+                    child: _photoOk(pet.photoPath)
+                        ? null
+                        : const Icon(Icons.pets_rounded,
+                            size: 32, color: V2.muted),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  pet.name,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight:
+                        selected ? FontWeight.w700 : FontWeight.w500,
+                    color: selected ? V2.ink : V2.muted,
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// Today's care — Feed / Walk / Medicine one-tap cards.
+  Widget _todaysCare(
+      BuildContext context, AppState app, String petId) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text("Today's care", style: V2.title(20)),
+        const SizedBox(height: 12),
+        FutureBuilder<Map<String, bool>>(
+          future: PetCareTracker.load(petId),
+          builder: (ctx, snap) {
+            final care = snap.data ??
+                {'feed': false, 'walk': false, 'medicine': false};
+            return Row(
+              children: [
+                Expanded(
+                    child: _careCard(
+                        context, petId, 'feed', 'Feed',
+                        Icons.restaurant_rounded, care['feed']!,
+                        'Done', 'Tap when fed')),
+                const SizedBox(width: 10),
+                Expanded(
+                    child: _careCard(
+                        context, petId, 'walk', 'Walk',
+                        Icons.pets_rounded, care['walk']!,
+                        'Done', 'Due 6pm')),
+                const SizedBox(width: 10),
+                Expanded(
+                    child: _careCard(
+                        context, petId, 'medicine', 'Medicine',
+                        Icons.medication_rounded,
+                        care['medicine']!, 'Done', 'Due 9pm')),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _careCard(BuildContext context, String petId, String type,
+      String label, IconData icon, bool done, String doneText,
+      String pendingText) {
+    final bgColor = done
+        ? const Color(0xFFD9F2E5)
+        : type == 'walk'
+            ? const Color(0xFFFBE3C2)
+            : V2.chip;
+    final iconColor = done
+        ? V2.green
+        : type == 'walk'
+            ? const Color(0xFFE8930C)
+            : V2.muted;
+    return GestureDetector(
+      onTap: () async {
+        await PetCareTracker.toggle(petId, type);
+        if (context.mounted) setState(() {});
+      },
+      child: V2Card(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+        child: Column(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, size: 28, color: iconColor),
+            ),
+            const SizedBox(height: 8),
+            Text(label,
+                style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: V2.ink)),
+            const SizedBox(height: 2),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  done ? Icons.check_circle_rounded : Icons.circle_outlined,
+                  size: 14,
+                  color: done ? V2.green : V2.muted,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  done ? doneText : pendingText,
+                  style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: done ? V2.green : V2.muted,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Upcoming vet visits & vaccinations for the selected pet.
+  Widget _upcomingSection(
+      BuildContext context, AppState app, String petId) {
+    final now = easternNow();
+    final upcoming = <Map<String, dynamic>>[];
+
+    // Vet/medicine reminders for this pet.
+    for (final r in app.reminders) {
+      if (r.petId == petId && r.remindAt.isAfter(now)) {
+        upcoming.add({
+          'icon': Icons.calendar_month_rounded,
+          'title': r.title,
+          'subtitle': DateFormat('MMM d, h:mm a').format(r.remindAt),
+          'date': r.remindAt,
+        });
+      }
+    }
+    // Upcoming vaccinations.
+    for (final v in app.vaccinations) {
+      if (v.petId == petId &&
+          v.nextDueDate != null &&
+          v.nextDueDate!.isAfter(now)) {
+        upcoming.add({
+          'icon': Icons.vaccines_rounded,
+          'title': '${v.vaccineName} due',
+          'subtitle':
+              'in ${v.nextDueDate!.difference(now).inDays} days',
+          'date': v.nextDueDate!,
+        });
+      }
+    }
+    upcoming.sort((a, b) =>
+        (a['date'] as DateTime).compareTo(b['date'] as DateTime));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Upcoming', style: V2.title(20)),
+        const SizedBox(height: 12),
+        if (upcoming.isEmpty)
+          V2Card(
+            child: Row(
+              children: [
+                const V2IconTile(Icons.event_available_rounded),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text('Nothing scheduled',
+                      style: V2.body()),
+                ),
+              ],
+            ),
+          )
+        else
+          ...upcoming.take(3).map((u) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: V2Card(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 14),
+                  child: Row(
+                    children: [
+                      V2IconTile(u['icon'] as IconData, size: 48),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                          children: [
+                            Text(u['title'] as String,
+                                style: V2.title(15),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis),
+                            Text(u['subtitle'] as String,
+                                style: V2.sub(13)),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded,
+                          color: V2.muted),
+                    ],
+                  ),
+                ),
+              )),
+      ],
     );
   }
 
