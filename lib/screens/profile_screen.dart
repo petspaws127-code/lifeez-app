@@ -1,21 +1,17 @@
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../theme/app_theme.dart';
-import '../widgets/category_icon.dart';
-import '../widgets/ui_kit.dart';
 import '../services/app_state.dart';
 import '../services/auth_service.dart';
-import '../services/supabase_client.dart';
-import '../services/update_service.dart';
+import '../widgets/v2_kit.dart';
 import 'login_screen.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 
-/// Profile section: user info, photo, edit profile, Pro status,
-/// appearance + notification preferences, referrals, legal & support.
+/// V2 Profile — tab body (MainTabs owns the Scaffold + bottom nav).
+/// Avatar card + edit, 3 stat cards, menu list (Settings, Notifications,
+/// Go Pro, Refer & Earn, Help & FAQ, Log out).
 class ProfileScreen extends StatefulWidget {
   static const route = '/profile';
   const ProfileScreen({super.key});
@@ -25,41 +21,17 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  /// Google account display name from Supabase auth, fallback to local profile.
-  String _authDisplayName(AppState app) {
-    String? raw;
-    try {
-      final user = SupabaseService.client.auth.currentUser;
-      raw = user?.userMetadata?['full_name'] as String?;
-      raw ??= user?.userMetadata?['name'] as String?;
-    } catch (_) {}
-    raw ??= app.profile?.name;
-    if (raw == null || raw.trim().isEmpty) return 'Lifeez User';
-    return raw.trim();
-  }
-
-  /// Google account email from Supabase auth, fallback to local profile.
-  String _authEmail(AppState app) {
-    String? email;
-    try {
-      email = SupabaseService.client.auth.currentUser?.email;
-    } catch (_) {}
-    email ??= app.profile?.email;
-    return email ?? '';
-  }
-
-  /// Google profile photo URL from Supabase auth metadata.
-  String? _authPhotoUrl() {
-    try {
-      final user = SupabaseService.client.auth.currentUser;
-      final url = user?.userMetadata?['avatar_url'] as String?;
-      if (url != null && url.isNotEmpty) return url;
-      final pic = user?.userMetadata?['picture'] as String?;
-      if (pic != null && pic.isNotEmpty) return pic;
-    } catch (_) {}
-    return null;
-  }
   final _picker = ImagePicker();
+
+  String _displayName(AppState app) {
+    final raw = app.profile?.name.trim() ?? '';
+    return raw.isEmpty ? 'Lifeez User' : raw;
+  }
+
+  String _initial(String name) {
+    final t = name.trim();
+    return t.isEmpty ? 'L' : t[0].toUpperCase();
+  }
 
   Future<void> _changePhoto() async {
     final app = context.read<AppState>();
@@ -75,22 +47,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             ListTile(
               leading: const Icon(Icons.photo_camera_rounded,
-                  color: AppColors.deepGreen),
+                  color: V2.green),
               title: const Text('Take photo'),
               onTap: () => Navigator.pop(ctx, 'camera'),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_rounded,
-                  color: AppColors.deepGreen),
+                  color: V2.green),
               title: const Text('Choose from gallery'),
               onTap: () => Navigator.pop(ctx, 'gallery'),
             ),
             if (hasPhoto)
               ListTile(
                 leading: const Icon(Icons.delete_outline_rounded,
-                    color: AppColors.danger),
+                    color: V2.danger),
                 title: const Text('Remove photo',
-                    style: TextStyle(color: AppColors.danger)),
+                    style: TextStyle(color: V2.danger)),
                 onTap: () => Navigator.pop(ctx, 'remove'),
               ),
             const SizedBox(height: 8),
@@ -127,23 +99,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Edit profile'),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: Text('Edit profile', style: V2.title(18)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AppTextField(controller: nameCtrl, label: 'Name'),
+            _field(nameCtrl, 'Name'),
             const SizedBox(height: 10),
-            AppTextField(
-              controller: emailCtrl,
-              label: 'Email',
-              keyboardType: TextInputType.emailAddress,
-            ),
+            _field(emailCtrl, 'Email',
+                keyboard: TextInputType.emailAddress),
           ],
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
+              child:
+                  Text('Cancel', style: V2.sub().copyWith(fontSize: 14))),
           TextButton(
             onPressed: () async {
               await app.saveProfile(p.copyWith(
@@ -157,64 +129,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 );
               }
             },
-            child: const Text('Save'),
+            child: Text('Save',
+                style: V2.greenLabel(14).copyWith(
+                    fontWeight: FontWeight.w700)),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _shareApp() async {
-    final app = context.read<AppState>();
-    await app.ensureReferralCode();
-    final code = app.profile?.referralCode ?? '';
-    final text = Uri.encodeComponent(
-        'Try Lifeez — Life, made easy. Use my referral code $code when you join!');
-    // WhatsApp-first sharing (no extra dependency needed).
-    final wa = Uri.parse('https://wa.me/?text=$text');
-    if (await canLaunchUrl(wa)) {
-      await launchUrl(wa, mode: LaunchMode.externalApplication);
-      return;
-    }
-    final sms = Uri.parse('sms:?body=$text');
-    if (await canLaunchUrl(sms)) {
-      await launchUrl(sms);
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content:
-                Text('Could not open a sharing app.')),
-      );
-    }
-  }
-
-  Future<void> _rateApp() async {
-    final uri = Uri.parse(
-        'https://play.google.com/store/apps/details?id=com.lifeez.app');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Could not open the store page.')),
-      );
-    }
+  Widget _field(TextEditingController ctrl, String label,
+      {TextInputType? keyboard}) {
+    return TextField(
+      controller: ctrl,
+      keyboardType: keyboard,
+      style: V2.body(),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: V2.sub(),
+        filled: true,
+        fillColor: V2.chip,
+        contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
   }
 
   Future<void> _signOut() async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Sign out?'),
-        content:
-            const Text('You will need to sign in again to use the app.'),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: Text('Log out?', style: V2.title(18)),
+        content: Text('You will need to sign in again to use the app.',
+            style: V2.body()),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+              child:
+                  Text('Cancel', style: V2.sub().copyWith(fontSize: 14))),
           TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Sign out')),
+              child: Text('Log out',
+                  style: GoogleFonts.poppins(
+                      color: V2.danger,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14))),
         ],
       ),
     );
@@ -230,356 +195,273 @@ class _ProfileScreenState extends State<ProfileScreen> {
         context, LoginScreen.route, (_) => false);
   }
 
-  Future<void> _deleteAccount() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Delete account?'),
-        content: const Text(
-            'This permanently deletes your account and all your data. This cannot be undone.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete account',
-                style: TextStyle(color: AppColors.danger)),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-    final auth = context.read<AuthService>();
-    final app = context.read<AppState>();
-    await app.deleteAllMyData();
-    await auth.deleteAccount();
-    if (!mounted) return;
-    Navigator.pushNamedAndRemoveUntil(
-        context, LoginScreen.route, (_) => false);
-  }
-
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
     final p = app.profile;
+    final name = _displayName(app);
+    final email = (p?.email ?? '').trim();
+    final isPro = p?.isPro ?? false;
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+    final streak = app.habits.fold<int>(0, (m, h) => max(m, h.streak));
+    final tasksDone = app.tasks.where((t) => t.isDone).length;
+    final habitCount = app.habits.length;
+    final photoPath =
+        (p?.photoPath ?? '').isNotEmpty ? p!.photoPath : null;
+
+    return SingleChildScrollView(
+      padding: v2PagePadding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header card: photo, name, email, edit.
-          // Uses Google account info from auth, falls back to local profile.
-          Builder(builder: (context) {
-            final displayName = _authDisplayName(app);
-            final displayEmail = _authEmail(app);
-            final googlePhoto = _authPhotoUrl();
-            final localPhoto = (app.profile?.photoPath ?? '').isNotEmpty
-                ? app.profile!.photoPath!
-                : null;
-            return Container(
-            decoration: AppTheme.card3D(),
-            padding: const EdgeInsets.all(18),
+          Center(child: Text('Profile', style: V2.display(32))),
+          const SizedBox(height: 20),
+
+          // Avatar card.
+          V2Card(
             child: Row(
               children: [
                 GestureDetector(
                   onTap: _changePhoto,
                   child: Stack(
                     children: [
-                      CircleAvatar(
-                        radius: 34,
-                        backgroundColor: AppColors.greenSoft,
-                        backgroundImage: localPhoto != null
-                            ? FileImage(File(localPhoto))
-                            : (googlePhoto != null
-                                ? NetworkImage(googlePhoto)
-                                : null) as ImageProvider?,
-                        child: (localPhoto == null && googlePhoto == null)
-                            ? Text(
-                                displayName[0].toUpperCase(),
+                      Container(
+                        width: 76,
+                        height: 76,
+                        decoration: const BoxDecoration(
+                          color: V2.green,
+                          shape: BoxShape.circle,
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        alignment: Alignment.center,
+                        child: photoPath != null
+                            ? Image.file(File(photoPath),
+                                width: 76,
+                                height: 76,
+                                fit: BoxFit.cover)
+                            : Text(
+                                _initial(name),
                                 style: GoogleFonts.poppins(
-                                    color: AppColors.deepGreen,
-                                    fontSize: 28,
+                                    color: Colors.white,
+                                    fontSize: 32,
                                     fontWeight: FontWeight.w700),
-                              )
-                            : null,
+                              ),
                       ),
                       Positioned(
                         bottom: 0,
                         right: 0,
                         child: Container(
                           decoration: const BoxDecoration(
-                            color: AppColors.deepGreen,
+                            color: V2.greenDark,
                             shape: BoxShape.circle,
                           ),
                           padding: const EdgeInsets.all(5),
-                          child: const Icon(Icons.camera_alt_rounded,
-                              color: Colors.white, size: 13),
+                          child: const Icon(
+                              Icons.camera_alt_rounded,
+                              color: Colors.white,
+                              size: 12),
                         ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(displayName,
-                          style: GoogleFonts.poppins(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w700)),
-                      if (displayEmail.isNotEmpty)
-                        Text(displayEmail,
-                            style: GoogleFonts.poppins(
-                                fontSize: 13,
-                                color: AppColors.muted)),
+                      Text(name,
+                          style: V2.title(19),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis),
+                      if (email.isNotEmpty)
+                        Text(email,
+                            style: V2.sub(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 2),
                       Text(
-                        (p?.isPro ?? false)
-                            ? 'Lifeez Pro'
-                            : 'Free plan',
+                        isPro ? 'Lifeez Pro' : 'Free plan',
                         style: GoogleFonts.poppins(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
-                          color: (p?.isPro ?? false)
-                              ? AppColors.gold
-                              : AppColors.muted,
+                          color: isPro ? V2.amber : V2.muted,
                         ),
                       ),
                     ],
                   ),
                 ),
-                TextButton(
-                    onPressed: _editProfile,
-                    child: const Text('Edit')),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  onPressed: _editProfile,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: V2.ink,
+                    side: const BorderSide(
+                        color: Color(0xFFD1D5DB)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(22)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                  ),
+                  icon: const Icon(Icons.edit_outlined,
+                      size: 16, color: V2.muted),
+                  label: Text('Edit',
+                      style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600)),
+                ),
               ],
             ),
-            );
-          }),
-          const SizedBox(height: 12),
-          const SizedBox(height: 24),
-          Center(
-            child: FutureBuilder<PackageInfo>(
-              future: PackageInfo.fromPlatform(),
-              builder: (context, snapshot) {
-                final version = snapshot.data?.version ?? '...';
-                return Text('Lifeez v$version',
-                    style: GoogleFonts.poppins(
-                        fontSize: 12, color: AppColors.muted));
-              },
-            ),
-            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Stat cards.
+          Row(
+            children: [
+              Expanded(
+                  child: _statCard(Icons.local_fire_department_rounded,
+                      '$streak', 'day streak')),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: _statCard(Icons.check_circle_rounded,
+                      '$tasksDone', 'tasks done')),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: _statCard(Icons.eco_rounded,
+                      '$habitCount', 'habits')),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // Menu list.
+          _menuRow(
+            icon: Icons.settings_outlined,
+            title: 'Settings',
+            onTap: () => Navigator.pushNamed(context, '/settings'),
+          ),
+          _menuRow(
+            icon: Icons.notifications_outlined,
+            title: 'Notifications',
+            onTap: () =>
+                Navigator.pushNamed(context, '/notifications'),
+          ),
+          _menuRow(
+            icon: Icons.workspace_premium_outlined,
+            title: 'Go Pro',
+            badge: 'PRO',
+            onTap: () => Navigator.pushNamed(context, '/pro'),
+          ),
+          _menuRow(
+            icon: Icons.card_giftcard_outlined,
+            title: 'Refer & Earn',
+            onTap: () =>
+                Navigator.pushNamed(context, '/referrals'),
+          ),
+          _menuRow(
+            icon: Icons.help_outline_rounded,
+            title: 'Help & FAQ',
+            onTap: () => Navigator.pushNamed(context, '/help'),
+          ),
+          _menuRow(
+            icon: Icons.logout_rounded,
+            title: 'Log out',
+            danger: true,
+            onTap: _signOut,
+          ),
+          const SizedBox(height: 8),
         ],
       ),
     );
   }
 
-  Widget _themeRow(AppState app) {
-    final mode = app.profile?.themeMode ?? 'system';
-    // Clean single-row layout: icon + label + current mode picker.
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: AppTheme.card3D(radius: 18),
-      child: ListTile(
-        leading: Container(
-          width: 42,
-          height: 42,
-          decoration: const BoxDecoration(
-            color: AppColors.greenSoft,
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(Icons.palette_outlined,
-              color: AppColors.deepGreen, size: 22),
-        ),
-        title: Text('Appearance',
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-        trailing: DropdownButtonHideUnderline(
-          child: DropdownButton<String>(
-            value: mode,
-            icon: const Icon(Icons.chevron_right_rounded,
-                color: AppColors.muted),
-            style: GoogleFonts.poppins(
-                fontSize: 13.5, color: AppColors.muted),
-            items: const [
-              DropdownMenuItem(
-                  value: 'system', child: Text('System')),
-              DropdownMenuItem(
-                  value: 'light', child: Text('Light')),
-              DropdownMenuItem(value: 'dark', child: Text('Dark')),
-            ],
-            onChanged: (v) {
-              if (v != null) app.setThemeMode(v);
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _switchRow({
-    required String icon,
-    required String title,
-    required String subtitle,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: AppTheme.card3D(radius: 18),
-      child: ListTile(
-        leading: CategoryIcon(category: icon, size: 42),
-        title: Text(title,
-            style:
-                GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-
-        trailing: Switch.adaptive(
-          value: value,
-          activeThumbColor: AppColors.deepGreen,
-          onChanged: onChanged,
-        ),
-      ),
-    );
-  }
-
-  Widget _row({
-    required String icon,
-    required String title,
-    required String subtitle,
-    VoidCallback? onTap,
-    bool danger = false,
-    IconData? materialIcon,
-  }) {
-    final leading = materialIcon != null
-        ? Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: danger
-                  ? AppColors.danger.withOpacity(0.12)
-                  : AppColors.greenSoft,
+  Widget _statCard(IconData icon, String value, String label) {
+    return V2Card(
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
+      child: Column(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: const BoxDecoration(
+              color: V2.chip,
               shape: BoxShape.circle,
             ),
-            child: Icon(materialIcon,
-                color: danger ? AppColors.danger : AppColors.deepGreen,
-                size: 22),
-          )
-        : CategoryIcon(category: icon, size: 42);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: AppTheme.card3D(radius: 18),
-      child: ListTile(
-        leading: leading,
-        title: Text(title,
-            style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w600,
-                color: danger ? AppColors.danger : null)),
-
-        trailing: const Icon(Icons.chevron_right_rounded,
-            color: AppColors.muted),
-        onTap: onTap,
-      ),
-    );
-  }
-
-  void _editBudget(BuildContext context, AppState app) {
-    final ctrl = TextEditingController(
-        text: (app.profile?.monthlyBudget ?? 0).toStringAsFixed(0));
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Monthly budget'),
-        content: AppTextField(
-            controller: ctrl,
-            label: 'Budget (USD)',
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true)),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
-          TextButton(
-            onPressed: () async {
-              final v = double.tryParse(ctrl.text.trim());
-              if (v != null && app.profile != null) {
-                await app.saveProfile(
-                    app.profile!.copyWith(monthlyBudget: v));
-              }
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Save'),
+            child: Icon(icon, color: V2.green, size: 28),
           ),
+          const SizedBox(height: 8),
+          Text(value, style: V2.display(26)),
+          Text(label, style: V2.sub(13)),
         ],
       ),
     );
   }
-}
 
-class _ProStatusCard extends StatelessWidget {
-  final VoidCallback onTap;
-  const _ProStatusCard({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final app = context.watch<AppState>();
-    final p = app.profile;
-    final isPro = p?.isPro ?? false;
-    final trialDays = app.trialDaysLeft ?? 0;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: isPro
-            ? AppTheme.goldGradient(radius: 20)
-            : AppTheme.card3D(radius: 20),
-        padding: const EdgeInsets.all(16),
+  Widget _menuRow({
+    required IconData icon,
+    required String title,
+    String? badge,
+    bool danger = false,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: V2Card(
+        onTap: onTap,
+        padding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
             Container(
-              decoration: AppTheme.tile3D(
-                isPro
-                    ? const [Color(0xFF8a6d1c), AppColors.gold]
-                    : const [
-                        AppColors.deepGreen,
-                        AppColors.greenMid
-                      ],
-                radius: 14,
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: danger
+                    ? V2.danger.withOpacity(0.12)
+                    : V2.chip,
+                shape: BoxShape.circle,
               ),
-              padding: const EdgeInsets.all(10),
-              child: const Icon(Icons.workspace_premium_rounded,
-                  color: Colors.white, size: 26),
+              child: Icon(icon,
+                  color: danger ? V2.danger : V2.green, size: 24),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Text(
-                    isPro ? 'Lifeez Pro active' : 'Go Pro',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: isPro ? const Color(0xFF5c4a12) : null,
+                  Flexible(
+                    child: Text(
+                      title,
+                      style: GoogleFonts.poppins(
+                        fontSize: 16.5,
+                        fontWeight: FontWeight.w600,
+                        color: danger ? V2.danger : V2.ink,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  Text(
-                    isPro
-                        ? (trialDays > 0
-                            ? 'Trial • $trialDays days left'
-                            : 'Plan: ${p?.proPlan ?? 'pro'}')
-                        : 'Unlock everything • 14-day free trial',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12.5,
-                      color: isPro
-                          ? const Color(0xFF7a6420)
-                          : AppColors.muted,
+                  if (badge != null) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 9, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: V2.green,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        badge,
+                        style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white),
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
             const Icon(Icons.chevron_right_rounded,
-                color: AppColors.muted),
+                color: V2.muted, size: 26),
           ],
         ),
       ),

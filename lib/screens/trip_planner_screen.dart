@@ -3,9 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:uuid/uuid.dart';
-import '../theme/app_theme.dart';
-import '../widgets/category_icon.dart';
-import '../widgets/ui_kit.dart';
+import '../widgets/v2_kit.dart';
 import '../models/trip_models.dart';
 import '../models/task_item.dart';
 import '../models/reminder.dart';
@@ -15,18 +13,11 @@ import '../services/supabase_client.dart';
 import '../services/eastern_time.dart';
 
 const _uuid = Uuid();
-const _green = Color(0xFF1A9C63);
 
-/// Trip Planner: [Smart Input] -> [AI Processing] -> [Automated Output]
-/// -> [App System Sync].
-///
-/// - AI trip generator: destination, dates, trip type, budget -> Gemini
-///   builds a day-by-day itinerary, weather-aware packing list and
-///   expense breakdown (OpenWeatherMap + local fallback included).
-/// - Result shown in 3 tabs: Itinerary | Packing List | Expenses.
-/// - "Sync to Reminders" writes real tasks + reminders into the
-///   Lifeez Tasks/Calendar module.
-/// - Existing "My trips" list stays as-is below.
+/// V2 Trip Planner: upcoming-trip banner + cover-photo cards with
+/// Confirmed badges and budget bars, plus the full AI trip planner
+/// (smart input -> AI processing -> automated output -> app sync).
+/// Presentation rewritten to the V2 mockup; all logic kept.
 class TripPlannerScreen extends StatefulWidget {
   static const route = '/trip-planner';
   const TripPlannerScreen({super.key});
@@ -78,12 +69,24 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
   String _fmtMoney(double v) =>
       '\$${v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 2)}';
 
+  /// Whole-dollar money, e.g. 1200 -> $1,200.
+  String _fmtWhole(double v) {
+    final s = v.round().toString();
+    final buf = StringBuffer();
+    for (var i = 0; i < s.length; i++) {
+      final rev = s.length - i;
+      buf.write(s[i]);
+      if (rev > 1 && rev % 3 == 1) buf.write(',');
+    }
+    return '\$$buf';
+  }
+
   void _snack(String msg, {bool ok = true}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg, style: const TextStyle(color: Colors.white)),
-        backgroundColor: ok ? _green : Colors.red.shade400,
+        backgroundColor: ok ? V2.green : Colors.red.shade400,
         behavior: SnackBarBehavior.floating,
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -141,14 +144,13 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: isStart
-          ? (_startDate ?? now)
-          : (_endDate ?? _startDate ?? now),
+      initialDate:
+          isStart ? (_startDate ?? now) : (_endDate ?? _startDate ?? now),
       firstDate: DateTime(now.year - 1),
       lastDate: DateTime(now.year + 3),
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
-          colorScheme: const ColorScheme.light(primary: _green),
+          colorScheme: const ColorScheme.light(primary: V2.green),
         ),
         child: child!,
       ),
@@ -203,8 +205,8 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
       if (!mounted) return;
       setState(() {
         _plan = plan;
-        _packedIds.addAll(
-            plan.packing.where((p) => p.isPacked).map((p) => p.id));
+        _packedIds
+            .addAll(plan.packing.where((p) => p.isPacked).map((p) => p.id));
       });
       // Also reflect in the "My trips" list.
       setState(() => _trips.add({
@@ -292,82 +294,238 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
   void _addTrip() {
     final nameCtrl = TextEditingController();
     final detailCtrl = TextEditingController();
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('New trip', style: GoogleFonts.poppins()),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Trip name (e.g. Beach Weekend)'),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: detailCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Destination, dates, budget'),
-              ),
-            ],
-          ),
+      isScrollControlled: true,
+      backgroundColor: V2.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 24,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
         ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('New trip', style: V2.title(18)),
+            const SizedBox(height: 16),
+            _V2Field(
+                controller: nameCtrl,
+                label: 'Trip name (e.g. Beach Weekend)'),
+            const SizedBox(height: 12),
+            _V2Field(
+                controller: detailCtrl,
+                label: 'Destination - dates - \$budget'),
+            const SizedBox(height: 4),
+            Text(
+              'Example: Miami - Dec 12 to Dec 14 - \$400 budget',
+              style: V2.sub(12),
+            ),
+            const SizedBox(height: 16),
+            V2PrimaryButton(
+              label: 'Add trip',
+              onTap: () {
+                if (nameCtrl.text.trim().isNotEmpty) {
+                  setState(() => _trips.add({
+                        'name': nameCtrl.text.trim(),
+                        'detail': detailCtrl.text.trim(),
+                      }));
+                }
+                Navigator.pop(ctx);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _deleteTrip(int index) async {
+    final name = _trips[index]['name'] ?? 'this trip';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: V2.card,
+        title: Text('Delete $name?', style: V2.title(18)),
+        content:
+            Text('This removes the trip from your list.', style: V2.body(14)),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _green,
-            ),
-            onPressed: () {
-              if (nameCtrl.text.trim().isNotEmpty) {
-                setState(() => _trips.add({
-                      'name': nameCtrl.text.trim(),
-                      'detail': detailCtrl.text.trim(),
-                    }));
-              }
-              Navigator.pop(ctx);
-            },
-            child: const Text('Add'),
-          ),
+              onPressed: () => Navigator.pop(context, false),
+              child: Text('Cancel', style: V2.greenLabel(14))),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Delete',
+                  style: TextStyle(color: V2.danger))),
         ],
       ),
     );
+    if (ok == true) {
+      setState(() => _trips.removeAt(index));
+      _snack('Trip deleted.');
+    }
+  }
+
+  // ---------------------------------------------------------- trip parsing
+  ({String dest, String dates, double budget}) _parseTrip(
+      Map<String, String> t) {
+    var dest = (t['name'] ?? '').replaceFirst(RegExp(r'^AI:\s*'), '').trim();
+    var dates = '';
+    var budget = 0.0;
+    final detail = (t['detail'] ?? '').trim();
+    final budgetRe = RegExp(r'\$\s*([\d,]+(?:\.\d+)?)');
+    double parseBudget(String s) {
+      final m = budgetRe.firstMatch(s);
+      if (m == null) return 0.0;
+      return double.tryParse(m.group(1)!.replaceAll(',', '')) ?? 0.0;
+    }
+
+    final parts = detail.split(' - ').map((e) => e.trim()).toList();
+    if (parts.length >= 3) {
+      dest = parts.first;
+      dates = parts.sublist(1, parts.length - 1).join(' - ');
+      budget = parseBudget(parts.last);
+    } else if (parts.length == 2) {
+      budget = parseBudget(parts[1]);
+      final looksLikeDates =
+          RegExp(r'\d{1,2}/\d{1,2}/\d{2,4}| to ').hasMatch(parts[0]);
+      if (budget > 0 && looksLikeDates) {
+        dates = parts[0];
+      } else if (budget > 0) {
+        dest = parts[0];
+      } else {
+        dest = parts[0];
+        dates = parts[1];
+      }
+    } else if (parts.length == 1 && parts[0].isNotEmpty) {
+      final b = parseBudget(parts[0]);
+      if (b > 0) {
+        budget = b;
+      } else {
+        dates = parts[0];
+      }
+    }
+    return (dest: dest, dates: dates, budget: budget);
   }
 
   // ---------------------------------------------------------- UI builders
-  Widget _sectionCard({required Widget child}) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
+  Widget _tripCard(Map<String, String> t, int index) {
+    final parsed = _parseTrip(t);
+    final name = (t['name'] ?? '').trim();
+    final title = name.isEmpty ? parsed.dest : name;
+    final metaBits = <String>[];
+    if (parsed.dest.isNotEmpty &&
+        parsed.dest.toLowerCase() != title.toLowerCase()) {
+      metaBits.add(parsed.dest);
+    }
+    if (parsed.dates.isNotEmpty) metaBits.add(parsed.dates);
+    return Dismissible(
+      key: ValueKey('${title}_${t['detail']}_$index'),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) async {
+        _deleteTrip(index);
+        return false; // handled by the dialog
+      },
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 24),
+        decoration: BoxDecoration(
+          color: V2.danger,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Icon(Icons.delete_outline_rounded,
+            color: Colors.white, size: 28),
       ),
-      child: child,
-    );
-  }
-
-  Widget _fieldLabel(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Text(
-        text,
-        style: GoogleFonts.poppins(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: Colors.grey[800],
+      child: V2Card(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Cover-photo area: gradient placeholder with destination icon.
+            Container(
+              height: 130,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [V2.greenDark, V2.green],
+                ),
+              ),
+              child: Stack(
+                children: [
+                  const Center(
+                    child: Icon(Icons.flight_takeoff_rounded,
+                        color: Colors.white, size: 52),
+                  ),
+                  Positioned(
+                    left: 12,
+                    bottom: 10,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: V2.green,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: const [
+                          BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 8,
+                              offset: Offset(0, 3)),
+                        ],
+                      ),
+                      child: Text(
+                        'Confirmed',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 12, 4, 2),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: V2.title(20)),
+                  if (metaBits.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(metaBits.join(' • '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: V2.sub(13.5)),
+                  ],
+                  const SizedBox(height: 10),
+                  if (parsed.budget > 0) ...[
+                    const V2ProgressBar(value: 0),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${_fmtWhole(0)} of ${_fmtWhole(parsed.budget)}',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w500,
+                        color: V2.ink,
+                      ),
+                    ),
+                  ] else
+                    Text('No budget set', style: V2.sub(13)),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -376,51 +534,72 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
   InputDecoration _fieldDecor(String hint, {Widget? suffix}) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: GoogleFonts.poppins(color: Colors.grey[400], fontSize: 14),
+      hintStyle:
+          GoogleFonts.poppins(color: V2.muted, fontSize: 14),
       suffixIcon: suffix,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+      filled: true,
+      fillColor: V2.bg,
+      border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: Colors.grey.shade300)),
+      enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: Colors.grey.shade300)),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: _green, width: 2),
+        borderSide: const BorderSide(color: V2.green, width: 2),
       ),
       contentPadding:
           const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     );
   }
 
+  Widget _fieldLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text(text,
+          style: GoogleFonts.poppins(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: V2.ink)),
+    );
+  }
+
   Widget _buildInputCard() {
-    return _sectionCard(
+    return V2Card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              const Icon(Icons.auto_awesome_outlined, color: _green),
-              const SizedBox(width: 8),
-              Text(
-                'AI Trip Planner',
-                style: GoogleFonts.poppins(
-                    fontSize: 17, fontWeight: FontWeight.w700),
+              const V2IconTile(Icons.auto_awesome_rounded, size: 44),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('AI Trip Planner', style: V2.title(17)),
+                    Text('Tell me where and when — I will plan it all.',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: V2.sub(13)),
+                  ],
+                ),
               ),
             ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Tell me where and when — I will plan it all.',
-            style:
-                GoogleFonts.poppins(fontSize: 13, color: Colors.grey[600]),
           ),
           const SizedBox(height: 14),
           _fieldLabel('Destination'),
           TextField(
             controller: _destCtrl,
             textInputAction: TextInputAction.done,
+            style: GoogleFonts.poppins(color: V2.ink, fontSize: 14.5),
             decoration: _fieldDecor(
               'Where to? e.g. New York',
               suffix: IconButton(
                 icon: Icon(
                   _listening ? Icons.mic : Icons.mic_none_outlined,
-                  color: _listening ? Colors.red : _green,
+                  color: _listening ? V2.danger : V2.green,
                 ),
                 tooltip: 'Voice input',
                 onPressed: _toggleListening,
@@ -434,7 +613,7 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
                 'Listening… speak your destination',
                 style: GoogleFonts.poppins(
                     fontSize: 12,
-                    color: Colors.red,
+                    color: V2.danger,
                     fontStyle: FontStyle.italic),
               ),
             ),
@@ -450,10 +629,11 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
                       onTap: () => _pickDate(true),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 13),
+                            horizontal: 14, vertical: 13),
                         decoration: BoxDecoration(
+                          color: V2.bg,
                           border:
-                              Border.all(color: Colors.grey.shade400),
+                              Border.all(color: Colors.grey.shade300),
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Row(
@@ -463,16 +643,18 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
                                 _startDate == null
                                     ? 'MM/DD/YYYY'
                                     : _fmtDate(_startDate!),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.poppins(
-                                  fontSize: 14,
+                                  fontSize: 13.5,
                                   color: _startDate == null
-                                      ? Colors.grey[400]
-                                      : Colors.black87,
+                                      ? V2.muted
+                                      : V2.ink,
                                 ),
                               ),
                             ),
                             const Icon(Icons.calendar_today_outlined,
-                                size: 18, color: _green),
+                                size: 18, color: V2.green),
                           ],
                         ),
                       ),
@@ -490,10 +672,11 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
                       onTap: () => _pickDate(false),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 13),
+                            horizontal: 14, vertical: 13),
                         decoration: BoxDecoration(
+                          color: V2.bg,
                           border:
-                              Border.all(color: Colors.grey.shade400),
+                              Border.all(color: Colors.grey.shade300),
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: Row(
@@ -503,16 +686,18 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
                                 _endDate == null
                                     ? 'MM/DD/YYYY'
                                     : _fmtDate(_endDate!),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.poppins(
-                                  fontSize: 14,
+                                  fontSize: 13.5,
                                   color: _endDate == null
-                                      ? Colors.grey[400]
-                                      : Colors.black87,
+                                      ? V2.muted
+                                      : V2.ink,
                                 ),
                               ),
                             ),
                             const Icon(Icons.calendar_today_outlined,
-                                size: 18, color: _green),
+                                size: 18, color: V2.green),
                           ],
                         ),
                       ),
@@ -526,23 +711,26 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
           _fieldLabel('Trip type'),
           Wrap(
             spacing: 8,
+            runSpacing: 8,
             children: TripType.values.map((t) {
               final selected = _tripType == t;
-              final label = t.name[0].toUpperCase() + t.name.substring(1);
+              final label =
+                  t.name[0].toUpperCase() + t.name.substring(1);
               return ChoiceChip(
                 label: Text(label,
                     style: GoogleFonts.poppins(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: selected ? Colors.white : _green,
+                      color: selected ? Colors.white : V2.green,
                     )),
                 selected: selected,
-                selectedColor: _green,
-                backgroundColor: _green.withOpacity(0.1),
+                selectedColor: V2.green,
+                backgroundColor: V2.chip,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                   side: BorderSide(
-                      color: _green.withOpacity(selected ? 1 : 0.4)),
+                      color: V2.green.withValues(
+                          alpha: selected ? 1 : 0.4)),
                 ),
                 onSelected: (_) => setState(() => _tripType = t),
               );
@@ -554,6 +742,7 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
             controller: _budgetCtrl,
             keyboardType:
                 const TextInputType.numberWithOptions(decimal: true),
+            style: GoogleFonts.poppins(color: V2.ink, fontSize: 14.5),
             decoration: _fieldDecor(
               'e.g. 1200',
               suffix: Padding(
@@ -562,31 +751,33 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
                     style: GoogleFonts.poppins(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: _green)),
+                        color: V2.green)),
               ),
             ),
           ),
           const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: _generating ? null : _generate,
-            icon: _generating
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white))
-                : const Icon(Icons.auto_awesome_outlined),
-            label: Text(
-              _generating ? 'Generating your trip…' : 'Generate with AI',
-              style: GoogleFonts.poppins(
-                  fontSize: 16, fontWeight: FontWeight.w700),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _green,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
+          SizedBox(
+            height: 54,
+            child: ElevatedButton.icon(
+              onPressed: _generating ? null : _generate,
+              icon: _generating
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.auto_awesome_outlined),
+              label: Text(
+                _generating ? 'Generating your trip…' : 'Generate with AI',
+                style: GoogleFonts.poppins(
+                    fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: V2.green,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(27)),
+              ),
             ),
           ),
         ],
@@ -619,20 +810,8 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
   Widget _buildItineraryTab(GeneratedTripPlan plan) {
     return Column(
       children: plan.days.map((day) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
+        return V2Card(
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -642,7 +821,7 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: _green.withOpacity(0.12),
+                      color: V2.chip,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -650,14 +829,17 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
                       style: GoogleFonts.poppins(
                           fontWeight: FontWeight.w800,
                           fontSize: 13,
-                          color: _green),
+                          color: V2.green),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    _fmtDate(day.date),
-                    style: GoogleFonts.poppins(
-                        fontSize: 13, color: Colors.grey[600]),
+                  Flexible(
+                    child: Text(
+                      _fmtDate(day.date),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: V2.sub(13),
+                    ),
                   ),
                 ],
               ),
@@ -667,16 +849,7 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          width: 34,
-                          height: 34,
-                          decoration: BoxDecoration(
-                            color: _green.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(_slotIcon(s.slot),
-                              size: 18, color: _green),
-                        ),
+                        V2IconTile(_slotIcon(s.slot), size: 34),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
@@ -694,7 +867,7 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
                                   s.description,
                                   style: GoogleFonts.poppins(
                                       fontSize: 13,
-                                      color: Colors.grey[700],
+                                      color: V2.muted,
                                       height: 1.4),
                                 ),
                               if (s.spot.isNotEmpty)
@@ -706,14 +879,17 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
                                       const Icon(
                                           Icons.place_outlined,
                                           size: 14,
-                                          color: _green),
+                                          color: V2.green),
                                       const SizedBox(width: 4),
                                       Expanded(
                                         child: Text(
                                           s.spot,
+                                          maxLines: 2,
+                                          overflow:
+                                              TextOverflow.ellipsis,
                                           style: GoogleFonts.poppins(
                                               fontSize: 12,
-                                              color: _green,
+                                              color: V2.green,
                                               fontWeight:
                                                   FontWeight.w600),
                                         ),
@@ -727,7 +903,7 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
                                       const EdgeInsets.only(top: 6),
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: _green.withOpacity(0.07),
+                                    color: V2.chip,
                                     borderRadius:
                                         BorderRadius.circular(10),
                                   ),
@@ -738,14 +914,14 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
                                       const Icon(
                                           Icons.lightbulb_outline,
                                           size: 14,
-                                          color: _green),
+                                          color: V2.green),
                                       const SizedBox(width: 6),
                                       Expanded(
                                         child: Text(
                                           s.travelTip,
                                           style: GoogleFonts.poppins(
                                               fontSize: 12,
-                                              color: Colors.grey[700]),
+                                              color: V2.muted),
                                         ),
                                       ),
                                     ],
@@ -788,20 +964,18 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
+        V2Card(
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: _green.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(14),
-          ),
           child: Row(
             children: [
-              const Icon(Icons.luggage_outlined, color: _green),
-              const SizedBox(width: 8),
+              const V2IconTile(Icons.luggage_outlined, size: 40),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   '$packedCount of ${plan.packing.length} packed'
                   '${plan.trip.weatherSummary == null ? '' : ' • ${plan.trip.weatherSummary}'}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.poppins(
                       fontSize: 13, fontWeight: FontWeight.w600),
                 ),
@@ -814,70 +988,63 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
           final items =
               plan.packing.where((p) => p.category == cat).toList();
           if (items.isEmpty) return const SizedBox.shrink();
-          return Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding:
-                      const EdgeInsets.fromLTRB(14, 12, 14, 4),
-                  child: Row(
-                    children: [
-                      Icon(icons[cat], size: 18, color: _green),
-                      const SizedBox(width: 8),
-                      Text(
-                        names[cat]!,
-                        style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15),
-                      ),
-                    ],
-                  ),
-                ),
-                ...items.map((item) {
-                  final checked = _packedIds.contains(item.id);
-                  return CheckboxListTile(
-                    value: checked,
-                    dense: true,
-                    activeColor: _green,
-                    controlAffinity:
-                        ListTileControlAffinity.leading,
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 8),
-                    title: Text(
-                      item.label,
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        decoration: checked
-                            ? TextDecoration.lineThrough
-                            : null,
-                        color: checked
-                            ? Colors.grey[500]
-                            : Colors.black87,
-                      ),
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: V2Card(
+              padding:
+                  const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding:
+                        const EdgeInsets.fromLTRB(10, 8, 10, 2),
+                    child: Row(
+                      children: [
+                        Icon(icons[cat], size: 18, color: V2.green),
+                        const SizedBox(width: 8),
+                        Text(
+                          names[cat]!,
+                          style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15),
+                        ),
+                      ],
                     ),
-                    onChanged: (v) => setState(() {
-                      if (v == true) {
-                        _packedIds.add(item.id);
-                      } else {
-                        _packedIds.remove(item.id);
-                      }
-                    }),
-                  );
-                }),
-              ],
+                  ),
+                  ...items.map((item) {
+                    final checked = _packedIds.contains(item.id);
+                    return CheckboxListTile(
+                      value: checked,
+                      dense: true,
+                      activeColor: V2.green,
+                      controlAffinity:
+                          ListTileControlAffinity.leading,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8),
+                      title: Text(
+                        item.label,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          decoration: checked
+                              ? TextDecoration.lineThrough
+                              : null,
+                          color: checked ? V2.muted : V2.ink,
+                        ),
+                      ),
+                      onChanged: (v) => setState(() {
+                        if (v == true) {
+                          _packedIds.add(item.id);
+                        } else {
+                          _packedIds.remove(item.id);
+                        }
+                      }),
+                    );
+                  }),
+                ],
+              ),
             ),
           );
         }),
@@ -902,148 +1069,98 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
     final budget = plan.trip.estimatedBudget;
     final ratio = budget > 0 ? (total / budget).clamp(0.0, 1.0) : 0.0;
     final over = budget > 0 && total > budget;
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+    return V2Card(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Estimated total', style: V2.sub(13)),
+              Flexible(
+                child: Text(
+                  _fmtMoney(total),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.poppins(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      color: over ? V2.danger : V2.green),
+                ),
               ),
             ],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment:
-                    MainAxisAlignment.spaceBetween,
+          if (budget > 0) ...[
+            const SizedBox(height: 8),
+            V2ProgressBar(
+                value: ratio, color: over ? V2.danger : V2.green),
+            const SizedBox(height: 6),
+            Text(
+              '${_fmtMoney(total)} of ${_fmtMoney(budget)} budget'
+              '${over ? ' — over budget' : ''}',
+              style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: over ? V2.danger : V2.muted),
+            ),
+          ],
+          const Divider(height: 24),
+          ...ExpenseCategory.values.map((cat) {
+            final e = plan.expenses.firstWhere(
+              (x) => x.category == cat,
+              orElse: () => ExpenseBreakdown(
+                  id: '', tripId: plan.trip.id, category: cat),
+            );
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
                 children: [
-                  Text('Estimated total',
-                      style: GoogleFonts.poppins(
-                          fontSize: 13,
-                          color: Colors.grey[600])),
+                  V2IconTile(icons[cat]!, size: 38),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          names[cat]!,
+                          style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14),
+                        ),
+                        if ((e.note ?? '').isNotEmpty)
+                          Text(
+                            e.note!,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: V2.sub(12),
+                          ),
+                      ],
+                    ),
+                  ),
                   Text(
-                    _fmtMoney(total),
+                    _fmtMoney(e.amountUsd),
                     style: GoogleFonts.poppins(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: over ? Colors.red : _green),
+                        fontWeight: FontWeight.w700, fontSize: 15),
                   ),
                 ],
               ),
-              if (budget > 0) ...[
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    value: ratio,
-                    minHeight: 10,
-                    backgroundColor:
-                        _green.withOpacity(0.15),
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                        over ? Colors.red : _green),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '${_fmtMoney(total)} of ${_fmtMoney(budget)} budget'
-                  '${over ? ' — over budget' : ''}',
-                  style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: over
-                          ? Colors.red
-                          : Colors.grey[600]),
-                ),
-              ],
-              const Divider(height: 24),
-              ...ExpenseCategory.values.map((cat) {
-                final e = plan.expenses.firstWhere(
-                  (x) => x.category == cat,
-                  orElse: () => ExpenseBreakdown(
-                      id: '', tripId: plan.trip.id, category: cat),
-                );
-                return Padding(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 6),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          color: _green.withOpacity(0.1),
-                          borderRadius:
-                              BorderRadius.circular(12),
-                        ),
-                        child: Icon(icons[cat],
-                            size: 20, color: _green),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              names[cat]!,
-                              style: GoogleFonts.poppins(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14),
-                            ),
-                            if ((e.note ?? '').isNotEmpty)
-                              Text(
-                                e.note!,
-                                style: GoogleFonts.poppins(
-                                    fontSize: 12,
-                                    color: Colors.grey[600]),
-                              ),
-                          ],
-                        ),
-                      ),
-                      Text(
-                        _fmtMoney(e.amountUsd),
-                        style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-            ],
-          ),
-        ),
-      ],
+            );
+          }),
+        ],
+      ),
     );
   }
 
   Widget _buildResultCard() {
     final plan = _plan!;
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
+    return V2Card(
+      padding: EdgeInsets.zero,
       child: DefaultTabController(
         length: 3,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               child: Row(
                 children: [
                   Expanded(
@@ -1053,16 +1170,16 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
                       children: [
                         Text(
                           plan.trip.destination,
-                          style: GoogleFonts.poppins(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: V2.title(18),
                         ),
                         Text(
                           '${_fmtDate(plan.trip.startDate)} – ${_fmtDate(plan.trip.endDate)}'
                           ' • ${plan.trip.tripType.name[0].toUpperCase()}${plan.trip.tripType.name.substring(1)}',
-                          style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              color: Colors.grey[600]),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: V2.sub(12),
                         ),
                       ],
                     ),
@@ -1072,16 +1189,15 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: _green.withOpacity(0.1),
-                        borderRadius:
-                            BorderRadius.circular(10),
+                        color: V2.chip,
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         plan.trip.weatherSummary!,
                         style: GoogleFonts.poppins(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: _green),
+                            color: V2.green),
                       ),
                     ),
                 ],
@@ -1089,9 +1205,9 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
             ),
             const SizedBox(height: 8),
             TabBar(
-              labelColor: _green,
-              unselectedLabelColor: Colors.grey[500],
-              indicatorColor: _green,
+              labelColor: V2.green,
+              unselectedLabelColor: V2.muted,
+              indicatorColor: V2.green,
               indicatorWeight: 3,
               labelStyle: GoogleFonts.poppins(
                   fontWeight: FontWeight.w700, fontSize: 13),
@@ -1124,39 +1240,42 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-              child: ElevatedButton.icon(
-                onPressed:
-                    (_syncing || _synced) ? null : _syncToReminders,
-                icon: _syncing
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white))
-                    : Icon(_synced
-                        ? Icons.check_circle_outline
-                        : Icons.sync_outlined),
-                label: Text(
-                  _syncing
-                      ? 'Syncing…'
-                      : _synced
-                          ? 'Synced to Reminders'
-                          : 'Sync to Reminders',
-                  style: GoogleFonts.poppins(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _synced
-                      ? _green.withOpacity(0.7)
-                      : _green,
-                  foregroundColor: Colors.white,
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(14)),
+              child: SizedBox(
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: (_syncing || _synced)
+                      ? null
+                      : _syncToReminders,
+                  icon: _syncing
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white))
+                      : Icon(_synced
+                          ? Icons.check_circle_outline
+                          : Icons.sync_outlined),
+                  label: Text(
+                    _syncing
+                        ? 'Syncing…'
+                        : _synced
+                            ? 'Synced to Reminders'
+                            : 'Sync to Reminders',
+                    style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: V2.green,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor:
+                        V2.green.withValues(alpha: 0.6),
+                    disabledForegroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(26)),
+                  ),
                 ),
               ),
             ),
@@ -1169,138 +1288,128 @@ class _TripPlannerScreenState extends State<TripPlannerScreen> {
   // ---------------------------------------------------------- build
   @override
   Widget build(BuildContext context) {
+    final n = _trips.length;
     return Scaffold(
-      appBar: AppBar(title: const Text('Trips')),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: _green,
-        onPressed: _addTrip,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
-        children: [
-          Container(
-            decoration: AppTheme.heroGradient(radius: 24),
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                const CategoryIcon(category: 'event', size: 54),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${_trips.length} upcoming trips',
+      backgroundColor: V2.bg,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: v2PagePadding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              V2TitleRow(
+                title: 'Trips',
+                trailing: V2AddButton(onTap: _addTrip),
+              ),
+              // Green upcoming-trip banner (singular/plural).
+              Container(
+                decoration: V2.heroDeco,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 22),
+                child: Row(
+                  children: [
+                    const Icon(Icons.flight_rounded,
+                        color: Colors.white, size: 34),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        '$n Upcoming Trip${n == 1 ? '' : 's'}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.poppins(
                           fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
                           color: Colors.white,
                         ),
                       ),
-                      Text(
-                        'Plan it all in one place.',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.poppins(
-                          fontSize: 13,
-                          color: Colors.white70,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          // Smart input: AI trip planner (primary flow)
-          _buildInputCard(),
-          const SizedBox(height: 12),
-          // Automated output
-          if (_generating)
-            _sectionCard(
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 24),
-                child: Column(
-                  children: [
-                    const CircularProgressIndicator(
-                        color: _green),
-                    const SizedBox(height: 12),
-                    Text(
-                      'AI is building your itinerary, packing list and budget…',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.poppins(
-                          fontSize: 13,
-                          color: Colors.grey[600]),
                     ),
                   ],
                 ),
               ),
-            ),
-          if (_plan != null && !_generating) _buildResultCard(),
-          if (_plan != null && !_generating)
-            const SizedBox(height: 12),
-          const SizedBox(height: 16),
-          const SectionHeader(title: 'My trips'),
-          if (_trips.isEmpty)
-            const EmptyState(
-              icon: Icons.flight_outlined,
-              message: 'No trips yet. Plan one above!',
-            )
-          else
-            ..._trips.map((t) => Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
+              const SizedBox(height: 16),
+              if (_trips.isEmpty)
+                V2Card(
+                  child: Column(
                     children: [
-                      const CategoryIcon(
-                          category: 'transport', size: 44),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              t['name'] ?? '',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Text(
-                              t['detail'] ?? '',
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.poppins(
-                                fontSize: 13,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      const V2IconTile(Icons.flight_outlined,
+                          size: 56),
+                      const SizedBox(height: 12),
+                      Text('No trips yet.',
+                          style: V2.title(16)),
+                      const SizedBox(height: 4),
+                      Text('Add one with the + button or plan it with AI below.',
+                          textAlign: TextAlign.center,
+                          style: V2.sub(13)),
                     ],
                   ),
-                )),
-        ],
+                )
+              else
+                ..._trips.asMap().entries.map((e) => Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: _tripCard(e.value, e.key),
+                    )),
+              const SizedBox(height: 8),
+              const V2SectionLabel('AI trip planner'),
+              _buildInputCard(),
+              const SizedBox(height: 16),
+              if (_generating)
+                V2Card(
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(vertical: 16),
+                    child: Column(
+                      children: [
+                        const CircularProgressIndicator(
+                            color: V2.green),
+                        const SizedBox(height: 12),
+                        Text(
+                          'AI is building your itinerary, packing list and budget…',
+                          textAlign: TextAlign.center,
+                          style: V2.sub(13),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              if (_plan != null && !_generating) _buildResultCard(),
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: const V2SubNav(),
+    );
+  }
+}
+
+/// V2-styled text field used by the trip sheets.
+class _V2Field extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  const _V2Field({required this.controller, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      style: GoogleFonts.poppins(color: V2.ink, fontSize: 14.5),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle:
+            GoogleFonts.poppins(color: V2.muted, fontSize: 13.5),
+        filled: true,
+        fillColor: V2.bg,
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: Colors.grey.shade300)),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: Colors.grey.shade300)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide:
+                const BorderSide(color: V2.green, width: 2)),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
     );
   }

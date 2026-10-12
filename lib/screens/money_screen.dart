@@ -1,839 +1,755 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
-import '../theme/app_theme.dart';
-import '../widgets/category_icon.dart';
-import '../widgets/suggestion_card.dart';
-import '../widgets/ui_kit.dart';
-import '../services/app_state.dart';
-import '../services/smart_ai_service.dart';
-import '../services/command_parser.dart';
 import '../models/expense.dart';
-import '../models/savings_entry.dart';
+import '../services/app_state.dart';
 import '../services/eastern_time.dart';
+import '../services/smart_ai_service.dart';
+import '../widgets/v2_kit.dart';
+import 'budgets_screen.dart';
 
-class MoneyScreen extends StatelessWidget {
+/// V2 Money — hero "Spent today", Today/Week/Month pills, category
+/// spent-of-budget bars (budgets from SharedPreferences 'v2_budgets'),
+/// transaction rows with delete, add-expense dialog.
+/// Full-screen route with V2SubNav.
+class MoneyScreen extends StatefulWidget {
   static const route = '/money';
   const MoneyScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final app = context.watch<AppState>();
-    final ai = context.watch<SmartAiService>();
-    final totals = app.categoryTotals;
-    final sorted = totals.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
+  State<MoneyScreen> createState() => _MoneyScreenState();
+}
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Money')),
-      body: RefreshIndicator(
-        onRefresh: () => context.read<AppState>().loadAll(),
-        child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
-        children: [
-          // Income & budget
-          Row(
-            children: [
-              Expanded(
-                  child: _statCard(
-                      'Income',
-                      '\$${(app.profile?.monthlyIncome ?? 0).toStringAsFixed(0)}',
-                      'money')),
-              const SizedBox(width: 10),
-              Expanded(
-                  child: _statCard(
-                      'Budget',
-                      '\$${(app.profile?.monthlyBudget ?? 0).toStringAsFixed(0)}',
-                      'bills')),
-              const SizedBox(width: 10),
-              Expanded(
-                  child: _statCard(
-                      'Spent',
-                      '\$${app.spentThisMonth.toStringAsFixed(0)}',
-                      'shopping')),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            decoration: AppTheme.heroGradient(),
-            padding: const EdgeInsets.all(18),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Left to spend',
-                    style: GoogleFonts.poppins(
-                        color: Colors.white70, fontSize: 14)),
-                Text(
-                  '\$${app.leftToSpend.toStringAsFixed(2)}',
+class _MoneyScreenState extends State<MoneyScreen> {
+  int _tab = 0; // 0 = Today, 1 = Week, 2 = Month
+  Map<String, double> _budgets =
+      Map<String, double>.from(V2Budgets.defaultValues);
+
+  @override
+  void initState() {
+    super.initState();
+    V2Budgets.load().then((m) {
+      if (mounted) setState(() => _budgets = m);
+    });
+  }
+
+  // ------------------------------------------------------------- aggregations
+
+  bool _isToday(DateTime d) {
+    final n = easternNow();
+    return d.year == n.year && d.month == n.month && d.day == n.day;
+  }
+
+  double _spentToday(AppState app) => app.expenses
+      .where((e) => _isToday(e.spentAt))
+      .fold(0.0, (s, e) => s + e.amount);
+
+  List<Expense> _todaysExpenses(AppState app) {
+    final list =
+        app.expenses.where((e) => _isToday(e.spentAt)).toList();
+    list.sort((a, b) => b.spentAt.compareTo(a.spentAt));
+    return list;
+  }
+
+  /// This month's spend per canonical category.
+  Map<String, double> _monthTotalsByCat(AppState app) {
+    final now = easternNow();
+    final map = {for (final c in V2Budgets.categories) c: 0.0};
+    for (final e in app.expenses) {
+      if (e.spentAt.year == now.year &&
+          e.spentAt.month == now.month) {
+        final c = V2Budgets.normalize(e.category);
+        map[c] = (map[c] ?? 0) + e.amount;
+      }
+    }
+    return map;
+  }
+
+  DateTime get _weekMonday {
+    final n = easternNow();
+    final today = DateTime(n.year, n.month, n.day);
+    return today.subtract(Duration(days: n.weekday - 1));
+  }
+
+  /// Spend for Mon..Sun of the current week (7 values).
+  List<double> _weekDaily(AppState app) {
+    final monday = _weekMonday;
+    final days = List<double>.filled(7, 0);
+    for (final e in app.expenses) {
+      final d = DateTime(
+          e.spentAt.year, e.spentAt.month, e.spentAt.day);
+      final idx = d.difference(monday).inDays;
+      if (idx >= 0 && idx < 7) days[idx] += e.amount;
+    }
+    return days;
+  }
+
+  Map<String, double> _weekTotalsByCat(AppState app) {
+    final monday = _weekMonday;
+    final sundayEnd = monday.add(const Duration(days: 7));
+    final map = <String, double>{};
+    for (final e in app.expenses) {
+      if (!e.spentAt.isBefore(monday) &&
+          e.spentAt.isBefore(sundayEnd)) {
+        final c = V2Budgets.normalize(e.category);
+        map[c] = (map[c] ?? 0) + e.amount;
+      }
+    }
+    return map;
+  }
+
+  // ------------------------------------------------------------------ actions
+
+  Future<void> _confirmDelete(Expense e) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: Text('Delete expense?', style: V2.title(18)),
+        content: Text(
+            '${e.note.isEmpty ? e.category : e.note} — \$${e.amount.toStringAsFixed(2)}',
+            style: V2.body()),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child:
+                  Text('Cancel', style: V2.sub().copyWith(fontSize: 14))),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text('Delete',
                   style: GoogleFonts.poppins(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          _aiPredictionCard(
-              ai.predictOverspend(app.profile?.monthlyBudget ?? 0)),
-          const SizedBox(height: 16),
-
-          // Savings — ring, saved this month, goal
-          const SectionHeader(title: 'Savings'),
-          Container(
-            decoration: AppTheme.card3D(),
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    SizedBox(
-                      width: 110,
-                      height: 110,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          SizedBox(
-                            width: 110,
-                            height: 110,
-                            child:
-                                CircularProgressIndicator(
-                              value: app.savingsGoalPct,
-                              strokeWidth: 12,
-                              backgroundColor:
-                                  AppColors.greenSoft,
-                              valueColor:
-                                  const AlwaysStoppedAnimation<
-                                      Color>(
-                                      AppColors.deepGreen),
-                            ),
-                          ),
-                          Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '${(app.savingsGoalPct * 100).round()}%',
-                                style:
-                                    GoogleFonts.poppins(
-                                        fontSize: 20,
-                                        fontWeight:
-                                            FontWeight
-                                                .w800,
-                                        color: AppColors
-                                            .deepGreen),
-                              ),
-                              Text('of goal',
-                                  style:
-                                      GoogleFonts.poppins(
-                                          fontSize: 11,
-                                          color: AppColors
-                                              .muted)),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment:
-                            CrossAxisAlignment.start,
-                        children: [
-                          Text('Saved this month',
-                              style: GoogleFonts.poppins(
-                                  color: AppColors.muted,
-                                  fontSize: 13)),
-                          Text(
-                            '\$${app.savedThisMonth.toStringAsFixed(2)}',
-                            style: GoogleFonts.poppins(
-                                fontSize: 26,
-                                fontWeight:
-                                    FontWeight.w800,
-                                color:
-                                    AppColors.deepGreen),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Goal: \$${(app.profile?.savingsGoal ?? 0).toStringAsFixed(0)}/month',
-                            style: GoogleFonts.poppins(
-                                fontSize: 12.5,
-                                color: AppColors.muted),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton(
-                                  style:
-                                      OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets
-                                        .symmetric(
-                                        vertical: 10),
-                                    shape:
-                                        RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius
-                                              .circular(
-                                                  14),
-                                    ),
-                                  ),
-                                  onPressed: () =>
-                                      _showSavingsSheet(
-                                          context),
-                                  child: const Text(
-                                      'Add savings'),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: OutlinedButton(
-                                  style:
-                                      OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets
-                                        .symmetric(
-                                        vertical: 10),
-                                    shape:
-                                        RoundedRectangleBorder(
-                                      borderRadius:
-                                          BorderRadius
-                                              .circular(
-                                                  14),
-                                    ),
-                                  ),
-                                  onPressed: () =>
-                                      _showGoalSheet(
-                                          context, app),
-                                  child:
-                                      const Text('Set goal'),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                if (app.savingsGoalPct >= 1)
-                  Padding(
-                    padding:
-                        const EdgeInsets.only(top: 12),
-                    child: Text(
-                      'Goal reached! Amazing discipline.',
-                      style: GoogleFonts.poppins(
-                          color: AppColors.deepGreen,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13.5),
-                    ),
-                  )
-                else if ((app.profile?.savingsGoal ??
-                        0) >
-                    0)
-                  Padding(
-                    padding:
-                        const EdgeInsets.only(top: 12),
-                    child: Text(
-                      _savingsNudge(app),
-                      style: GoogleFonts.poppins(
-                          color: AppColors.muted,
-                          fontSize: 13),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Category breakdown
-          const SectionHeader(title: 'Where your money goes'),
-          if (sorted.isEmpty)
-            const EmptyState(
-                message: 'No spending logged yet this month.',
-                icon: Icons.pie_chart_outline)
-          else
-            Container(
-              decoration: AppTheme.card3D(),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  SizedBox(
-                    height: 190,
-                    child: PieChart(
-                      PieChartData(
-                        sectionsSpace: 3,
-                        centerSpaceRadius: 42,
-                        sections: sorted
-                            .take(6)
-                            .map((e) => PieChartSectionData(
-                                  value: e.value,
-                                  title:
-                                      '\$${e.value.toStringAsFixed(0)}',
-                                  color: iconFor(e.key.toLowerCase())
-                                      .colors
-                                      .first,
-                                  radius: 52,
-                                  titleStyle: GoogleFonts.poppins(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white),
-                                ))
-                            .toList(),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ...sorted.take(6).map((e) => Padding(
-                        padding:
-                            const EdgeInsets.symmetric(vertical: 5),
-                        child: Row(
-                          children: [
-                            CategoryIcon(
-                                category: e.key.toLowerCase(),
-                                size: 34),
-                            const SizedBox(width: 10),
-                            Expanded(
-                                child: Text(e.key,
-                                    style: GoogleFonts.poppins(
-                                        fontWeight:
-                                            FontWeight.w600))),
-                            Text(
-                                '\$${e.value.toStringAsFixed(2)}',
-                                style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.w700)),
-                          ],
-                        ),
-                      )),
-                ],
-              ),
-            ),
-          const SizedBox(height: 16),
-
-          // Expenses
-          const SectionHeader(title: 'Recent expenses'),
-          if (app.expenses.isEmpty)
-            const EmptyState(
-                message:
-                    'No expenses yet. Say "I spent \$45 at Walmart".',
-                icon: Icons.receipt_outlined)
-          else
-            ...app.expenses.reversed.take(15).map(
-                  (e) => Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    decoration: AppTheme.card3D(radius: 18),
-                    child: ListTile(
-                      leading: CategoryIcon(
-                          category: e.category.toLowerCase(),
-                          size: 42),
-                      title: Text(
-                          e.note.isEmpty ? e.category : e.note,
-                          style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w600)),
-                      subtitle: Text(
-                        '${e.category} • ${DateFormat('MMM d').format(e.spentAt)}',
-                        style: GoogleFonts.poppins(
-                            fontSize: 12, color: AppColors.muted),
-                      ),
-                      trailing: Text(
-                        '-\$${e.amount.toStringAsFixed(2)}',
-                        style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w700),
-                      ),
-                      onTap: () =>
-                          _showExpenseDetail(context, e),
-                    ),
-                  ),
-                ),
-          const SizedBox(height: 8),
-          SuggestionCard(
-            title: 'Money suggestions',
-            suggestions: _moneySuggestions(app),
-          ),
-        ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddSheet(context),
-        child: const Icon(Icons.add_rounded),
-      ),
-    );
-  }
-
-  Widget _statCard(String label, String value, String icon) {
-    return Container(
-      decoration: AppTheme.card3D(radius: 18),
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CategoryIcon(category: icon, size: 34),
-          const SizedBox(height: 8),
-          Text(value,
-              style: GoogleFonts.poppins(
-                  fontSize: 16, fontWeight: FontWeight.w800)),
-          Text(label,
-              style: GoogleFonts.poppins(
-                  fontSize: 11.5, color: AppColors.muted)),
+                      color: V2.danger,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14))),
         ],
       ),
     );
-  }
-
-  List<String> _moneySuggestions(AppState app) {
-    final out = <String>[];
-    if (app.budgetUsedPct > 0.8) {
-      out.add(
-          'You are at ${(app.budgetUsedPct * 100).round()}% of budget — pause non-essential shopping this week.');
+    if (ok == true && mounted) {
+      await context.read<AppState>().deleteExpense(e.id);
     }
-    final top = app.categoryTotals.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    if (top.isNotEmpty) {
-      out.add(
-          '${top.first.key} is your top spend (\$${top.first.value.toStringAsFixed(0)}). Set a weekly cap for it.');
-    }
-    if (app.subscriptionsMonthlyTotal > 0) {
-      out.add(
-          'Subscriptions cost \$${app.subscriptionsMonthlyTotal.toStringAsFixed(2)}/month — review the Subscriptions screen for ones you forgot.');
-    }
-    if (out.isEmpty) {
-      out.add(
-          'Log spending with "I spent \$45 at Walmart" and I will keep the budget bar honest.');
-    }
-    return out;
   }
 
-  String _savingsNudge(AppState app) {
-    final left =
-        (app.profile?.savingsGoal ?? 0) - app.savedThisMonth;
-    if (left <= 0) return 'Goal reached! Amazing discipline.';
-    final day = easternNow().day;
-    final daysLeft = 30 - day;
-    if (daysLeft <= 0) {
-      return 'Month is almost over — \$${left.toStringAsFixed(0)} to go.';
-    }
-    final perDay = left / daysLeft;
-    return 'Save about \$${perDay.toStringAsFixed(0)}/day to hit your goal.';
-  }
-
-  void _showSavingsSheet(BuildContext context) {
-    final amount = TextEditingController();
-    final note = TextEditingController();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(26)),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 24,
-          right: 24,
-          top: 24,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Add savings',
-                style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700)),
-            const SizedBox(height: 12),
-            AppTextField(
-                controller: amount,
-                label: 'Amount (USD)',
-                keyboardType:
-                    const TextInputType.numberWithOptions(
-                        decimal: true)),
-            AppTextField(
-                controller: note,
-                label: 'Note (optional)'),
-            const SizedBox(height: 8),
-            GradientButton(
-              label: 'Save',
-              onPressed: () async {
-                final amt =
-                    double.tryParse(amount.text.trim());
-                if (amt == null || amt <= 0) return;
-                final app = context.read<AppState>();
-                await app.addSavingsEntry(SavingsEntry(
-                  id: const Uuid().v4(),
-                  userId: app.profile?.id ?? '',
-                  amount: amt,
-                  note: note.text.trim().isEmpty
-                      ? null
-                      : note.text.trim(),
-                  savedAt: easternNow(),
-                ));
-                if (ctx.mounted) Navigator.pop(ctx);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showGoalSheet(BuildContext context, AppState app) {
-    final goal = TextEditingController(
-        text: (app.profile?.savingsGoal ?? 0) > 0
-            ? (app.profile!.savingsGoal)
-                .toStringAsFixed(0)
-            : '');
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.vertical(top: Radius.circular(26)),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 24,
-          right: 24,
-          top: 24,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Monthly savings goal',
-                style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700)),
-            const SizedBox(height: 12),
-            AppTextField(
-                controller: goal,
-                label: 'Goal amount (USD)',
-                keyboardType:
-                    const TextInputType.numberWithOptions(
-                        decimal: true)),
-            const SizedBox(height: 8),
-            GradientButton(
-              label: 'Set goal',
-              onPressed: () async {
-                final g =
-                    double.tryParse(goal.text.trim()) ??
-                        0;
-                await context
-                    .read<AppState>()
-                    .setSavingsGoal(g);
-                if (ctx.mounted) Navigator.pop(ctx);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showAddSheet(BuildContext context) {
-    final amount = TextEditingController();
-    final note = TextEditingController();
-    String category = 'Other';
-    String? receiptPath;
-    final picker = ImagePicker();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-      ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheet) => Padding(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Add expense',
-                  style: GoogleFonts.poppins(
-                      fontSize: 18, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 12),
-              AppTextField(
-                  controller: amount,
-                  label: 'Amount (USD)',
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true)),
-              AppTextField(controller: note, label: 'Note (e.g. Walmart)'),
-              DropdownButtonFormField<String>(
-                initialValue: category,
-                decoration:
-                    const InputDecoration(labelText: 'Category'),
-                items: const [
-                  'Food',
-                  'Grocery',
-                  'Transport',
-                  'Shopping',
-                  'Bills',
-                  'Health',
-                  'Other'
-                ]
-                    .map((c) => DropdownMenuItem(
-                        value: c, child: Text(c)))
-                    .toList(),
-                onChanged: (v) =>
-                    setSheet(() => category = v ?? 'Other'),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: () async {
-                  final src = await showModalBottomSheet<ImageSource>(
-                    context: ctx,
-                    builder: (c2) => SafeArea(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ListTile(
-                            leading: const Icon(
-                                Icons.photo_camera_rounded),
-                            title: const Text('Take photo'),
-                            onTap: () => Navigator.pop(
-                                c2, ImageSource.camera),
-                          ),
-                          ListTile(
-                            leading: const Icon(
-                                Icons.photo_library_rounded),
-                            title:
-                                const Text('Choose from gallery'),
-                            onTap: () => Navigator.pop(
-                                c2, ImageSource.gallery),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                  if (src == null) return;
-                  final img = await picker.pickImage(
-                      source: src,
-                      maxWidth: 1024,
-                      imageQuality: 80);
-                  if (img != null) {
-                    setSheet(() => receiptPath = img.path);
-                  }
-                },
-                icon: const Icon(Icons.receipt_long_rounded,
-                    size: 18),
-                label: Text(receiptPath == null
-                    ? 'Attach receipt (optional)'
-                    : 'Receipt attached ✓'),
-              ),
-              if (receiptPath != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.file(
-                      File(receiptPath!),
-                      height: 120,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 16),
-              GradientButton(
-                label: 'Save expense',
-                onPressed: () async {
-                  final amt = double.tryParse(amount.text.trim());
-                  if (amt == null) return;
-                  final uid =
-                      context.read<AppState>().profile?.id ?? '';
-                  final cat = note.text.trim().isEmpty
-                      ? category
-                      : CommandParser.detectExpenseCategory(
-                          '${note.text} $category');
-                  await context.read<AppState>().addExpense(Expense(
-                        id: const Uuid().v4(),
-                        userId: uid,
-                        amount: amt,
-                        category: cat,
-                        note: note.text.trim(),
-                        spentAt: easternNow(),
-                        receiptPath: receiptPath,
-                      ));
-                  context.read<SmartAiService>().recordSpending(amt);
-                  if (ctx.mounted) Navigator.pop(ctx);
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// AI budget prediction card (on-device Smart AI).
-  Widget _aiPredictionCard(OverspendPrediction p) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: p.willOverspend
-            ? Colors.red.withOpacity(0.07)
-            : const Color(0xFF1A9C63).withOpacity(0.08),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            p.willOverspend
-                ? Icons.warning_amber_outlined
-                : Icons.auto_awesome_outlined,
-            color: p.willOverspend
-                ? Colors.red
-                : const Color(0xFF1A9C63),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              p.message,
-              style: GoogleFonts.poppins(fontSize: 13),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Expense detail: shows info + receipt photo, with delete.
-  void _showExpenseDetail(BuildContext context, Expense e) {
-    final app = context.read<AppState>();
+  void _showExpenseDetail(Expense e) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(
-            '-\$${e.amount.toStringAsFixed(2)}',
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: Text('-\$${e.amount.toStringAsFixed(2)}',
             style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w700)),
+                fontWeight: FontWeight.w800, fontSize: 22)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('${e.category} • ${DateFormat('MM/dd/yyyy').format(e.spentAt)}',
-                  style: GoogleFonts.poppins(
-                      fontSize: 13, color: AppColors.muted)),
+              Text(
+                  '${V2Budgets.normalize(e.category)} • ${DateFormat('MM/dd/yyyy').format(e.spentAt)}',
+                  style: V2.sub()),
               if (e.note.isNotEmpty) ...[
                 const SizedBox(height: 6),
-                Text(e.note,
-                    style: GoogleFonts.poppins(fontSize: 14)),
+                Text(e.note, style: V2.body()),
               ],
-              const SizedBox(height: 12),
-              if ((e.receiptPath ?? '').isNotEmpty)
-                GestureDetector(
-                  onTap: () => showDialog(
-                    context: ctx,
-                    builder: (_) => Dialog(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: Image.file(
-                            File(e.receiptPath!)),
-                      ),
-                    ),
+              if ((e.receiptPath ?? '').isNotEmpty) ...[
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.file(
+                    File(e.receiptPath!),
+                    height: 180,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.file(
-                      File(e.receiptPath!),
-                      height: 180,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                )
-              else
-                Text('No receipt attached.',
-                    style: GoogleFonts.poppins(
-                        fontSize: 13, color: AppColors.muted)),
+                ),
+              ],
             ],
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
+            child: Text('Close',
+                style: V2.sub().copyWith(fontSize: 14)),
           ),
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              await _attachReceiptToExpense(context, e);
+              await _confirmDelete(e);
             },
-            child: Text((e.receiptPath ?? '').isEmpty
-                ? 'Add receipt'
-                : 'Replace receipt'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await app.deleteExpense(e.id);
-            },
-            child: const Text('Delete',
-                style: TextStyle(color: AppColors.danger)),
+            child: Text('Delete',
+                style: GoogleFonts.poppins(
+                    color: V2.danger,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14)),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _attachReceiptToExpense(
-      BuildContext context, Expense e) async {
-    final picker = ImagePicker();
-    final src = await showModalBottomSheet<ImageSource>(
+  void _showAddDialog() {
+    final amountCtrl = TextEditingController();
+    final noteCtrl = TextEditingController();
+    String category = 'Other';
+    showDialog(
       context: context,
-      builder: (c2) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading:
-                  const Icon(Icons.photo_camera_rounded),
-              title: const Text('Take photo'),
-              onTap: () =>
-                  Navigator.pop(c2, ImageSource.camera),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20)),
+          title: Text('Add expense', style: V2.title(18)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: amountCtrl,
+                  keyboardType:
+                      const TextInputType.numberWithOptions(
+                          decimal: true),
+                  autofocus: true,
+                  style: V2.body(16),
+                  decoration: InputDecoration(
+                    labelText: 'Amount (USD)',
+                    labelStyle: V2.sub(),
+                    prefixText: '\$ ',
+                    filled: true,
+                    fillColor: V2.chip,
+                    contentPadding:
+                        const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: category,
+                  style: V2.body(),
+                  decoration: InputDecoration(
+                    labelText: 'Category',
+                    labelStyle: V2.sub(),
+                    filled: true,
+                    fillColor: V2.chip,
+                    contentPadding:
+                        const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 4),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  items: V2Budgets.categories
+                      .map((c) => DropdownMenuItem(
+                          value: c, child: Text(c)))
+                      .toList(),
+                  onChanged: (v) =>
+                      setDlg(() => category = v ?? 'Other'),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: noteCtrl,
+                  style: V2.body(),
+                  decoration: InputDecoration(
+                    labelText: 'Note (e.g. Walmart)',
+                    labelStyle: V2.sub(),
+                    filled: true,
+                    fillColor: V2.chip,
+                    contentPadding:
+                        const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            ListTile(
-              leading:
-                  const Icon(Icons.photo_library_rounded),
-              title: const Text('Choose from gallery'),
-              onTap: () =>
-                  Navigator.pop(c2, ImageSource.gallery),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text('Cancel',
+                    style: V2.sub().copyWith(fontSize: 14))),
+            TextButton(
+              onPressed: () async {
+                final amt =
+                    double.tryParse(amountCtrl.text.trim());
+                if (amt == null || amt <= 0) return;
+                final app = context.read<AppState>();
+                await app.addExpense(Expense(
+                  id: const Uuid().v4(),
+                  userId: app.profile?.id ?? '',
+                  amount: amt,
+                  category: category,
+                  note: noteCtrl.text.trim(),
+                  spentAt: easternNow(),
+                  source: 'app',
+                ));
+                try {
+                  context
+                      .read<SmartAiService>()
+                      .recordSpending(amt);
+                } catch (_) {}
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: Text('Save',
+                  style: V2.greenLabel(14)
+                      .copyWith(fontWeight: FontWeight.w700)),
             ),
           ],
         ),
       ),
     );
-    if (src == null || !context.mounted) return;
-    final img = await picker.pickImage(
-        source: src, maxWidth: 1024, imageQuality: 80);
-    if (img == null || !context.mounted) return;
-    await context.read<AppState>().updateExpense(
-          Expense(
-            id: e.id,
-            userId: e.userId,
-            amount: e.amount,
-            category: e.category,
-            note: e.note,
-            spentAt: e.spentAt,
-            source: e.source,
-            receiptPath: img.path,
+  }
+
+  // -------------------------------------------------------------------- build
+
+  /// Money tab pill — same tokens as V2Pill, but stretched full-width
+  /// with a centered label (matches the mockup).
+  Widget _tabPill(String label, int index) {
+    final selected = _tab == index;
+    return GestureDetector(
+      onTap: () => setState(() => _tab = index),
+      child: Container(
+        padding:
+            const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? V2.green : V2.chip,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: selected ? Colors.white : V2.green,
           ),
-        );
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Receipt attached.')),
-      );
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final app = context.watch<AppState>();
+
+    return Scaffold(
+      backgroundColor: V2.bg,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: v2PagePadding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              V2TitleRow(
+                title: 'Money',
+                trailing: V2AddButton(onTap: _showAddDialog),
+              ),
+
+              // Today / Week / Month pills (equal-width, centered labels —
+              // V2Pill doesn't center when stretched, so replicate its
+              // exact styling here for mockup fidelity).
+              Row(
+                children: [
+                  Expanded(child: _tabPill('Today', 0)),
+                  const SizedBox(width: 10),
+                  Expanded(child: _tabPill('Week', 1)),
+                  const SizedBox(width: 10),
+                  Expanded(child: _tabPill('Month', 2)),
+                ],
+              ),
+              const SizedBox(height: 18),
+
+              if (_tab == 0) _todayView(app),
+              if (_tab == 1) _weekView(app),
+              if (_tab == 2) _monthView(app),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: const V2SubNav(),
+    );
+  }
+
+  // ------------------------------------------------------------------- today
+
+  Widget _todayView(AppState app) {
+    final spentToday = _spentToday(app);
+    final budget = app.profile?.monthlyBudget ?? 0;
+    final left = app.leftToSpend;
+    final totals = _monthTotalsByCat(app);
+    final todays = _todaysExpenses(app);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Green hero.
+        Container(
+          padding: const EdgeInsets.all(22),
+          decoration: V2.heroDeco,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Spent today',
+                  style: GoogleFonts.poppins(
+                      color: Colors.white.withOpacity(0.88),
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500)),
+              const SizedBox(height: 2),
+              Text('\$${spentToday.toStringAsFixed(2)}',
+                  style: GoogleFonts.poppins(
+                      color: Colors.white,
+                      fontSize: 44,
+                      fontWeight: FontWeight.w800,
+                      height: 1.1)),
+              const SizedBox(height: 6),
+              Text(
+                'Budget left \$${left.toStringAsFixed(2)} of \$${budget.toStringAsFixed(0)}',
+                style: GoogleFonts.poppins(
+                    color: Colors.white.withOpacity(0.88),
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        Text('Categories', style: V2.title(19)),
+        const SizedBox(height: 10),
+        V2Card(
+          child: Column(
+            children: [
+              for (var i = 0;
+                  i < V2Budgets.categories.length;
+                  i++) ...[
+                _categoryRow(
+                  V2Budgets.categories[i],
+                  totals[V2Budgets.categories[i]] ?? 0,
+                  _budgets[V2Budgets.categories[i]] ?? 0,
+                ),
+                if (i < V2Budgets.categories.length - 1)
+                  const SizedBox(height: 14),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        Text("Today's purchases", style: V2.title(19)),
+        const SizedBox(height: 10),
+        if (todays.isEmpty)
+          V2Card(
+            child: Center(
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 12),
+                child: Text('No purchases logged today yet.',
+                    style: V2.sub(14)),
+              ),
+            ),
+          )
+        else
+          V2Card(
+            padding: const EdgeInsets.symmetric(
+                horizontal: 8, vertical: 6),
+            child: Column(
+              children: [
+                for (var i = 0; i < todays.length; i++) ...[
+                  _transactionRow(todays[i]),
+                  if (i < todays.length - 1)
+                    const Divider(
+                        height: 1,
+                        indent: 64,
+                        endIndent: 12,
+                        color: Color(0xFFF0F0EA)),
+                ],
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _categoryRow(
+      String category, double spent, double budget) {
+    final pct = budget <= 0 ? 0.0 : (spent / budget).clamp(0.0, 1.0);
+    final barColor = pct >= 1
+        ? V2.danger
+        : pct >= 0.8
+            ? V2.amber
+            : V2.green;
+    return Row(
+      children: [
+        V2IconTile(V2Budgets.iconFor(category), size: 46),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(category,
+                  style: GoogleFonts.poppins(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w600,
+                      color: V2.ink)),
+              Text(
+                  '\$${spent.toStringAsFixed(0)} of \$${budget.toStringAsFixed(0)}',
+                  style: V2.sub(13)),
+            ],
+          ),
+        ),
+        SizedBox(
+          width: 110,
+          child: V2ProgressBar(value: pct, color: barColor),
+        ),
+      ],
+    );
+  }
+
+  Widget _transactionRow(Expense e) {
+    final title = e.note.isEmpty
+        ? V2Budgets.normalize(e.category)
+        : e.note;
+    return InkWell(
+      onTap: () => _showExpenseDetail(e),
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+            horizontal: 8, vertical: 10),
+        child: Row(
+          children: [
+            V2IconTile(V2Budgets.iconFor(e.category), size: 46),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: V2.ink),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  Text(
+                      '-\$${e.amount.toStringAsFixed(2)} • ${DateFormat('h:mm a').format(e.spentAt)}',
+                      style: V2.sub(13)),
+                ],
+              ),
+            ),
+            IconButton(
+              onPressed: () => _confirmDelete(e),
+              icon: const Icon(Icons.delete_outline_rounded,
+                  color: V2.muted, size: 22),
+              tooltip: 'Delete',
+              constraints: const BoxConstraints(),
+              padding: const EdgeInsets.all(6),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // -------------------------------------------------------------------- week
+
+  Widget _weekView(AppState app) {
+    final daily = _weekDaily(app);
+    final total = daily.fold(0.0, (s, v) => s + v);
+    final byCat = _weekTotalsByCat(app);
+    final sorted = byCat.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        V2Card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('This week', style: V2.title(19)),
+              Text('\$${total.toStringAsFixed(2)}',
+                  style: V2.display(34)),
+              const SizedBox(height: 12),
+              _weekChart(daily),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text('By category', style: V2.title(19)),
+        const SizedBox(height: 10),
+        if (sorted.isEmpty)
+          V2Card(
+            child: Center(
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 12),
+                child: Text('No spending this week yet.',
+                    style: V2.sub(14)),
+              ),
+            ),
+          )
+        else
+          ...sorted.map((e) => Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: _byCatRow(
+                    e.key, e.value, total == 0 ? 0 : e.value / total),
+              )),
+      ],
+    );
+  }
+
+  Widget _weekChart(List<double> days) {
+    const letters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    final maxVal =
+        days.fold<double>(0, (m, v) => v > m ? v : m);
+    // Label the two tallest non-zero bars, like the mockup.
+    final order = List<int>.generate(7, (i) => i)
+      ..sort((a, b) => days[b].compareTo(days[a]));
+    final labeled = <int>{};
+    for (final i in order) {
+      if (days[i] > 0 && labeled.length < 2) labeled.add(i);
     }
+    return SizedBox(
+      height: 190,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: List.generate(7, (i) {
+          final v = days[i];
+          final h = maxVal <= 0
+              ? 10.0
+              : 14.0 + (v / maxVal) * 108.0;
+          return Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                SizedBox(
+                  height: 20,
+                  child: labeled.contains(i)
+                      ? Text(
+                          '\$${v.toStringAsFixed(2)}',
+                          style: GoogleFonts.poppins(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: V2.greenDark),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+                const SizedBox(height: 2),
+                Container(
+                  height: h,
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 7),
+                  decoration: BoxDecoration(
+                    color: V2.green,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(letters[i],
+                    style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: V2.muted)),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------------- month
+
+  Widget _monthView(AppState app) {
+    final totals = _monthTotalsByCat(app);
+    final total = totals.values.fold(0.0, (s, v) => s + v);
+    final sorted = totals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        V2Card(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('This month', style: V2.title(19)),
+              Text('\$${total.toStringAsFixed(2)}',
+                  style: V2.display(34)),
+              const SizedBox(height: 4),
+              Text(
+                  'Budget left \$${app.leftToSpend.toStringAsFixed(2)} of \$${(app.profile?.monthlyBudget ?? 0).toStringAsFixed(0)}',
+                  style: V2.sub(14)),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text('By category', style: V2.title(19)),
+        const SizedBox(height: 10),
+        if (sorted.every((e) => e.value == 0))
+          V2Card(
+            child: Center(
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 12),
+                child: Text('No spending this month yet.',
+                    style: V2.sub(14)),
+              ),
+            ),
+          )
+        else
+          ...sorted
+              .where((e) => e.value > 0)
+              .map((e) => Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: _byCatRow(e.key, e.value,
+                        total == 0 ? 0 : e.value / total),
+                  )),
+      ],
+    );
+  }
+
+  Widget _byCatRow(String category, double value, double pct) {
+    return Row(
+      children: [
+        V2IconTile(V2Budgets.iconFor(category), size: 50),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(category,
+                        style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: V2.ink),
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                  Text(
+                      '\$${value.toStringAsFixed(0)} — ${(pct * 100).round()}%',
+                      style: V2.sub(14)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              V2ProgressBar(value: pct),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }

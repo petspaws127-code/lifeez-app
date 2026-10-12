@@ -57,7 +57,7 @@ class AppTheme {
       displayColor: AppColors.ink,
     );
     return base.copyWith(
-      scaffoldBackgroundColor: AppColors.ivory,
+      scaffoldBackgroundColor: const Color(0xFFFAFAF7),
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.deepGreen,
         primary: AppColors.deepGreen,

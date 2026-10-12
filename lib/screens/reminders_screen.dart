@@ -8,8 +8,9 @@ import 'package:uuid/uuid.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 import '../widgets/category_icon.dart';
-import '../widgets/suggestion_card.dart';
 import '../widgets/ui_kit.dart';
+import '../widgets/v2_kit.dart';
+import '../widgets/add_sheet.dart';
 import '../services/app_state.dart';
 import '../models/pet.dart';
 import '../models/reminder.dart';
@@ -38,14 +39,6 @@ class _RemindersScreenState extends State<RemindersScreen>
   String? _petId;
 
   static const _petTypes = ['feeding', 'vet', 'grooming', 'walk', 'medicine'];
-  static const _quickChips = [
-    'Pay a bill',
-    'Call family',
-    'Doctor appointment',
-    'Take medicine',
-    'Birthday',
-    'Meeting',
-  ];
 
   @override
   void initState() {
@@ -84,48 +77,41 @@ class _RemindersScreenState extends State<RemindersScreen>
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
     final petMode = widget.petMode;
+    if (!petMode) return _v2Scaffold(context, app);
     return Scaffold(
       appBar: AppBar(
-        title: Text(petMode ? 'Pets' : 'Reminders'),
-        bottom: petMode
-            ? TabBar(
-                controller: _tabs,
-                tabs: const [
-                  Tab(text: 'Pets'),
-                  Tab(text: 'Health'),
-                  Tab(text: 'Memories'),
-                ],
-              )
-            : null,
+        title: const Text('Pets'),
+        bottom: TabBar(
+          controller: _tabs,
+          tabs: const [
+            Tab(text: 'Pets'),
+            Tab(text: 'Health'),
+            Tab(text: 'Memories'),
+          ],
+        ),
       ),
-      body: petMode
-          ? TabBarView(
-              controller: _tabs,
-              children: [
-                _petsTab(context, app),
-                _healthTab(context, app),
-                _memoriesTab(context, app),
-              ],
-            )
-          : _generalTab(context, app),
+      body: TabBarView(
+        controller: _tabs,
+        children: [
+          _petsTab(context, app),
+          _healthTab(context, app),
+          _memoriesTab(context, app),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          if (petMode) {
-            if (_tabs.index == 2) {
-              if (app.pets.isEmpty) {
-                _showEditPet(context, app, null);
-              } else {
-                _showAddMemory(context, app);
-              }
+          if (_tabs.index == 2) {
+            if (app.pets.isEmpty) {
+              _showEditPet(context, app, null);
             } else {
-              if (app.pets.isEmpty) {
-                _showEditPet(context, app, null);
-              } else {
-                _showAddPetReminder(context, app);
-              }
+              _showAddMemory(context, app);
             }
           } else {
-            _showAddSheet(context);
+            if (app.pets.isEmpty) {
+              _showEditPet(context, app, null);
+            } else {
+              _showAddPetReminder(context, app);
+            }
           }
         },
         child: const Icon(Icons.add_rounded),
@@ -133,195 +119,190 @@ class _RemindersScreenState extends State<RemindersScreen>
     );
   }
 
-  // ============================================================ GENERAL TAB
-  Widget _generalTab(BuildContext context, AppState app) {
-    final active = app.activeReminders;
-    final done = app.reminders.where((r) => r.isDone).toList();
-    return RefreshIndicator(
-      onRefresh: () => app.loadAll(),
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
-        children: [
-          if (active.isEmpty && done.isEmpty)
-            const EmptyState(
-                message:
-                    'No reminders. Say "remind me to pay rent on the 1st".',
-                icon: Icons.alarm_outlined),
-          if (active.isNotEmpty) ...[
-            const SectionHeader(title: 'Active'),
-            ...active.map((r) => Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  decoration: AppTheme.card3D(radius: 18),
-                  child: ListTile(
-                    leading: const CategoryIcon(
-                        category: 'reminder', size: 42),
-                    title: Text(r.title,
-                        style: GoogleFonts.poppins(
-                            fontWeight: FontWeight.w600)),
-                    subtitle: Text(
-                      DateFormat('EEE, MMM d • h:mm a')
-                          .format(r.remindAt),
-                      style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          color: AppColors.muted),
-                    ),
-                    trailing: IconButton(
-                      icon: const Icon(
-                          Icons.check_circle_outline,
-                          color: AppColors.deepGreen),
-                      onPressed: () =>
-                          app.toggleReminder(r.id),
-                    ),
-                  ),
-                )),
-          ],
-          if (done.isNotEmpty) ...[
-            const SectionHeader(title: 'Done'),
-            ...done.map((r) => Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  decoration: AppTheme.card3D(radius: 18),
-                  child: ListTile(
-                    leading: const CategoryIcon(
-                        category: 'reminder', size: 42),
-                    title: Text(r.title,
-                        style: GoogleFonts.poppins(
-                            decoration:
-                                TextDecoration.lineThrough)),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.undo_rounded,
-                          color: AppColors.muted),
-                      onPressed: () =>
-                          app.toggleReminder(r.id),
-                    ),
-                  ),
-                )),
-          ],
-          const SizedBox(height: 8),
-          SuggestionCard(
-            title: 'Reminder suggestions',
-            suggestions: [
-              if (active.isNotEmpty)
-                'Your next reminder is "${active.first.title}" — I will keep it on your calendar.',
-              'Use "every day" for habits: "remind me to drink water every day at 9am".',
+  /// V2 general reminders screen (non-pet mode).
+  Widget _v2Scaffold(BuildContext context, AppState app) {
+    return Scaffold(
+      backgroundColor: V2.bg,
+      body: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          color: V2.green,
+          onRefresh: () => app.loadAll(),
+          child: ListView(
+            padding: v2PagePadding,
+            children: [
+              V2TitleRow(
+                title: 'Reminders',
+                trailing: V2AddButton(
+                  onTap: () =>
+                      showAddSheet(context, initialType: 'reminder'),
+                ),
+              ),
+              ..._v2Groups(context, app),
             ],
           ),
-        ],
+        ),
+      ),
+      bottomNavigationBar: const V2SubNav(),
+    );
+  }
+
+  /// V2 general tab: TODAY / TOMORROW / UPCOMING groups of general
+  /// (non-pet) reminders, plus a Done group at the bottom.
+  List<Widget> _v2Groups(BuildContext context, AppState app) {
+    final general =
+        app.activeReminders.where((r) => r.petId == null).toList();
+    final done =
+        app.reminders.where((r) => r.isDone && r.petId == null).toList();
+    final today = easternToday();
+    final todayKey = DateTime(today.year, today.month, today.day);
+    final tomorrowKey = todayKey.add(const Duration(days: 1));
+
+    final todayList = <Reminder>[];
+    final tomorrowList = <Reminder>[];
+    final upcomingList = <Reminder>[];
+    for (final r in general) {
+      final d = r.remindAt;
+      final key = DateTime(d.year, d.month, d.day);
+      if (key == todayKey) {
+        todayList.add(r);
+      } else if (key == tomorrowKey) {
+        tomorrowList.add(r);
+      } else {
+        upcomingList.add(r);
+      }
+    }
+
+    final widgets = <Widget>[];
+    if (general.isEmpty && done.isEmpty) {
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.only(top: 60),
+          child: Column(
+            children: [
+              const V2IconTile(Icons.alarm_outlined, size: 72),
+              const SizedBox(height: 12),
+              Text('No reminders',
+                  style: GoogleFonts.poppins(
+                      fontSize: 16, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 4),
+              Text('Tap + to set one.',
+                  textAlign: TextAlign.center,
+                  style:
+                      GoogleFonts.poppins(fontSize: 13, color: V2.muted)),
+            ],
+          ),
+        ),
+      );
+      return widgets;
+    }
+    if (todayList.isNotEmpty) {
+      widgets.add(const V2SectionLabel('Today'));
+      widgets.addAll(todayList.map((r) => _v2Row(context, r)));
+      widgets.add(const SizedBox(height: 8));
+    }
+    if (tomorrowList.isNotEmpty) {
+      widgets.add(const V2SectionLabel('Tomorrow'));
+      widgets.addAll(tomorrowList.map((r) => _v2Row(context, r)));
+      widgets.add(const SizedBox(height: 8));
+    }
+    if (upcomingList.isNotEmpty) {
+      widgets.add(const V2SectionLabel('Upcoming'));
+      widgets.addAll(upcomingList.map((r) => _v2Row(context, r)));
+      widgets.add(const SizedBox(height: 8));
+    }
+    if (done.isNotEmpty) {
+      widgets.add(const V2SectionLabel('Done'));
+      widgets.addAll(done.map((r) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: InkWell(
+              onTap: () => app.toggleReminder(r.id),
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 13),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F1EC),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: V2.softShadow,
+                ),
+                child: Row(
+                  children: [
+                    const V2IconTile(Icons.notifications_off_outlined,
+                        size: 44, bg: Color(0xFFE4E4DE), fg: V2.muted),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        r.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.poppins(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: V2.muted,
+                          decoration: TextDecoration.lineThrough,
+                          decorationColor: V2.muted,
+                        ),
+                      ),
+                    ),
+                    const Icon(Icons.undo_rounded,
+                        color: V2.muted, size: 20),
+                  ],
+                ),
+              ),
+            ),
+          )));
+    }
+    return widgets;
+  }
+
+  Widget _v2Row(BuildContext context, Reminder r) {
+    final app = context.read<AppState>();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: V2Card(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        child: Row(
+          children: [
+            const V2IconTile(Icons.notifications_none_rounded, size: 52),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    r.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.poppins(
+                        fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _timeLabel(r.remindAt),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.poppins(
+                        fontSize: 13, color: V2.muted),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            V2Switch(
+              value: !r.isDone,
+              onChanged: (_) => app.toggleReminder(r.id),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  void _showAddSheet(BuildContext context) {
-    final title = TextEditingController();
-    DateTime when = easternNow().add(const Duration(hours: 1));
-    String? repeat;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-      ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheet) => Padding(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 24,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text('New reminder',
-                    style: GoogleFonts.poppins(
-                        fontSize: 18, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _quickChips
-                      .map((c) => ActionChip(
-                            label: Text(c,
-                                style: GoogleFonts.poppins(
-                                    fontSize: 12.5)),
-                            backgroundColor:
-                                AppColors.greenSoft,
-                            onPressed: () =>
-                                setSheet(() => title.text = c),
-                          ))
-                      .toList(),
-                ),
-                const SizedBox(height: 12),
-                AppTextField(
-                    controller: title, label: 'Remind me to…'),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.schedule_rounded),
-                  label: Text(
-                      DateFormat('EEE, MMM d • h:mm a')
-                          .format(when)),
-                  onPressed: () async {
-                    final d = await showDatePicker(
-                      context: ctx,
-                      firstDate: easternNow(),
-                      lastDate: easternNow()
-                          .add(const Duration(days: 365)),
-                      initialDate: when,
-                    );
-                    if (d == null) return;
-                    if (!ctx.mounted) return;
-                    final tm = await showTimePicker(
-                        context: ctx,
-                        initialTime:
-                            TimeOfDay.fromDateTime(when));
-                    if (tm == null) return;
-                    setSheet(() => when = DateTime(d.year, d.month,
-                        d.day, tm.hour, tm.minute));
-                  },
-                ),
-                const SizedBox(height: 8),
-                DropdownButtonFormField<String>(
-                  initialValue: repeat,
-                  decoration: const InputDecoration(
-                      labelText: 'Repeat (optional)'),
-                  items: const [
-                    DropdownMenuItem(
-                        value: null, child: Text('No repeat')),
-                    DropdownMenuItem(
-                        value: 'daily', child: Text('Daily')),
-                    DropdownMenuItem(
-                        value: 'weekly', child: Text('Weekly')),
-                    DropdownMenuItem(
-                        value: 'monthly', child: Text('Monthly')),
-                  ],
-                  onChanged: (v) =>
-                      setSheet(() => repeat = v),
-                ),
-                const SizedBox(height: 16),
-                GradientButton(
-                  label: 'Save reminder',
-                  onPressed: () async {
-                    if (title.text.trim().isEmpty) return;
-                    final uid =
-                        context.read<AppState>().profile?.id ?? '';
-                    await context.read<AppState>().addReminder(
-                          Reminder(
-                            id: const Uuid().v4(),
-                            userId: uid,
-                            title: title.text.trim(),
-                            remindAt: when,
-                            repeat: repeat,
-                          ),
-                        );
-                    if (ctx.mounted) Navigator.pop(ctx);
-                  },
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+  String _timeLabel(DateTime d) {
+    final h = d.hour % 12 == 0 ? 12 : d.hour % 12;
+    final m = d.minute.toString().padLeft(2, '0');
+    return '$h:$m ${d.hour < 12 ? 'AM' : 'PM'}';
   }
 
   // =============================================================== PETS TAB

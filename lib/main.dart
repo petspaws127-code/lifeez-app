@@ -11,6 +11,9 @@ import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/main_tabs.dart';
+import 'screens/today_screen.dart';
+import 'screens/upcoming_screen.dart';
+import 'screens/budgets_screen.dart';
 import 'screens/whatsapp_chat_screen.dart';
 import 'screens/ai_assistant_screen.dart';
 import 'screens/tasks_screen.dart';
@@ -108,6 +111,9 @@ class AiLifeAssistantApp extends StatelessWidget {
           OnboardingScreen.route: (_) =>
               const OnboardingScreen(),
           MainTabs.route: (_) => const MainTabs(),
+          TodayScreen.route: (_) => const TodayScreen(),
+          UpcomingScreen.route: (_) => const UpcomingScreen(),
+          BudgetsScreen.route: (_) => const BudgetsScreen(),
           WhatsAppChatScreen.route: (_) =>
               const WhatsAppChatScreen(),
           AiAssistantScreen.route: (_) =>

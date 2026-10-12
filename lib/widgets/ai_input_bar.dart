@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:speech_to_text/speech_to_text.dart';
-import '../theme/app_theme.dart';
+import 'v2_kit.dart';
 
 /// The AI input bar: text field + microphone + send.
 /// Used on Home, Tasks (quick add), AI Assistant, and WhatsApp chat.
@@ -259,33 +260,67 @@ class _AiInputBarState extends State<AiInputBar> {
     }
   }
 
+  /// Green circular action button (mic / send) with tooltip.
+  Widget _circleButton({
+    required IconData icon,
+    required VoidCallback? onTap,
+    required Color color,
+    required String tooltip,
+    Widget? child,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: onTap == null ? color.withValues(alpha: 0.55) : color,
+            shape: BoxShape.circle,
+            boxShadow: V2.softShadow,
+          ),
+          child: child ??
+              Icon(icon, color: Colors.white, size: 22),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: AppTheme.card3D(radius: 20),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: V2.softShadow,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       child: Row(
         children: [
-          IconButton(
-            onPressed: _toggleMic,
-            icon: Icon(
-              _listening ? Icons.mic : Icons.mic_none,
-              color: _listening ? AppColors.danger : AppColors.deepGreen,
-            ),
+          _circleButton(
+            icon: _listening ? Icons.mic_rounded : Icons.mic_none_rounded,
+            color: _listening ? V2.danger : V2.green,
             tooltip: 'Voice input',
+            onTap: _toggleMic,
           ),
+          const SizedBox(width: 6),
           Expanded(
             child: TextField(
               controller: _controller,
               autofocus: widget.autofocus,
               textInputAction: TextInputAction.send,
               onSubmitted: (_) => _submit(),
+              style: GoogleFonts.poppins(
+                  fontSize: 15, color: V2.ink),
               decoration: InputDecoration(
                 hintText: widget.hint,
+                hintStyle: GoogleFonts.poppins(
+                    fontSize: 14, color: V2.muted),
                 filled: false,
                 border: InputBorder.none,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 4, vertical: 10),
               ),
             ),
           ),
@@ -294,26 +329,22 @@ class _AiInputBarState extends State<AiInputBar> {
               padding: const EdgeInsets.only(right: 8),
               child: _MicWave(level: _soundLevel),
             ),
-          Container(
-            decoration: AppTheme.tile3D(
-              const [AppColors.deepGreen, AppColors.greenMid],
-              radius: 14,
-            ),
-            child: IconButton(
-              onPressed: _busy ? null : _submit,
-              icon: _busy
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.send_rounded,
-                      color: Colors.white, size: 20),
-              tooltip: 'Send',
-            ),
+          _circleButton(
+            icon: Icons.send_rounded,
+            color: V2.green,
+            tooltip: 'Send',
+            onTap: _busy ? null : _submit,
+            child: _busy
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.send_rounded,
+                    color: Colors.white, size: 20),
           ),
         ],
       ),
@@ -363,7 +394,7 @@ class _MicWaveState extends State<_MicWave> with SingleTickerProviderStateMixin 
           height: 28,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: const Color(0xFF1A9C63).withOpacity(0.15 + norm * 0.25),
+            color: const Color(0xFF1A9C63).withValues(alpha: 0.15 + norm * 0.25),
           ),
           child: Center(
             child: Container(

@@ -1,16 +1,17 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
-import '../theme/app_theme.dart';
-import '../widgets/category_icon.dart';
-import '../widgets/ui_kit.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/app_state.dart';
-import '../services/auth_service.dart';
-import '../services/biometric_service.dart';
-import 'login_screen.dart';
-import 'pin_lock_screen.dart';
-import 'profile_screen.dart';
+import '../widgets/v2_kit.dart';
 
+/// V2 Settings — grouped rows: General, Notifications (toggles), Data, About.
+/// Full-screen route with back affordance + V2SubNav.
 class SettingsScreen extends StatefulWidget {
   static const route = '/settings';
   const SettingsScreen({super.key});
@@ -20,461 +21,64 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _hasFingerprint = false;
-  bool _hasFace = false;
-  bool _fingerprintEnabled = false;
-  bool _faceEnabled = false;
+  static const _kStartOfWeek = 'v2_start_of_week';
+  static const _kTimeFormat = 'v2_time_format';
+  static const _kHabitStreakNotifs = 'v2_habit_streak_notifs';
+
+  String _startOfWeek = 'Monday';
+  String _timeFormat = '12h';
+  bool _habitStreakNotifs = true;
+  String _version = '';
 
   @override
   void initState() {
     super.initState();
-    _loadBiometrics();
+    _loadLocalPrefs();
+    _loadVersion();
   }
 
-  Future<void> _loadBiometrics() async {
-    final bio = BiometricService.instance;
-    final results = await Future.wait([
-      bio.hasFingerprint,
-      bio.hasFace,
-      bio.isFingerprintEnabled(),
-      bio.isFaceEnabled(),
-    ]);
+  Future<void> _loadLocalPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     setState(() {
-      _hasFingerprint = results[0];
-      _hasFace = results[1];
-      _fingerprintEnabled = results[2];
-      _faceEnabled = results[3];
+      _startOfWeek = prefs.getString(_kStartOfWeek) ?? 'Monday';
+      _timeFormat = prefs.getString(_kTimeFormat) ?? '12h';
+      _habitStreakNotifs = prefs.getBool(_kHabitStreakNotifs) ?? true;
     });
   }
 
-  /// Toggling ON requires a successful biometric check first;
-  /// the preference is saved only when authentication succeeds.
-  Future<void> _toggleBiometric(
-      {required bool fingerprint, required bool enable}) async {
-    final bio = BiometricService.instance;
-    final app = context.read<AppState>();
-    if (enable) {
-      final ok = await app.authenticateWithBiometrics();
-      if (!mounted) return;
-      if (!ok) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'Authentication failed. Biometric unlock was not enabled.')),
-        );
-        return;
-      }
-    }
-    if (fingerprint) {
-      await bio.setFingerprintEnabled(enable);
-    } else {
-      await bio.setFaceEnabled(enable);
-    }
-    if (!mounted) return;
-    setState(() {
-      if (fingerprint) {
-        _fingerprintEnabled = enable;
-      } else {
-        _faceEnabled = enable;
-      }
-    });
-    // Keep the AppState-level biometric preference in sync.
-    await app.setBiometricEnabled(_fingerprintEnabled || _faceEnabled);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text(enable
-              ? 'Biometric unlock enabled.'
-              : 'Biometric unlock disabled.')),
-    );
+  Future<void> _loadVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) setState(() => _version = info.version);
+    } catch (_) {}
   }
 
-  Widget _biometricRow({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required bool value,
-    required bool available,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return Opacity(
-      opacity: available ? 1.0 : 0.55,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        decoration: AppTheme.card3D(radius: 18),
-        child: ListTile(
-          leading: Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: AppColors.greenSoft,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: AppColors.deepGreen),
-          ),
-          title: Text(title,
-              style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w600)),
-          subtitle: Text(subtitle,
-              style: GoogleFonts.poppins(
-                  fontSize: 12.5, color: AppColors.muted)),
-          trailing: Switch(
-            value: value,
-            onChanged: available ? onChanged : null,
-            activeThumbColor: AppColors.deepGreen,
-          ),
-          onTap: available ? () => onChanged(!value) : null,
-        ),
-      ),
-    );
-  }
-  Future<void> _signOut() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Sign out?'),
-        content:
-            const Text('You will need to sign in again to use the app.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
-          TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Sign out')),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-    final auth = context.read<AuthService>();
-    final appState = context.read<AppState>();
-    // Push any pending offline writes to the cloud before signing out.
-    await appState.flushBeforeSignOut();
-    appState.clearLocal();
-    await auth.signOut();
-    // Data kept on logout - user data persists;
-    if (!mounted) return;
-    Navigator.pushNamedAndRemoveUntil(
-        context, LoginScreen.route, (_) => false);
-  }
+  // ------------------------------------------------------------- pickers
 
-  Future<void> _deleteData() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Delete my data?'),
-        content: const Text(
-            'This permanently removes all your tasks, expenses, bills and everything else. This cannot be undone.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete everything',
-                style: TextStyle(color: AppColors.danger)),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-    await context.read<AppState>().deleteAllMyData();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('All your data was deleted.')),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final app = context.watch<AppState>();
-    final p = app.profile;
-
-    return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        children: [
-          // === Security ===
-          const SectionHeader(title: 'Security'),
-          const SizedBox(height: 8),
-          _row(
-            materialIcon: Icons.lock_outline_rounded,
-            icon: 'pin',
-            title: 'App PIN lock',
-            subtitle: app.hasPin
-                ? 'Enabled'
-                : 'Protect the app with a 4-digit PIN',
-            onTap: () => _pinOptions(context, app),
-          ),
-          // Biometric unlock options — only shown once a PIN exists,
-          // since biometrics are an alternative to entering the PIN.
-          if (app.hasPin) ...[
-            _biometricRow(
-              icon: Icons.fingerprint_rounded,
-              title: 'Fingerprint unlock',
-              subtitle: _hasFingerprint
-                  ? 'Unlock the app with your fingerprint'
-                  : 'Not available on this device',
-              value: _fingerprintEnabled,
-              available: _hasFingerprint,
-              onChanged: (v) =>
-                  _toggleBiometric(fingerprint: true, enable: v),
-            ),
-            _biometricRow(
-              icon: Icons.face_rounded,
-              title: 'Face unlock',
-              subtitle: _hasFace
-                  ? 'Unlock the app with your face'
-                  : 'Not available on this device',
-              value: _faceEnabled,
-              available: _hasFace,
-              onChanged: (v) =>
-                  _toggleBiometric(fingerprint: false, enable: v),
-            ),
-          ],
-          const SizedBox(height: 4),
-          // === Preferences ===
-          const SectionHeader(title: 'Preferences'),
-          const SizedBox(height: 8),
-          _row(
-            materialIcon: Icons.attach_money_rounded,
-            icon: 'money',
-            title: 'Currency',
-            subtitle: 'Display currency',
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(p?.currency ?? 'USD',
-                    style: GoogleFonts.poppins(
-                        fontSize: 13.5, color: AppColors.muted)),
-                const Icon(Icons.chevron_right_rounded,
-                    color: AppColors.muted),
-              ],
-            ),
-            onTap: () => _editCurrency(context, app),
-          ),
-          _switchRow(
-            icon: 'other',
-            materialIcon: Icons.notifications_outlined,
-            title: 'Notifications',
-            subtitle: 'Reminders & alerts',
-            value: p?.notificationsEnabled ?? true,
-            onChanged: (v) async {
-              if (v) {
-                final granted = await app.requestNotificationPermission();
-                if (mounted && !granted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text(
-                            'Notification permission was denied. Enable it in system settings to receive alerts.')),
-                  );
-                }
-              }
-              await app.setNotificationsEnabled(v);
-            },
-          ),
-          _switchRow(
-            icon: 'other',
-            materialIcon: Icons.wb_sunny_outlined,
-            title: 'Daily Briefing',
-            subtitle: 'Morning summary',
-            value: p?.dailyBriefingEnabled ?? true,
-            onChanged: (v) async {
-              if (v) {
-                final granted = await app.requestNotificationPermission();
-                if (mounted && !granted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text(
-                            'Notification permission was denied. Enable it in system settings to receive the morning briefing.')),
-                  );
-                }
-              }
-              await app.setDailyBriefingEnabled(v);
-            },
-          ),
-          const SizedBox(height: 16),
-          Center(
-            child: Text('Lifeez v1.0.0',
-                style: GoogleFonts.poppins(
-                    fontSize: 12, color: AppColors.muted)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _switchRow({
-    required String icon,
-    required String title,
-    required String subtitle,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-    IconData? materialIcon,
-  }) {
-    final leading = materialIcon != null
-        ? Container(
-            width: 42,
-            height: 42,
-            decoration: const BoxDecoration(
-              color: AppColors.greenSoft,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(materialIcon,
-                color: AppColors.deepGreen, size: 22),
-          )
-        : CategoryIcon(category: icon, size: 42);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: AppTheme.card3D(radius: 18),
-      child: ListTile(
-        leading: leading,
-        title: Text(title,
-            style:
-                GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle,
-            style: GoogleFonts.poppins(
-                fontSize: 12.5, color: AppColors.muted)),
-        trailing: Switch.adaptive(
-          value: value,
-          activeThumbColor: AppColors.deepGreen,
-          onChanged: onChanged,
-        ),
-      ),
-    );
-  }
-
-  Widget _row({
-    required String icon,
-    required String title,
-    required String subtitle,
-    Widget? trailing,
-    VoidCallback? onTap,
-    bool danger = false,
-    IconData? materialIcon,
-  }) {
-    final leading = materialIcon != null
-        ? Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: danger
-                  ? AppColors.danger.withOpacity(0.12)
-                  : AppColors.greenSoft,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(materialIcon,
-                color:
-                    danger ? AppColors.danger : AppColors.deepGreen,
-                size: 22),
-          )
-        : CategoryIcon(category: icon, size: 42);
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: AppTheme.card3D(radius: 18),
-      child: ListTile(
-        leading: leading,
-        title: Text(title,
-            style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w600,
-                color:
-                    danger ? AppColors.danger : null)),
-        subtitle: Text(subtitle,
-            style: GoogleFonts.poppins(
-                fontSize: 12.5, color: AppColors.muted)),
-        trailing: trailing ??
-            (onTap != null
-                ? const Icon(Icons.chevron_right_rounded,
-                    color: AppColors.muted)
-                : null),
-        onTap: onTap,
-      ),
-    );
-  }
-
-  void _pinOptions(BuildContext context, AppState app) {
-    if (!app.hasPin) {
-      showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius:
-              BorderRadius.vertical(top: Radius.circular(26)),
-        ),
-        builder: (_) => const PinSetupSheet(),
-      );
-      return;
-    }
+  void _themePicker(AppState app) {
+    final current = app.profile?.themeMode ?? 'system';
+    const modes = ['light', 'system', 'dark'];
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('App PIN lock'),
-        content: const Text(
-            'PIN lock is enabled. Change it or turn it off.'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Close')),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await app.removePin();
-              // Biometrics are only an alternative to the PIN.
-              await BiometricService.instance.clearAll();
-              if (mounted) {
-                setState(() {
-                  _fingerprintEnabled = false;
-                  _faceEnabled = false;
-                });
-              }
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('PIN lock removed.')),
-                );
-              }
-            },
-            child: const Text('Turn off',
-                style: TextStyle(color: AppColors.danger)),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              showModalBottomSheet(
-                context: context,
-                isScrollControlled: true,
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(26)),
-                ),
-                builder: (_) => const PinSetupSheet(),
-              );
-            },
-            child: const Text('Change PIN'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _editCurrency(BuildContext context, AppState app) {
-    final currencies = ['USD', 'EUR', 'GBP', 'PKR', 'INR', 'AED'];
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Currency'),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: Text('Theme', style: V2.title(18)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: currencies
-              .map((c) => ListTile(
-                    title: Text(c),
-                    trailing: (app.profile?.currency ?? 'USD') == c
+          children: modes
+              .map((m) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                        m[0].toUpperCase() + m.substring(1),
+                        style: V2.body()),
+                    trailing: current == m
                         ? const Icon(Icons.check_rounded,
-                            color: AppColors.deepGreen)
+                            color: V2.green)
                         : null,
                     onTap: () async {
-                      await app.setCurrency(c);
+                      await app.setThemeMode(m);
                       if (ctx.mounted) Navigator.pop(ctx);
                     },
                   ))
@@ -483,42 +87,457 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
+              child:
+                  Text('Cancel', style: V2.sub().copyWith(fontSize: 14))),
         ],
       ),
     );
   }
 
-  void _editBudget(BuildContext context) {
-    final app = context.read<AppState>();
-    final ctrl = TextEditingController(
-        text: (app.profile?.monthlyBudget ?? 0)
-            .toStringAsFixed(0));
-    showDialog(
+  Future<void> _simpleChoicePicker({
+    required String title,
+    required List<String> options,
+    required String current,
+    required ValueChanged<String> onPick,
+  }) async {
+    final picked = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Monthly budget'),
-        content: AppTextField(
-            controller: ctrl,
-            label: 'Budget (USD)',
-            keyboardType:
-                const TextInputType.numberWithOptions(
-                    decimal: true)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: Text(title, style: V2.title(18)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: options
+              .map((o) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(o, style: V2.body()),
+                    trailing: current == o
+                        ? const Icon(Icons.check_rounded,
+                            color: V2.green)
+                        : null,
+                    onTap: () => Navigator.pop(ctx, o),
+                  ))
+              .toList(),
+        ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
-          TextButton(
-            onPressed: () async {
-              final v = double.tryParse(ctrl.text.trim());
-              if (v != null && app.profile != null) {
-                await app.saveProfile(
-                    app.profile!.copyWith(monthlyBudget: v));
-              }
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Save'),
+              child:
+                  Text('Cancel', style: V2.sub().copyWith(fontSize: 14))),
+        ],
+      ),
+    );
+    if (picked != null && picked != current) onPick(picked);
+  }
+
+  void _startOfWeekPicker() {
+    _simpleChoicePicker(
+      title: 'Start of week',
+      options: const ['Sunday', 'Monday', 'Saturday'],
+      current: _startOfWeek,
+      onPick: (v) async {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_kStartOfWeek, v);
+        if (mounted) setState(() => _startOfWeek = v);
+      },
+    );
+  }
+
+  void _timeFormatPicker() {
+    _simpleChoicePicker(
+      title: 'Time format',
+      options: const ['12h', '24h'],
+      current: _timeFormat,
+      onPick: (v) async {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_kTimeFormat, v);
+        if (mounted) setState(() => _timeFormat = v);
+      },
+    );
+  }
+
+  // ------------------------------------------------------- notification rows
+
+  Future<void> _toggleReminders(bool v) async {
+    final app = context.read<AppState>();
+    if (v) {
+      final granted = await app.requestNotificationPermission();
+      if (mounted && !granted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  'Notification permission was denied. Enable it in system settings to receive alerts.')),
+        );
+      }
+    }
+    await app.setNotificationsEnabled(v);
+  }
+
+  Future<void> _toggleBriefing(bool v) async {
+    final app = context.read<AppState>();
+    if (v) {
+      final granted = await app.requestNotificationPermission();
+      if (mounted && !granted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  'Notification permission was denied. Enable it in system settings to receive the morning briefing.')),
+        );
+      }
+    }
+    await app.setDailyBriefingEnabled(v);
+  }
+
+  Future<void> _toggleHabitStreaks(bool v) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kHabitStreakNotifs, v);
+    if (mounted) setState(() => _habitStreakNotifs = v);
+  }
+
+  // ------------------------------------------------------------- data group
+
+  void _backupAndSync(AppState app) {
+    final email = (app.profile?.email ?? '').trim();
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        var syncing = false;
+        return StatefulBuilder(
+          builder: (ctx, setDlg) => AlertDialog(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20)),
+            title: Text('Backup & sync', style: V2.title(18)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                    'Your data is backed up to your Lifeez cloud account whenever you are online.',
+                    style: V2.body(14)),
+                const SizedBox(height: 10),
+                if (email.isNotEmpty)
+                  Text('Signed in as $email', style: V2.sub()),
+              ],
+            ),
+            actions: [
+              TextButton(
+                  onPressed: syncing ? null : () => Navigator.pop(ctx),
+                  child: Text('Close',
+                      style: V2.sub().copyWith(fontSize: 14))),
+              TextButton(
+                onPressed: syncing
+                    ? null
+                    : () async {
+                        setDlg(() => syncing = true);
+                        await context.read<AppState>().loadAll();
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context)
+                              .showSnackBar(const SnackBar(
+                                  content:
+                                      Text('Synced with cloud.')));
+                        }
+                      },
+                child: syncing
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2.5))
+                    : Text('Sync now',
+                        style: V2.greenLabel(14).copyWith(
+                            fontWeight: FontWeight.w700)),
+              ),
+            ],
           ),
+        );
+      },
+    );
+  }
+
+  Future<void> _exportData(AppState app) async {
+    try {
+      final data = {
+        'exported_at': DateTime.now().toIso8601String(),
+        'profile': app.profile?.toJson(),
+        'tasks': app.tasks.map((e) => e.toJson()).toList(),
+        'reminders': app.reminders.map((e) => e.toJson()).toList(),
+        'habits': app.habits.map((e) => e.toJson()).toList(),
+        'expenses': app.expenses.map((e) => e.toJson()).toList(),
+      };
+      final dir = await getApplicationDocumentsDirectory();
+      final name =
+          'lifeez-export-${DateFormat('yyyyMMdd-HHmm').format(DateTime.now())}.json';
+      final file = File('${dir.path}/$name');
+      await file
+          .writeAsString(const JsonEncoder.withIndent('  ').convert(data));
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20)),
+          title: Text('Export complete', style: V2.title(18)),
+          content: Text('Your data was saved to:\n${file.path}',
+              style: V2.body(13)),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text('Done',
+                    style: V2.greenLabel(14)
+                        .copyWith(fontWeight: FontWeight.w700))),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Export failed: $e')),
+      );
+    }
+  }
+
+  // ------------------------------------------------------------------ build
+
+  @override
+  Widget build(BuildContext context) {
+    final app = context.watch<AppState>();
+    final p = app.profile;
+    final themeMode = p?.themeMode ?? 'system';
+    final themeLabel =
+        themeMode[0].toUpperCase() + themeMode.substring(1);
+
+    return Scaffold(
+      backgroundColor: V2.bg,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: v2PagePadding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.chevron_left_rounded,
+                        size: 34, color: V2.ink),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(width: 4),
+                  Text('Settings', style: V2.display(32)),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              const V2SectionLabel('General'),
+              _group([
+                _navRow(
+                  icon: Icons.wb_sunny_outlined,
+                  title: 'Theme',
+                  subtitle: themeLabel,
+                  onTap: () => _themePicker(app),
+                ),
+                _navRow(
+                  icon: Icons.calendar_month_outlined,
+                  title: 'Start of week',
+                  subtitle: _startOfWeek,
+                  onTap: _startOfWeekPicker,
+                ),
+                _navRow(
+                  icon: Icons.schedule_outlined,
+                  title: 'Time format',
+                  subtitle: _timeFormat,
+                  onTap: _timeFormatPicker,
+                  last: true,
+                ),
+              ]),
+              const SizedBox(height: 18),
+
+              const V2SectionLabel('Notifications'),
+              _group([
+                _toggleRow(
+                  icon: Icons.notifications_outlined,
+                  title: 'Reminders',
+                  value: p?.notificationsEnabled ?? true,
+                  onChanged: _toggleReminders,
+                ),
+                _toggleRow(
+                  icon: Icons.notifications_active_outlined,
+                  title: 'Daily briefing',
+                  value: p?.dailyBriefingEnabled ?? true,
+                  onChanged: _toggleBriefing,
+                ),
+                _toggleRow(
+                  icon: Icons.local_fire_department_outlined,
+                  title: 'Habit streaks',
+                  value: _habitStreakNotifs,
+                  onChanged: _toggleHabitStreaks,
+                  last: true,
+                ),
+              ]),
+              const SizedBox(height: 18),
+
+              const V2SectionLabel('Data'),
+              _group([
+                _navRow(
+                  icon: Icons.cloud_outlined,
+                  title: 'Backup & sync',
+                  onTap: () => _backupAndSync(app),
+                ),
+                _navRow(
+                  icon: Icons.download_outlined,
+                  title: 'Export data',
+                  onTap: () => _exportData(app),
+                  last: true,
+                ),
+              ]),
+              const SizedBox(height: 18),
+
+              const V2SectionLabel('About'),
+              _group([
+                _navRow(
+                  icon: Icons.shield_outlined,
+                  title: 'Privacy policy',
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/privacy'),
+                ),
+                _navRow(
+                  icon: Icons.description_outlined,
+                  title: 'Terms',
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/terms'),
+                  last: _version.isEmpty,
+                ),
+                if (_version.isNotEmpty)
+                  _infoRow(
+                    icon: Icons.info_outline_rounded,
+                    title: 'App version',
+                    trailing: _version,
+                  ),
+              ]),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: const V2SubNav(),
+    );
+  }
+
+  /// White grouped card with divider-separated rows.
+  Widget _group(List<Widget> rows) {
+    return Container(
+      decoration: V2.cardDeco,
+      child: Column(
+        children: [
+          for (var i = 0; i < rows.length; i++) ...[
+            rows[i],
+            if (i < rows.length - 1)
+              const Divider(
+                  height: 1,
+                  indent: 60,
+                  endIndent: 16,
+                  color: Color(0xFFF0F0EA)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _navRow({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    bool last = false,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+            16, 14, 16, last ? 16 : 14),
+        child: Row(
+          children: [
+            SizedBox(
+                width: 32,
+                child: Icon(icon, color: V2.muted, size: 25)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: V2.ink)),
+                  if (subtitle != null)
+                    Text(subtitle, style: V2.sub(14)),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded,
+                color: Color(0xFFB9BEC7), size: 26),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _toggleRow({
+    required IconData icon,
+    required String title,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+    bool last = false,
+  }) {
+    return Padding(
+      padding:
+          EdgeInsets.fromLTRB(16, 10, 12, last ? 12 : 10),
+      child: Row(
+        children: [
+          SizedBox(
+              width: 32,
+              child: Icon(icon, color: V2.muted, size: 25)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(title,
+                style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: V2.ink)),
+          ),
+          V2Switch(value: value, onChanged: onChanged),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoRow({
+    required IconData icon,
+    required String title,
+    required String trailing,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      child: Row(
+        children: [
+          SizedBox(
+              width: 32,
+              child:
+                  Icon(icon, color: V2.muted, size: 25)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(title,
+                style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: V2.ink)),
+          ),
+          Text(trailing, style: V2.sub(14)),
         ],
       ),
     );
