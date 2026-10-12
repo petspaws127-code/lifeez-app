@@ -4,13 +4,6 @@ import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
 import '../services/app_state.dart';
 import '../services/assistant_engine.dart';
-import '../screens/settings_screen.dart';
-import '../screens/profile_screen.dart';
-import '../screens/habits_screen.dart';
-import '../screens/tasks_screen.dart';
-import '../screens/reminders_screen.dart';
-import '../screens/alarm_screen.dart';
-import '../screens/main_tabs.dart';
 import 'ai_input_bar.dart';
 
 class _DrawerMsg {
@@ -65,16 +58,6 @@ class _AiCommandDrawerState extends State<AiCommandDrawer> {
     // ACTION-FIRST: local engine parses + executes instantly (<100ms).
     final reply = await _engine.handleText(text);
     if (!mounted) return;
-    // NAVIGATE:destination — intercept and navigate.
-    if (reply.startsWith('NAVIGATE:')) {
-      final dest = reply.substring('NAVIGATE:'.length).trim().toLowerCase();
-      final route = _destinationRoute(dest);
-      Navigator.of(context).pop(); // Close drawer first
-      if (route != null) {
-        Navigator.pushNamed(context, route);
-      }
-      return;
-    }
     setState(() => _messages.add(_DrawerMsg(reply, false)));
     _scrollDown();
     // Global real-time feedback.
