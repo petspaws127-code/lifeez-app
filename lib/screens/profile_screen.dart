@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import '../services/user_profile_service.dart';
 import 'package:provider/provider.dart';
 import '../services/app_state.dart';
+import '../services/supabase_client.dart';
 import '../services/auth_service.dart';
 import '../widgets/v2_kit.dart';
 import 'login_screen.dart';
@@ -25,8 +27,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _picker = ImagePicker();
 
   String _displayName(AppState app) {
-    final raw = app.profile?.name.trim() ?? '';
-    return raw.isEmpty ? 'Lifeez User' : raw;
+    // EXACT Home screen pattern: direct from Supabase auth metadata.
+    String? raw;
+    try {
+      final user = SupabaseService.client.auth.currentUser;
+      raw = user?.userMetadata?['full_name'] as String?;
+      raw ??= user?.userMetadata?['name'] as String?;
+      raw ??= user?.userMetadata?['display_name'] as String?;
+    } catch (_) {}
+    raw ??= app.profile?.name;
+    if (raw == null || raw.trim().isEmpty) return 'Lifeez User';
+    return raw.trim();
   }
 
   String _initial(String name) {
@@ -259,8 +270,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final streak = app.habits.fold<int>(0, (m, h) => max(m, h.streak));
     final tasksDone = app.tasks.where((t) => t.isDone).length;
     final habitCount = app.habits.length;
-    final photoPath =
+    final localPhoto =
         (p?.photoPath ?? '').isNotEmpty ? p!.photoPath : null;
+    // Google avatar: EXACT direct pattern from Supabase auth metadata.
+    String? avatarUrl;
+    try {
+      final user = SupabaseService.client.auth.currentUser;
+      avatarUrl = user?.userMetadata?['avatar_url'] as String?;
+      avatarUrl ??= user?.userMetadata?['picture'] as String?;
+    } catch (_) {}
+    final photoPath =
+        (localPhoto ?? avatarUrl ?? '').isNotEmpty ? (localPhoto ?? avatarUrl) : null;
+    final isNetworkPhoto =
+        photoPath != null && photoPath.startsWith('http');
 
     return SingleChildScrollView(
       padding: v2PagePadding,
@@ -288,10 +310,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         clipBehavior: Clip.antiAlias,
                         alignment: Alignment.center,
                         child: photoPath != null
-                            ? Image.file(File(photoPath),
-                                width: 76,
-                                height: 76,
-                                fit: BoxFit.cover)
+                            ? (isNetworkPhoto
+                                ? Image.network(photoPath,
+                                    width: 76,
+                                    height: 76,
+                                    fit: BoxFit.cover)
+                                : Image.file(File(photoPath),
+                                    width: 76,
+                                    height: 76,
+                                    fit: BoxFit.cover))
                             : Text(
                                 _initial(name),
                                 style: GoogleFonts.poppins(
@@ -332,11 +359,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             style: V2.sub(),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis),
-                      // DEBUG: temporary diagnostic line
-                      Text(
-                        p == null ? 'DBG: profile=NULL' : 'DBG: name="' + p!.name + '" id=' + p!.id.substring(0, p!.id.length >= 8 ? 8 : p!.id.length),
-                        style: const TextStyle(fontSize: 9, color: Colors.grey),
-                      ),
+                      // DEBUG: show direct Supabase auth data
+                      Builder(builder: (_) {
+                        String dbg;
+                        try {
+                          final u = SupabaseService.client.auth.currentUser;
+                          final fn = u?.userMetadata?['full_name'];
+                          dbg = u == null ? 'auth=NULL' : 'authOK fn=$fn email=${u.email}';
+                        } catch (e) {
+                          dbg = 'authERR';
+                        }
+                        return Text(
+                          'DBG: $dbg | profile=' + (p == null ? 'NULL' : 'OK'),
+                          style: const TextStyle(fontSize: 9, color: Colors.grey),
+                        );
+                      }),
                       const SizedBox(height: 2),
                       Text(
                         isPro ? 'Lifeez Pro' : 'Free plan',
