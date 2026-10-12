@@ -332,6 +332,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             style: V2.sub(),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis),
+                      // DEBUG: temporary diagnostic line
+                      Text(
+                        p == null ? 'DBG: profile=NULL' : 'DBG: name="' + p!.name + '" id=' + p!.id.substring(0, p!.id.length >= 8 ? 8 : p!.id.length),
+                        style: const TextStyle(fontSize: 9, color: Colors.grey),
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         isPro ? 'Lifeez Pro' : 'Free plan',

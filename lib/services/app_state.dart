@@ -500,8 +500,7 @@ class AppState extends ChangeNotifier {
     try {
       final user = SupabaseService.client.auth.currentUser;
       if (user == null) return;
-      final meta = user.userMetadata;
-      if (meta == null) return;
+      final meta = user.userMetadata ?? {};
 
       // Supabase normalizes OAuth metadata: full_name, avatar_url.
       // Try every possible key variation — providers differ.
