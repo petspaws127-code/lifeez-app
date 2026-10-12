@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import '../services/app_state.dart';
 import '../services/auth_service.dart';
@@ -74,6 +75,45 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (choice == 'remove') {
       await app.saveProfile(app.profile!.copyWith(clearPhoto: true));
       return;
+    }
+    // Request photo permission explicitly before opening the picker.
+    // On Android 13+ this is READ_MEDIA_IMAGES; on older it falls back.
+    try {
+      Permission perm;
+      if (choice == 'camera') {
+        perm = Permission.camera;
+      } else {
+        // Photos permission (Android 13+ uses READ_MEDIA_IMAGES)
+        perm = Permission.photos;
+      }
+      var status = await perm.status;
+      if (status.isDenied || status.isRestricted) {
+        status = await perm.request();
+      }
+      if (status.isPermanentlyDenied) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Photo access is blocked. Please allow it in Settings > Apps > Lifeez > Permissions.'),
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+        await openAppSettings();
+        return;
+      }
+      if (!status.isGranted && !status.isLimited) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Photo access is needed to set a profile photo.')),
+          );
+        }
+        return;
+      }
+    } catch (_) {
+      // Permission check failed — try picker anyway.
     }
     try {
       final img = await _picker.pickImage(

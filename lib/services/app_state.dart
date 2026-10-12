@@ -504,15 +504,46 @@ class AppState extends ChangeNotifier {
       if (meta == null) return;
 
       // Supabase normalizes OAuth metadata: full_name, avatar_url.
-      // Fallbacks for raw provider keys.
-      final oauthName = (meta['full_name'] as String?) ??
-          (meta['name'] as String?) ??
-          '';
-      final oauthPhoto = (meta['avatar_url'] as String?) ??
-          (meta['picture'] as String?) ??
-          '';
+      // Try every possible key variation — providers differ.
+      String pick(List<String> keys) {
+        for (final k in keys) {
+          final v = meta[k];
+          if (v is String && v.trim().isNotEmpty) return v.trim();
+        }
+        return '';
+      }
 
-      if (oauthName.isEmpty && oauthPhoto.isEmpty) return;
+      final oauthName = pick([
+        'full_name',
+        'name',
+        'display_name',
+        'preferred_username',
+        'username',
+      ]);
+      final oauthPhoto = pick([
+        'avatar_url',
+        'picture',
+        'photo_url',
+        'avatar',
+        'image',
+      ]);
+
+      // Last resort: derive a display name from email (before @).
+      var finalName = oauthName;
+      if (finalName.isEmpty) {
+        final email = user.email ?? '';
+        if (email.contains('@')) {
+          final local = email.split('@').first;
+          // Turn "zia.riaz" or "zia_riaz" into "Zia Riaz"
+          finalName = local
+              .split(RegExp(r'[._\-]'))
+              .where((s) => s.isNotEmpty)
+              .map((s) => s[0].toUpperCase() + s.substring(1))
+              .join(' ');
+        }
+      }
+
+      if (finalName.isEmpty && oauthPhoto.isEmpty) return;
 
       final current = profile;
       // Sync if name is empty OR still the default placeholder.
@@ -535,8 +566,8 @@ class AppState extends ChangeNotifier {
                 email: user.email ?? '',
               ))
           .copyWith(
-        name: needsName && oauthName.isNotEmpty
-            ? oauthName
+        name: needsName && finalName.isNotEmpty
+            ? finalName
             : (current?.name ?? ''),
         photoPath: needsPhoto && oauthPhoto.isNotEmpty
             ? oauthPhoto
