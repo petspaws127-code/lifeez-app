@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       release_version:
-        description: 'Release version to patch (e.g. 1.4.9). Empty = latest release.'
+        description: 'Release version to patch (e.g. 1.4.52 - build number auto-filled from pubspec.yaml). Empty = version in pubspec.yaml.'
         required: false
         default: ''
 
@@ -60,11 +60,19 @@ jobs:
           OWM_API_KEY: ${{ secrets.OWM_API_KEY }}
         run: |
           ver="${{ inputs.release_version }}"
+          # Shorebird names each release with the FULL pubspec version (e.g. 1.4.52+76),
+          # but this workflow is dispatched with the short form (e.g. 1.4.52).
+          # Expand the short form from pubspec.yaml so the release lookup never misses.
+          full_ver=$(grep -m1 '^version:' pubspec.yaml | sed 's/^version:[[:space:]]*//;s/[[:space:]]*$//')
+          base_ver="${full_ver%%+*}"
           if [ -z "$ver" ]; then
-            shorebird patch android --allow-asset-diffs --verbose -- --dart-define=GEMINI_API_KEY=$GEMINI_API_KEY --dart-define=OWM_API_KEY=$OWM_API_KEY > patch-log.txt 2>&1
-          else
-            shorebird patch android --allow-asset-diffs --verbose --release-version "$ver" -- --dart-define=GEMINI_API_KEY=$GEMINI_API_KEY --dart-define=OWM_API_KEY=$OWM_API_KEY > patch-log.txt 2>&1
+            ver="$full_ver"
+          elif [ "$ver" = "$base_ver" ] && [ "$ver" != "$full_ver" ]; then
+            echo "Expanding release version: $ver -> $full_ver"
+            ver="$full_ver"
           fi
+          echo "Patching Shorebird release: $ver"
+          shorebird patch android --allow-asset-diffs --verbose --release-version "$ver" -- --dart-define=GEMINI_API_KEY=$GEMINI_API_KEY --dart-define=OWM_API_KEY=$OWM_API_KEY > patch-log.txt 2>&1
           code=$?
           tail -30 patch-log.txt
           exit $code
