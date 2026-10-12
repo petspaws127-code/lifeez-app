@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/app_state.dart';
+import '../services/supabase_client.dart';
 import '../widgets/v2_kit.dart';
 
 /// V2 Settings — grouped rows: General, Notifications (toggles), Data, About.
@@ -21,9 +22,15 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  static const _kStartOfWeek = 'v2_start_of_week';
-  static const _kTimeFormat = 'v2_time_format';
-  static const _kHabitStreakNotifs = 'v2_habit_streak_notifs';
+  static const _kStartOfWeekBase = 'v2_start_of_week';
+  static const _kTimeFormatBase = 'v2_time_format';
+  static const _kHabitStreakNotifsBase = 'v2_habit_streak_notifs';
+
+  // Per-user settings keys (strict user data separation).
+  String _uid() => SupabaseService.currentUserId ?? 'guest';
+  String get _kStartOfWeek => '${_kStartOfWeekBase}_${_uid()}';
+  String get _kTimeFormat => '${_kTimeFormatBase}_${_uid()}';
+  String get _kHabitStreakNotifs => '${_kHabitStreakNotifsBase}_${_uid()}';
 
   String _startOfWeek = 'Monday';
   String _timeFormat = '12h';

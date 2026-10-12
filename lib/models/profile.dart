@@ -126,14 +126,13 @@ class Profile {
       };
 
   /// True when the user has an active Pro entitlement (paid plan or trial).
+  /// Both are expiry-checked: a lapsed renewal or ended trial is NOT Pro.
   bool get isPro {
+    final now = easternNow();
     if (proPlan != null && proPlan != 'none') {
-      return true;
+      return proRenewsAt == null || proRenewsAt!.isAfter(now);
     }
-    if (plan == 'pro') {
-      return true;
-    }
-    if (trialEndsAt != null && trialEndsAt!.isAfter(easternNow())) {
+    if (trialEndsAt != null && trialEndsAt!.isAfter(now)) {
       return true;
     }
     return false;

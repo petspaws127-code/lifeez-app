@@ -53,6 +53,16 @@ class _AiCommandDrawerState extends State<AiCommandDrawer> {
   }
 
   Future<void> _send(String text) async {
+    final app = context.read<AppState>();
+    if (!await app.recordAiUsage()) {
+      if (!mounted) return;
+      setState(() => _messages.add(_DrawerMsg(text, true)));
+      setState(() => _messages.add(_DrawerMsg(
+          'AI limit reached (30/month free). Go Pro for unlimited AI.',
+          false)));
+      _scrollDown();
+      return;
+    }
     setState(() => _messages.add(_DrawerMsg(text, true)));
     _scrollDown();
     // ACTION-FIRST: local engine parses + executes instantly (<100ms).

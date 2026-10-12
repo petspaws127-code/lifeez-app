@@ -47,6 +47,14 @@ class _WhatsAppChatScreenState extends State<WhatsAppChatScreen> {
 
   Future<void> _send(String text) async {
     final wa = context.read<WhatsAppService>();
+    final app = context.read<AppState>();
+    if (!await app.recordAiUsage()) {
+      wa.addUserMessage(text);
+      wa.addBotMessage(
+          'AI limit reached (30/month free). Go Pro for unlimited AI.');
+      _scrollDown();
+      return;
+    }
     wa.addUserMessage(text);
     _scrollDown();
     final reply = await _engine.handleText(text);

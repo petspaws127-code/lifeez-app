@@ -33,8 +33,16 @@ class ShoppingScreen extends StatelessWidget {
   ];
 
   Future<void> _aiAdd(BuildContext context, String text) async {
+    final app = context.read<AppState>();
+    if (!await app.recordAiUsage()) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'AI limit reached (30/month free). Go Pro for unlimited AI.')));
+      return;
+    }
     final reply =
-        await AssistantEngine(context.read<AppState>()).handleText(text);
+        await AssistantEngine(app).handleText(text);
     if (!context.mounted) return;
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(reply)));

@@ -148,9 +148,16 @@ class AuthService extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_kAdminSession);
     await prefs.remove(_kAdminPlan);
-    // Clear all app data keys
+    // Clear all app data keys (all per-user prefixes).
     for (final key in prefs.getKeys().toList()) {
-      if (key.startsWith('lifeez_')) await prefs.remove(key);
+      if (key.startsWith('lifeez_') ||
+          key.startsWith('ai_usage_') ||
+          key.startsWith('v2_') ||
+          key.startsWith('smart_ai_') ||
+          key == 'biometric_unlock_enabled' ||
+          key.startsWith('biometric_unlock_enabled_')) {
+        await prefs.remove(key);
+      }
     }
     _adminSignedIn = false;
     _adminPlan = 'demo';

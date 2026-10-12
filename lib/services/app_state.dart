@@ -62,12 +62,16 @@ class AppState extends ChangeNotifier {
   // PIN lock: unlocked for this session once verified.
   bool _pinUnlocked = false;
 
-  // Secure PIN storage + biometrics.
+  // Secure PIN storage + biometrics (per-user keys).
   final _secureStorage = const FlutterSecureStorage();
   final _localAuth = LocalAuthentication();
-  static const _pinKey = 'lifeez_app_pin';
+  static const _pinKeyBase = 'lifeez_app_pin';
+  String _pinKey() =>
+      '${_pinKeyBase}_${SupabaseService.currentUserId ?? "guest"}';
   String? _cachedPin; // PIN loaded from secure storage at startup.
   bool _biometricEnabled = false;
+  String _biometricKey() =>
+      'biometric_unlock_enabled_${SupabaseService.currentUserId ?? "guest"}';
   bool get biometricEnabled => _biometricEnabled;
 
   // Notification center: generated feed + last-seen marker.
@@ -316,10 +320,23 @@ class AppState extends ChangeNotifier {
     notifications = [];
     notificationsSeenAt = null;
     _pinUnlocked = false;
-    // Also wipe the persisted local copy so a deleted account
-    // doesn't reload old data.
-    SharedPreferences.getInstance()
-        .then((p) => p.remove(_localKey));
+    _cachedPin = null;
+    _biometricEnabled = false;
+    // Also wipe the persisted local copies so a deleted account
+    // doesn't reload old data (all per-user key prefixes).
+    SharedPreferences.getInstance().then((p) {
+      p.remove(_localKey);
+      for (final key in p.getKeys().toList()) {
+        if (key.startsWith('ai_usage_') ||
+            key.startsWith('v2_') ||
+            key.startsWith('smart_ai_') ||
+            key.startsWith('biometric_unlock_enabled')) {
+          p.remove(key);
+        }
+      }
+    });
+    // Wipe the per-user PIN from secure storage.
+    _secureStorage.delete(key: _pinKey());
     notifyListeners();
   }
 
@@ -339,7 +356,11 @@ class AppState extends ChangeNotifier {
 
   Future<void> _delete(String table, String id) async {
     try {
-      await SupabaseService.client.from(table).delete().eq('id', id);
+      // Defense-in-depth: filter by user_id too, not just RLS.
+      var q = SupabaseService.client.from(table).delete().eq('id', id);
+      final uid = SupabaseService.currentUserId;
+      if (uid != null) q = q.eq('user_id', uid);
+      await q;
       _flushPendingSync();
     } catch (e) {
       _queueOp('delete', table, id, null);
@@ -400,10 +421,13 @@ class AppState extends ChangeNotifier {
         try {
           final table = p['table'] as String;
           if (p['op'] == 'delete') {
-            await SupabaseService.client
+            var dq = SupabaseService.client
                 .from(table)
                 .delete()
                 .eq('id', p['id']);
+            final duid = SupabaseService.currentUserId;
+            if (duid != null) dq = dq.eq('user_id', duid);
+            await dq;
           } else {
             final row = Map<String, dynamic>.from(p['row'] as Map);
             await SupabaseService.client.from(table).upsert(row);
@@ -1000,7 +1024,7 @@ class AppState extends ChangeNotifier {
   /// Loads the PIN from secure storage into memory at startup.
   Future<void> _loadSecurePin() async {
     try {
-      _cachedPin = await _secureStorage.read(key: _pinKey);
+      _cachedPin = await _secureStorage.read(key: _pinKey());
     } catch (_) {
       _cachedPin = null;
     }
@@ -1009,7 +1033,7 @@ class AppState extends ChangeNotifier {
   /// True when a PIN exists in secure storage.
   Future<bool> get hasSecurePin async {
     try {
-      return (await _secureStorage.read(key: _pinKey)) != null;
+      return (await _secureStorage.read(key: _pinKey())) != null;
     } catch (_) {
       return _cachedPin != null && _cachedPin!.isNotEmpty;
     }
@@ -1039,7 +1063,7 @@ class AppState extends ChangeNotifier {
         hashPin(pin) == profile!.pinHash;
     if (ok) {
       try {
-        await _secureStorage.write(key: _pinKey, value: pin);
+        await _secureStorage.write(key: _pinKey(), value: pin);
       } catch (_) {}
       _cachedPin = pin;
       _pinUnlocked = true;
@@ -1057,7 +1081,7 @@ class AppState extends ChangeNotifier {
   /// Saves the 4-digit PIN in secure storage (never in the profile).
   Future<void> setPin(String pin) async {
     try {
-      await _secureStorage.write(key: _pinKey, value: pin);
+      await _secureStorage.write(key: _pinKey(), value: pin);
     } catch (_) {}
     _cachedPin = pin;
     _pinUnlocked = true;
@@ -1081,7 +1105,7 @@ class AppState extends ChangeNotifier {
   /// Deletes the PIN from secure storage.
   Future<void> clearSecurePin() async {
     try {
-      await _secureStorage.delete(key: _pinKey);
+      await _secureStorage.delete(key: _pinKey());
     } catch (_) {}
     _cachedPin = null;
   }
@@ -1128,7 +1152,7 @@ class AppState extends ChangeNotifier {
     _biometricEnabled = v;
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('biometric_unlock_enabled', v);
+      await prefs.setBool(_biometricKey(), v);
     } catch (_) {}
     notifyListeners();
   }
@@ -1137,7 +1161,7 @@ class AppState extends ChangeNotifier {
   Future<void> loadBiometricPreference() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      _biometricEnabled = prefs.getBool('biometric_unlock_enabled') ?? false;
+      _biometricEnabled = prefs.getBool(_biometricKey()) ?? false;
     } catch (_) {
       _biometricEnabled = false;
     }
