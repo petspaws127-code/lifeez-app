@@ -289,6 +289,9 @@ class AppState extends ChangeNotifier {
           list(results[17]).map(LentBorrowed.fromJson).toList();
       _pinUnlocked = false;
       refreshNotifications();
+      // Sync Google/Apple OAuth profile (name + photo) into the local
+      // profile when the user hasn't set their own.
+      await syncOAuthProfile();
       // We're online (cloud fetch succeeded): flush any pending
       // offline writes now.
       await _flushPendingSync();
@@ -490,6 +493,55 @@ class AppState extends ChangeNotifier {
         'dark' => ThemeMode.dark,
         _ => ThemeMode.system,
       };
+
+  /// Imports Google/Apple OAuth profile metadata (name + photo) into the
+  /// local profile when the user hasn't set their own name/photo yet.
+  /// Called after loadAll() so OAuth users see their account info.
+  Future<void> syncOAuthProfile() async {
+    try {
+      final user = SupabaseService.client.auth.currentUser;
+      if (user == null) return;
+      final meta = user.userMetadata;
+      if (meta == null) return;
+
+      // Supabase normalizes OAuth metadata: full_name, avatar_url.
+      // Fallbacks for raw provider keys.
+      final oauthName = (meta['full_name'] as String?) ??
+          (meta['name'] as String?) ??
+          '';
+      final oauthPhoto = (meta['avatar_url'] as String?) ??
+          (meta['picture'] as String?) ??
+          '';
+
+      if (oauthName.isEmpty && oauthPhoto.isEmpty) return;
+
+      final current = profile;
+      final needsName =
+          current == null || current.name.trim().isEmpty;
+      final needsPhoto = current == null ||
+          (current.photoPath ?? '').trim().isEmpty;
+
+      if (!needsName && !needsPhoto) return;
+
+      final updated = (current ??
+              Profile(
+                id: user.id,
+                name: '',
+                email: user.email ?? '',
+              ))
+          .copyWith(
+        name: needsName && oauthName.isNotEmpty
+            ? oauthName
+            : (current?.name ?? ''),
+        photoPath: needsPhoto && oauthPhoto.isNotEmpty
+            ? oauthPhoto
+            : current?.photoPath,
+      );
+      await saveProfile(updated);
+    } catch (_) {
+      // Best-effort: never break startup for an OAuth metadata issue.
+    }
+  }
 
   Future<void> setThemeMode(String mode) async {
     if (profile == null) return;
