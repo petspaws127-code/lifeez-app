@@ -10,6 +10,7 @@ import 'ai_assistant_screen.dart';
 import 'tasks_screen.dart';
 import 'reminders_screen.dart';
 import 'money_screen.dart';
+import 'pets_screen.dart';
 
 /// V2 Home dashboard: greeting + streak, hero AI bar, 5 quick-add chips,
 /// "Up next" (next 2 items), "Today" progress, "Money glance".
@@ -377,6 +378,44 @@ class HomeScreen extends StatelessWidget {
                             ? 'No purchases yet'
                             : '$purchaseCount purchase${purchaseCount == 1 ? '' : 's'}',
                         style: V2.sub(12),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded, color: V2.muted),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Pets glance
+          Text('Pets', style: V2.title(22)),
+          const SizedBox(height: 12),
+          V2Card(
+            onTap: () => Navigator.pushNamed(context, PetsScreen.route),
+            child: Row(
+              children: [
+                const V2IconTile(Icons.pets_outlined, size: 56),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        app.pets.isEmpty
+                            ? 'No pets yet'
+                            : '${app.pets.length} pet${app.pets.length == 1 ? '' : 's'}',
+                        style: V2.title(20),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        app.pets.isEmpty
+                            ? 'Add your first pet'
+                            : app.pets.map((p) => p.name).take(3).join(', '),
+                        style: V2.sub(12),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
