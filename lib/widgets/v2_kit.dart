@@ -316,11 +316,21 @@ class V2TitleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Responsive: scale down on narrow screens to prevent overflow.
+    final width = MediaQuery.of(context).size.width;
+    final fontSize = width < 360 ? 32.0 : (width < 400 ? 36.0 : 40.0);
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 8, 4, 16),
       child: Row(
         children: [
-          Expanded(child: Text(title, style: V2.display(40))),
+          Expanded(
+            child: Text(
+              title,
+              style: V2.display(fontSize),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
           if (trailing != null) trailing!,
         ],
       ),

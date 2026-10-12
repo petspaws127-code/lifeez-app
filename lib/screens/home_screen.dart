@@ -169,6 +169,8 @@ class HomeScreen extends StatelessWidget {
                         color: V2.ink,
                         height: 1.15,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       name,

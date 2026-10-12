@@ -460,6 +460,17 @@ class AppState extends ChangeNotifier {
   // ------------------------------------------------------------- profile
   Future<void> saveProfile(Profile p) async {
     profile = p;
+    // Persist locally IMMEDIATELY (not waiting for debounce) so the change
+    // survives app restarts even if cloud sync fails.
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_localKey);
+      final data = (raw == null || raw.isEmpty)
+          ? <String, dynamic>{}
+          : Map<String, dynamic>.from(jsonDecode(raw) as Map);
+      data['profile'] = p.toJson();
+      await prefs.setString(_localKey, jsonEncode(data));
+    } catch (_) {}
     notifyListeners();
     await _save('profiles', p.toJson());
     notifyListeners();

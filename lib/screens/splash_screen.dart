@@ -6,6 +6,7 @@ import '../theme/app_theme.dart';
 import '../widgets/app_logo.dart';
 import '../services/auth_service.dart';
 import '../services/app_state.dart';
+import '../services/supabase_client.dart';
 import '../services/whatsapp_service.dart';
 import 'login_screen.dart';
 import 'main_tabs.dart';
@@ -46,7 +47,27 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(const Duration(milliseconds: 1500));
     if (!mounted) return;
     final auth = context.read<AuthService>();
-    if (!auth.isSignedIn) {
+    // Validate the session is actually usable, not just non-null.
+    // A stale/expired token must send the user to login, not a broken dashboard.
+    bool sessionValid = false;
+    if (auth.isSignedIn) {
+      try {
+        final user = SupabaseService.client.auth.currentUser;
+        if (user != null) {
+          // Lightweight validation: fetch the user from the server.
+          // Throws if the token is expired/invalid.
+          await SupabaseService.client.auth.getUser();
+          sessionValid = true;
+        }
+      } catch (_) {
+        sessionValid = false;
+        // Clear the dead session so login starts clean.
+        try {
+          await SupabaseService.client.auth.signOut();
+        } catch (_) {}
+      }
+    }
+    if (!sessionValid) {
       // No welcome/Get-Started page — splash goes straight to login.
       Navigator.pushReplacementNamed(context, LoginScreen.route);
       return;

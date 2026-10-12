@@ -79,9 +79,18 @@ class V2Budgets {
     if (raw == null) return out;
     try {
       final json = jsonDecode(raw) as Map<String, dynamic>;
+      // Load canonical categories first.
       for (final c in categories) {
         final v = json[c];
         if (v is num) out[c] = v.toDouble();
+      }
+      // Also load custom categories (any extra keys the user added).
+      for (final entry in json.entries) {
+        final key = entry.key;
+        final v = entry.value;
+        if (!out.containsKey(key) && v is num) {
+          out[key] = v.toDouble();
+        }
       }
     } catch (_) {}
     return out;
@@ -143,6 +152,54 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     } else {
       setState(() => _editing = null);
     }
+  }
+
+  void _addCategory() {
+    final ctrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20)),
+        title: Text('Add category', style: V2.title(18)),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          style: V2.body(),
+          decoration: InputDecoration(
+            labelText: 'Category name',
+            labelStyle: V2.sub(),
+            filled: true,
+            fillColor: V2.chip,
+            contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child:
+                  Text('Cancel', style: V2.sub().copyWith(fontSize: 14))),
+          TextButton(
+            onPressed: () {
+              final name = ctrl.text.trim();
+              if (name.isNotEmpty && !_draft.containsKey(name)) {
+                setState(() => _draft[name] = 0);
+              }
+              Navigator.pop(ctx);
+            },
+            child: Text('Add',
+                style: V2.greenLabel(14)
+                    .copyWith(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _save() async {
@@ -283,8 +340,27 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
               const SizedBox(height: 16),
 
               // Per-category rows.
-              ...V2Budgets.categories.map(_categoryRow),
+              ..._draft.keys.map(_categoryRow),
               const SizedBox(height: 8),
+
+              // Add custom category.
+              OutlinedButton.icon(
+                onPressed: _addCategory,
+                icon: const Icon(Icons.add_rounded, color: V2.green),
+                label: Text('Add category',
+                    style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: V2.green)),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: V2.green, width: 1.5),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 12),
+                ),
+              ),
+              const SizedBox(height: 12),
 
               V2PrimaryButton(
                 label: 'Save budgets',

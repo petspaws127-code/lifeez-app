@@ -86,6 +86,8 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
       await _tts.stop();
       await _tts.setLanguage('en-US');
       await _tts.setSpeechRate(0.95);
+      await _tts.setPitch(1.0);
+      await _tts.setVolume(1.0);
       if (mounted) setState(() => _speaking = true);
       await _tts.speak(text);
     } catch (_) {

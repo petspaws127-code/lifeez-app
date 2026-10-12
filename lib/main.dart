@@ -58,6 +58,34 @@ import 'screens/contact_support_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Show a friendly error screen instead of a black screen on render errors.
+  ErrorWidget.builder = (details) => Material(
+        color: const Color(0xFFFAFAF7),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline_rounded,
+                    size: 48, color: Color(0xFF1a9c63)),
+                const SizedBox(height: 16),
+                const Text(
+                  'Something went wrong',
+                  style: TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Please restart the app. If this keeps happening, contact support.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
   // TODO: paste your Supabase URL + anon key in
   // lib/services/supabase_client.dart before running.
   await SupabaseService.init();

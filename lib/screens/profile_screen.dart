@@ -75,18 +75,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
       await app.saveProfile(app.profile!.copyWith(clearPhoto: true));
       return;
     }
-    final img = await _picker.pickImage(
-        source: choice == 'camera'
-            ? ImageSource.camera
-            : ImageSource.gallery,
-        maxWidth: 512,
-        imageQuality: 80);
-    if (img == null || !mounted) return;
-    await app.saveProfile(app.profile!.copyWith(photoPath: img.path));
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile photo updated.')),
-      );
+    try {
+      final img = await _picker.pickImage(
+          source: choice == 'camera'
+              ? ImageSource.camera
+              : ImageSource.gallery,
+          maxWidth: 512,
+          imageQuality: 80);
+      if (img == null || !mounted) return;
+      await app.saveProfile(app.profile!.copyWith(photoPath: img.path));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile photo updated.')),
+        );
+      }
+    } catch (e) {
+      // Permission denied or picker failed — tell the user what to do.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Could not access photos. Please allow photo access in Settings.'),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
     }
   }
 
