@@ -465,7 +465,12 @@ class V2SubNav extends StatelessWidget {
       activeIndex: activeIndex,
       aiActive: aiActive,
       onTab: (i) => v2GoTab(context, i),
-      onAi: () => Navigator.of(context).pushNamed('/assistant'),
+      onAi: () {
+        // Don't stack duplicate assistant screens.
+        final route = ModalRoute.of(context);
+        if (route != null && route.settings.name == '/assistant') return;
+        Navigator.of(context).pushNamed('/assistant');
+      },
     );
   }
 }

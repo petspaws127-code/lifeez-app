@@ -8,6 +8,7 @@ import '../models/expense.dart';
 import '../services/app_state.dart';
 import '../services/eastern_time.dart';
 import '../services/smart_ai_service.dart';
+import '../services/supabase_client.dart';
 import '../widgets/v2_kit.dart';
 import 'budgets_screen.dart';
 
@@ -286,7 +287,9 @@ class _MoneyScreenState extends State<MoneyScreen> {
                 final app = context.read<AppState>();
                 await app.addExpense(Expense(
                   id: const Uuid().v4(),
-                  userId: app.profile?.id ?? '',
+                  userId: app.profile?.id ??
+                      SupabaseService.currentUserId ??
+                      'local',
                   amount: amt,
                   category: category,
                   note: noteCtrl.text.trim(),
@@ -352,7 +355,21 @@ class _MoneyScreenState extends State<MoneyScreen> {
             children: [
               V2TitleRow(
                 title: 'Money',
-                trailing: V2AddButton(onTap: _showAddDialog),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextButton(
+                      onPressed: () =>
+                          Navigator.pushNamed(context, BudgetsScreen.route),
+                      child: Text('Budgets',
+                          style: GoogleFonts.poppins(
+                              color: V2.green,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14)),
+                    ),
+                    V2AddButton(onTap: _showAddDialog),
+                  ],
+                ),
               ),
 
               // Today / Week / Month pills (equal-width, centered labels —

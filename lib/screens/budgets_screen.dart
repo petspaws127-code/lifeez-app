@@ -5,14 +5,17 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/app_state.dart';
+import '../services/supabase_client.dart';
 import '../widgets/v2_kit.dart';
 
-/// Shared per-category budget store, persisted as JSON under 'v2_budgets'.
+/// Shared per-category budget store, persisted as JSON under a per-user key.
 /// MoneyScreen reads from here; BudgetsScreen edits it.
 class V2Budgets {
   V2Budgets._();
 
-  static const prefsKey = 'v2_budgets';
+  /// Per-user prefs key — never share budgets across users on one device.
+  static String get prefsKey =>
+      'v2_budgets_${SupabaseService.currentUserId ?? "guest"}';
 
   /// Canonical categories — matches the Expense model exactly.
   static const List<String> categories = [

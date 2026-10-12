@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'supabase_client.dart';
+
 /// Result of a budget overspend prediction.
 class OverspendPrediction {
   final double predictedTotal;
@@ -24,11 +26,18 @@ class OverspendPrediction {
 /// spending — then turns those patterns into suggestions, best-time
 /// recommendations and budget predictions. Everything stays on the phone.
 class SmartAiService extends ChangeNotifier {
-  static const _kTaskHours = 'smart_ai_task_hours';
-  static const _kHabits = 'smart_ai_habits';
-  static const _kSpending = 'smart_ai_spending';
-  static const _kActivity = 'smart_ai_activity';
-  static const _kUserName = 'smart_ai_user_name';
+  /// Per-user keys — never leak one user's learned patterns to another
+  /// user on the same device.
+  static String get _kTaskHours =>
+      'smart_ai_task_hours_${SupabaseService.currentUserId ?? "guest"}';
+  static String get _kHabits =>
+      'smart_ai_habits_${SupabaseService.currentUserId ?? "guest"}';
+  static String get _kSpending =>
+      'smart_ai_spending_${SupabaseService.currentUserId ?? "guest"}';
+  static String get _kActivity =>
+      'smart_ai_activity_${SupabaseService.currentUserId ?? "guest"}';
+  static String get _kUserName =>
+      'smart_ai_user_name_${SupabaseService.currentUserId ?? "guest"}';
 
   /// Cap stored history so preferences stay small and fast.
   static const _maxEntries = 200;
