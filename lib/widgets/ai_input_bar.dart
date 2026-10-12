@@ -29,6 +29,8 @@ class _AiInputBarState extends State<AiInputBar> {
   bool _listening = false;
   bool _busy = false;
   bool _sttReady = false;
+  double _soundLevel = 0.0;
+  String? _sttLocale;
 
   @override
   void initState() {
@@ -65,6 +67,24 @@ class _AiInputBarState extends State<AiInputBar> {
       if (!_sttReady) {
         _sttError = 'Speech recognition not available on this device. '
             'Make sure the Google app is installed and updated.';
+      } else {
+        // Resolve the listening locale once: prefer en_US, otherwise
+        // fall back to the device's default (first available) locale.
+        // A null localeId means the system default — never crash on this.
+        try {
+          final locales = await _stt.locales();
+          String? pick;
+          for (final l in locales) {
+            if (l.localeId == 'en_US') {
+              pick = l.localeId;
+              break;
+            }
+          }
+          _sttLocale =
+              pick ?? (locales.isNotEmpty ? locales.first.localeId : null);
+        } catch (_) {
+          _sttLocale = null;
+        }
       }
     } catch (e) {
       _sttReady = false;
@@ -149,8 +169,8 @@ class _AiInputBarState extends State<AiInputBar> {
       setState(() => _listening = true);
       _startWatchdog();
       await _stt.listen(
-        localeId: _sttLocale,
         listenOptions: SpeechListenOptions(
+          localeId: _sttLocale,
           pauseFor: const Duration(seconds: 3),
           listenFor: const Duration(seconds: 60),
           partialResults: true,
