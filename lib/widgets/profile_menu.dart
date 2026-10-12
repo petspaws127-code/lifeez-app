@@ -242,6 +242,11 @@ class ProfileMenu {
     );
     if (confirm != true || !context.mounted) return;
     final auth = context.read<AuthService>();
+    final app = context.read<AppState>();
+    // Data safety: wipe the user's local data on logout so nothing
+    // remains on the device for the next user. (Same as Profile logout.)
+    await app.flushBeforeSignOut();
+    app.clearLocal();
     await auth.signOut();
     if (!context.mounted) return;
     Navigator.pushNamedAndRemoveUntil(
