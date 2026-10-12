@@ -210,6 +210,11 @@ class AppState extends ChangeNotifier {
     await loadBiometricPreference();
     // Load any pending offline writes from disk.
     await _loadPendingSync();
+    // Root-cause fix: make sure a profile exists for the signed-in user
+    // BEFORE the cloud fetch below. If that fetch throws, the catch
+    // skips everything after it — and Edit/Profile must never see a null
+    // profile while someone is signed in.
+    await ensureProfile();
     notifyListeners();
     try {
       final uid = _uid;
@@ -468,6 +473,60 @@ class AppState extends ChangeNotifier {
   int get pendingSyncCount => _pendingOps.length;
 
   // ------------------------------------------------------------- profile
+  /// Root-cause fix: guarantees [profile] is non-null for a signed-in user.
+  ///
+  /// Builds the profile from the Supabase auth user (name/avatar/email,
+  /// with an email-prefix name fallback) when no local/cloud profile
+  /// exists, and persists it immediately (local + cloud) so it survives
+  /// restarts. The Profile screen and Edit dialog use this so they can
+  /// never silently do nothing. Returns null only when nobody is signed in.
+  Future<Profile?> ensureProfile() async {
+    if (profile != null) return profile;
+    try {
+      final user = SupabaseService.client.auth.currentUser;
+      if (user == null) return null;
+      final meta = user.userMetadata ?? {};
+      String pick(List<String> keys) {
+        for (final k in keys) {
+          final v = meta[k];
+          if (v is String && v.trim().isNotEmpty) return v.trim();
+        }
+        return '';
+      }
+      var name = pick([
+        'full_name',
+        'name',
+        'display_name',
+        'preferred_username',
+        'username',
+      ]);
+      if (name.isEmpty) {
+        final email = user.email ?? '';
+        if (email.contains('@')) {
+          name = email
+              .split('@')
+              .first
+              .split(RegExp(r'[._\-]'))
+              .where((s) => s.isNotEmpty)
+              .map((s) => s[0].toUpperCase() + s.substring(1))
+              .join(' ');
+        }
+      }
+      final photo =
+          pick(['avatar_url', 'picture', 'photo_url', 'avatar', 'image']);
+      final created = Profile(
+        id: user.id,
+        name: name,
+        email: user.email ?? '',
+      );
+      await saveProfile(
+          photo.isNotEmpty ? created.copyWith(photoPath: photo) : created);
+      return profile;
+    } catch (_) {
+      return profile;
+    }
+  }
+
   Future<void> saveProfile(Profile p) async {
     profile = p;
     // Persist locally IMMEDIATELY (not waiting for debounce) so the change

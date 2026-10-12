@@ -47,7 +47,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _changePhoto() async {
     final app = context.read<AppState>();
-    final hasPhoto = (app.profile?.photoPath ?? '').isNotEmpty;
+    // Never operate on a null profile: build it from the signed-in user.
+    final p = app.profile ?? await app.ensureProfile();
+    if (!mounted || p == null) return;
+    final hasPhoto = (p.photoPath ?? '').isNotEmpty;
     final choice = await showModalBottomSheet<String>(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -84,7 +87,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     if (!mounted || choice == null) return;
     if (choice == 'remove') {
-      await app.saveProfile(app.profile!.copyWith(clearPhoto: true));
+      await app.saveProfile(p.copyWith(clearPhoto: true));
       return;
     }
     // Request photo permission explicitly before opening the picker.
@@ -134,7 +137,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           maxWidth: 512,
           imageQuality: 80);
       if (img == null || !mounted) return;
-      await app.saveProfile(app.profile!.copyWith(photoPath: img.path));
+      await app.saveProfile(p.copyWith(photoPath: img.path));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile photo updated.')),
@@ -154,11 +157,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _editProfile() {
+  Future<void> _editProfile() async {
     final app = context.read<AppState>();
-    final p = app.profile;
-    if (p == null) return;
-    final nameCtrl = TextEditingController(text: p.name);
+    // Never silently no-op: build the profile from the signed-in user
+    // when it is missing.
+    final p = app.profile ?? await app.ensureProfile();
+    if (!mounted || p == null) return;
+    // Show the real account name even if the stored profile name is empty.
+    final initialName =
+        p.name.trim().isEmpty ? _displayName(app) : p.name.trim();
+    final nameCtrl = TextEditingController(text: initialName);
     final emailCtrl = TextEditingController(text: p.email);
     showDialog(
       context: context,
@@ -182,10 +190,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Text('Cancel', style: V2.sub().copyWith(fontSize: 14))),
           TextButton(
             onPressed: () async {
+              final newName = nameCtrl.text.trim();
               await app.saveProfile(p.copyWith(
-                name: nameCtrl.text.trim(),
+                name: newName,
                 email: emailCtrl.text.trim(),
               ));
+              // Persist the display name into Supabase auth metadata too,
+              // so it survives reinstalls and shows on Home instantly.
+              try {
+                await UserProfileService.saveDisplayName(newName);
+              } catch (_) {}
               if (ctx.mounted) Navigator.pop(ctx);
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -359,21 +373,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             style: V2.sub(),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis),
-                      // DEBUG: show direct Supabase auth data
-                      Builder(builder: (_) {
-                        String dbg;
-                        try {
-                          final u = SupabaseService.client.auth.currentUser;
-                          final fn = u?.userMetadata?['full_name'];
-                          dbg = u == null ? 'auth=NULL' : 'authOK fn=$fn email=${u.email}';
-                        } catch (e) {
-                          dbg = 'authERR';
-                        }
-                        return Text(
-                          'DBG: $dbg | profile=' + (p == null ? 'NULL' : 'OK'),
-                          style: const TextStyle(fontSize: 9, color: Colors.grey),
-                        );
-                      }),
                       const SizedBox(height: 2),
                       Text(
                         isPro ? 'Lifeez Pro' : 'Free plan',
