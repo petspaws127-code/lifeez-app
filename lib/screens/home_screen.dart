@@ -164,7 +164,7 @@ class HomeScreen extends StatelessWidget {
                     Text(
                       name,
                       style: GoogleFonts.playfairDisplay(
-                        fontSize: 15,
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: V2.ink,
                         height: 1.15,
@@ -175,8 +175,8 @@ class HomeScreen extends StatelessWidget {
                     Text(
                       _greeting(),
                       style: GoogleFonts.playfairDisplay(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
                         color: V2.ink,
                         height: 1.15,
                       ),

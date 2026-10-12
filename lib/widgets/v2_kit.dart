@@ -23,14 +23,6 @@ class V2 {
         height: 1.15,
       );
 
-  /// Standard top page heading: 15px bold (user request).
-  static TextStyle pageHeading() => GoogleFonts.poppins(
-        fontSize: 15,
-        fontWeight: FontWeight.w700,
-        color: ink,
-        height: 1.2,
-      );
-
   static TextStyle title([double size = 17]) => GoogleFonts.poppins(
         fontSize: size,
         fontWeight: FontWeight.w700,
@@ -314,8 +306,9 @@ class V2PrimaryButton extends StatelessWidget {
   }
 }
 
-/// Large screen title row with optional trailing action.
-/// Standard top page heading: 15px bold (user request).
+/// Page top row — user asked for NO page headings.
+/// Renders only the trailing action (e.g. add buttons), right-aligned.
+/// When there is no trailing action it renders nothing.
 class V2TitleRow extends StatelessWidget {
   final String title;
   final Widget? trailing;
@@ -324,20 +317,12 @@ class V2TitleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (trailing == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 8, 4, 16),
       child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              title,
-              style: V2.pageHeading(),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          if (trailing != null) trailing!,
-        ],
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [trailing!],
       ),
     );
   }

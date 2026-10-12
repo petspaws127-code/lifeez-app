@@ -303,9 +303,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Center(child: Text('Profile', style: V2.pageHeading())),
-          const SizedBox(height: 20),
-
           // Avatar card.
           V2Card(
             child: Row(
