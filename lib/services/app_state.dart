@@ -1167,10 +1167,14 @@ class AppState extends ChangeNotifier {
     refreshNotifications();
   }
 
-  /// Mock purchase: monthly $4.99 or yearly $39 (test mode, no charge).
+  /// Mock purchase: monthly $4.99, yearly $39, lifetime $99 (test mode).
   Future<void> purchasePro(String plan) async {
     if (profile == null) return;
-    final days = plan == 'yearly' ? 360 : 30;
+    final days = plan == 'yearly'
+        ? 360
+        : plan == 'lifetime'
+            ? 36500 // ~100 years = lifetime
+            : 30;
     await saveProfile(profile!.copyWith(
       proPlan: plan,
       proRenewsAt: easternNow().add(Duration(days: days)),
@@ -1193,6 +1197,49 @@ class AppState extends ChangeNotifier {
     if (t == null) return null;
     final d = t.difference(easternNow()).inDays;
     return d < 0 ? 0 : d;
+  }
+
+  // --------------------------------------------- AI usage (Free: 30/month)
+  /// Free plan AI limit. Pro = unlimited.
+  static const int freeAiMonthlyLimit = 30;
+
+  String _aiUsageKey() {
+    final now = easternNow();
+    final uid = SupabaseService.currentUserId ?? 'guest';
+    return 'ai_usage_${uid}_${now.year}-${now.month.toString().padLeft(2, '0')}';
+  }
+
+  /// AI commands used this month (0 for Pro — unlimited).
+  Future<int> getAiUsageThisMonth() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getInt(_aiUsageKey()) ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// True if the user may send another AI command right now.
+  Future<bool> get canUseAi async {
+    if (profile?.isPro ?? false) return true;
+    return (await getAiUsageThisMonth()) < freeAiMonthlyLimit;
+  }
+
+  /// Records one AI command. Returns false when the free limit is hit
+  /// (caller should show the Pro paywall instead of sending).
+  Future<bool> recordAiUsage() async {
+    if (profile?.isPro ?? false) return true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final key = _aiUsageKey();
+      final used = prefs.getInt(key) ?? 0;
+      if (used >= freeAiMonthlyLimit) return false;
+      await prefs.setInt(key, used + 1);
+      notifyListeners();
+      return true;
+    } catch (_) {
+      return true;
+    }
   }
 
   // ---------------------------------------------------- notification feed

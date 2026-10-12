@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import '../widgets/ai_input_bar.dart';
 import '../widgets/v2_kit.dart';
 import '../services/app_state.dart';
 import '../services/assistant_engine.dart';
+import 'pro_screen.dart';
 
 class _Msg {
   final String text;
@@ -39,6 +41,9 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   final List<_Msg> _messages = [];
   final _scroll = ScrollController();
   late final AssistantEngine _engine;
+  final _tts = FlutterTts();
+  bool _speakReplies = false;
+  bool _speaking = false;
   bool _initialSent = false;
 
   // Mockup: exactly these two suggestion chips.
@@ -55,6 +60,9 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     _messages.add(_Msg(
         'Hi! Just tell me what to do — I\'ll handle tasks, reminders, habits, pets, trips, and more.',
         false));
+    _tts.setCompletionHandler(() {
+      if (mounted) setState(() => _speaking = false);
+    });
     // Opened from the Home hero bar with pre-typed text: send it.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_initialSent || !mounted) return;
@@ -69,7 +77,30 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   @override
   void dispose() {
     _scroll.dispose();
+    _tts.stop();
     super.dispose();
+  }
+
+  Future<void> _speak(String text) async {
+    try {
+      await _tts.stop();
+      await _tts.setLanguage('en-US');
+      await _tts.setSpeechRate(0.95);
+      if (mounted) setState(() => _speaking = true);
+      await _tts.speak(text);
+    } catch (_) {
+      if (mounted) setState(() => _speaking = false);
+    }
+  }
+
+  Future<void> _toggleSpeak() async {
+    if (_speaking) {
+      await _tts.stop();
+      if (mounted) setState(() => _speaking = false);
+      return;
+    }
+    setState(() => _speakReplies = !_speakReplies);
+    if (!_speakReplies) await _tts.stop();
   }
 
   void _scrollDown() {
@@ -84,8 +115,47 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
   /// Snapshots existing item ids; after the engine runs, the diff reveals
   /// any item the assistant just created (for Edit/Delete wiring).
+  /// Paywall shown when the free 30 AI commands/month are used up.
+  void _showAiLimitDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('AI limit reached', style: V2.title(18)),
+        content: Text(
+          'You have used your 30 free AI commands this month. Go Pro for unlimited AI — plus AI Insights, AI Trip Planner and voice replies.',
+          style: V2.body(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Later', style: V2.sub().copyWith(fontSize: 14)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, ProScreen.route);
+            },
+            child: Text('Go Pro — \$39/year',
+                style: GoogleFonts.poppins(
+                    color: V2.green,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _send(String text) async {
     final app = context.read<AppState>();
+    // Free plan: 30 AI commands/month. Pro = unlimited.
+    final allowed = await app.recordAiUsage();
+    if (!allowed && mounted) {
+      _showAiLimitDialog();
+      return;
+    }
     final beforeTasks = app.tasks.map((t) => t.id).toSet();
     final beforeReminders = app.reminders.map((r) => r.id).toSet();
     final beforeHabits = app.habits.map((h) => h.id).toSet();
@@ -130,6 +200,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     setState(() => _messages.add(
         _Msg(reply, false, linkedType: linkedType, linkedId: linkedId)));
     _scrollDown();
+    if (_speakReplies) _speak(reply);
   }
 
   String _linkedTitle(_Msg m) {
@@ -272,31 +343,65 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isPro = context.watch<AppState>().profile?.isPro ?? false;
     return Scaffold(
       backgroundColor: V2.bg,
       body: SafeArea(
         child: Column(
           children: [
             // Header: centered ✨ AI Assistant (mockup). No back button —
-            // the bottom nav is always visible.
+            // the bottom nav is always visible. Voice toggle is Pro-only.
             Padding(
               padding:
                   const EdgeInsets.fromLTRB(8, 8, 8, 4),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.auto_awesome_rounded,
-                      color: V2.green, size: 30),
-                  const SizedBox(width: 8),
-                  Text(
-                    'AI Assistant',
-                    style: GoogleFonts.poppins(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w700,
-                      color: V2.ink,
+                  const Expanded(child: SizedBox()),
+                  Expanded(
+                    flex: 3,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.auto_awesome_rounded,
+                            color: V2.green, size: 30),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'AI Assistant',
+                            style: GoogleFonts.poppins(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w700,
+                              color: V2.ink,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                  if (isPro)
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: IconButton(
+                          icon: Icon(
+                            _speakReplies
+                                ? Icons.volume_up_rounded
+                                : Icons.volume_off_outlined,
+                            color:
+                                _speakReplies ? V2.green : V2.muted,
+                          ),
+                          tooltip: _speakReplies
+                              ? 'Voice replies on — tap to mute'
+                              : 'Tap for voice replies',
+                          onPressed: _toggleSpeak,
+                        ),
+                      ),
+                    )
+                  else
+                    const Expanded(child: SizedBox()),
                 ],
               ),
             ),

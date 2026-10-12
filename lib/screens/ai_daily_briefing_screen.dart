@@ -6,9 +6,51 @@ import 'package:provider/provider.dart';
 import '../widgets/v2_kit.dart';
 import '../services/app_state.dart';
 import '../services/eastern_time.dart';
+import '../services/smart_ai_service.dart';
 import 'tasks_screen.dart';
 import 'habits_screen.dart';
 import 'trip_planner_screen.dart';
+import 'pro_screen.dart';
+
+/// Pro upsell card used when a Pro-only AI feature is locked.
+Widget _proUpsellCard(BuildContext context, String title, String subtitle) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 10),
+    child: V2Card(
+      child: InkWell(
+        onTap: () => Navigator.pushNamed(context, ProScreen.route),
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: Row(
+            children: [
+              const V2IconTile(Icons.workspace_premium_rounded, size: 40),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: V2.ink)),
+                    const SizedBox(height: 2),
+                    Text(subtitle,
+                        style: GoogleFonts.poppins(
+                            fontSize: 13, color: V2.muted)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.lock_outline_rounded,
+                  color: V2.green, size: 22),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
 
 /// V2 AI Daily Briefing: green hero summary card, category cards
 /// (Schedule / Priorities / Habits / Weather), Read-aloud via
@@ -144,12 +186,14 @@ class _AiDailyBriefingScreenState extends State<AiDailyBriefingScreen> {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
+    final ai = context.watch<SmartAiService>();
     final counts = _heroCounts(app);
     final first = _firstUp(app);
     final high =
         app.todayTasks.where((t) => t.priority == 'high').length;
     final atRisk =
         app.habits.where((h) => !h.isDoneToday && h.streak > 0).toList();
+    final suggestions = ai.getSmartSuggestions();
 
     return Scaffold(
       backgroundColor: V2.bg,
@@ -275,6 +319,40 @@ class _AiDailyBriefingScreenState extends State<AiDailyBriefingScreen> {
                   onTap: () => Navigator.pushNamed(
                       context, TripPlannerScreen.route),
                 ),
+                if (suggestions.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  const V2SectionLabel('AI Insights'),
+                  if (app.profile?.isPro ?? false)
+                    ...suggestions.map((s) => Padding(
+                          padding:
+                              const EdgeInsets.only(bottom: 10),
+                          child: V2Card(
+                            child: Row(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                const V2IconTile(
+                                    Icons.auto_awesome_outlined,
+                                    size: 40),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(s,
+                                      style:
+                                          GoogleFonts.poppins(
+                                              fontSize: 13.5,
+                                              height: 1.4)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ))
+                  else
+                    _proUpsellCard(
+                      context,
+                      'AI Insights is a Pro feature',
+                      'Go Pro for smart suggestions about your day.',
+                    ),
+                ],
               ],
             ),
           ),

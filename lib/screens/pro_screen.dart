@@ -17,7 +17,7 @@ class ProScreen extends StatefulWidget {
 }
 
 class _ProScreenState extends State<ProScreen> {
-  String _plan = 'yearly'; // monthly | yearly (mockup shows yearly picked)
+  String _plan = 'yearly'; // monthly | yearly | lifetime
   bool _busy = false;
 
   Future<void> _startTrial() async {
@@ -29,6 +29,19 @@ class _ProScreenState extends State<ProScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
           content: Text('Pro trial started — 14 days free.')),
+    );
+  }
+
+  Future<void> _buy(AppState app) async {
+    setState(() => _busy = true);
+    await app.purchasePro(_plan);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+          content: Text(_plan == 'lifetime'
+              ? 'Welcome to Lifeez Pro — yours forever.'
+              : 'Welcome to Lifeez Pro.')),
     );
   }
 
@@ -126,6 +139,9 @@ class _ProScreenState extends State<ProScreen> {
               if (!isPro) ...[
                 // Feature checklist.
                 _check('Unlimited AI commands'),
+                _check('AI Insights in Daily Briefing'),
+                _check('AI Trip Planner'),
+                _check('Voice replies from AI'),
                 _check('Smart reminders that learn'),
                 _check('Cloud sync everywhere'),
                 _check('Priority support'),
@@ -149,14 +165,33 @@ class _ProScreenState extends State<ProScreen> {
                             badge: 'Best value')),
                   ],
                 ),
+                const SizedBox(height: 14),
+                _planCard('lifetime', 'Lifetime', '\$99',
+                    'one-time payment',
+                    badge: 'Launch offer', fullWidth: true),
                 const SizedBox(height: 24),
 
                 V2PrimaryButton(
-                  label:
-                      _busy ? 'Please wait…' : 'Start free trial',
-                  onTap: _busy ? null : _startTrial,
+                  label: _busy
+                      ? 'Please wait…'
+                      : _plan == 'monthly'
+                          ? 'Continue — \$4.99/month'
+                          : _plan == 'yearly'
+                              ? 'Continue — \$39/year'
+                              : 'Continue — \$99 once',
+                  onTap: _busy ? null : () => _buy(app),
                 ),
                 const SizedBox(height: 12),
+                Center(
+                  child: TextButton(
+                    onPressed: _busy ? null : _startTrial,
+                    child: Text('Or start 14-day free trial',
+                        style: GoogleFonts.poppins(
+                            color: V2.green,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14)),
+                  ),
+                ),
                 Center(
                     child:
                         Text('Cancel anytime', style: V2.sub(14))),
@@ -202,26 +237,40 @@ class _ProScreenState extends State<ProScreen> {
 
   Widget _planCard(
       String id, String name, String price, String per,
-      {String? badge}) {
+      {String? badge, bool fullWidth = false}) {
     final selected = _plan == id;
-    return GestureDetector(
-      onTap: () => setState(() => _plan = id),
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            padding: const EdgeInsets.fromLTRB(12, 22, 12, 20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color:
-                    selected ? V2.green : const Color(0xFFE5E7EB),
-                width: selected ? 3 : 1.5,
-              ),
-              boxShadow: V2.softShadow,
-            ),
-            child: Column(
+    final card = Container(
+      padding: const EdgeInsets.fromLTRB(12, 22, 12, 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: selected ? V2.green : const Color(0xFFE5E7EB),
+          width: selected ? 3 : 1.5,
+        ),
+        boxShadow: V2.softShadow,
+      ),
+      child: fullWidth
+          ? Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(name,
+                    style: GoogleFonts.poppins(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        color: V2.ink)),
+                const SizedBox(width: 12),
+                Text(price,
+                    style: GoogleFonts.poppins(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
+                        color: V2.ink,
+                        height: 1.1)),
+                const SizedBox(width: 12),
+                Text(per, style: V2.sub(14)),
+              ],
+            )
+          : Column(
               children: [
                 Text(name,
                     style: GoogleFonts.poppins(
@@ -240,7 +289,13 @@ class _ProScreenState extends State<ProScreen> {
                 Text(per, style: V2.sub(14)),
               ],
             ),
-          ),
+    );
+    return GestureDetector(
+      onTap: () => setState(() => _plan = id),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          card,
           if (badge != null)
             Positioned(
               top: -13,
@@ -296,12 +351,17 @@ class _ProScreenState extends State<ProScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
-                'Renews ${DateFormat('MM/dd/yyyy').format(renews)} • ${p?.proPlan == 'yearly' ? '\$39/year' : '\$4.99/month'}',
+                p?.proPlan == 'lifetime'
+                    ? 'Lifetime access — no renewals, ever.'
+                    : 'Renews ${DateFormat('MM/dd/yyyy').format(renews)} • ${p?.proPlan == 'yearly' ? '\$39/year' : '\$4.99/month'}',
                 style: V2.sub(),
               ),
             ),
           const SizedBox(height: 8),
           _check('Unlimited AI commands'),
+          _check('AI Insights in Daily Briefing'),
+          _check('AI Trip Planner'),
+          _check('Voice replies from AI'),
           _check('Smart reminders that learn'),
           _check('Cloud sync everywhere'),
           _check('Priority support'),
