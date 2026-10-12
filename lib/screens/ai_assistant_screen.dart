@@ -6,13 +6,6 @@ import '../theme/app_theme.dart';
 import '../widgets/ai_input_bar.dart';
 import '../services/app_state.dart';
 import '../services/assistant_engine.dart';
-import 'settings_screen.dart';
-import 'profile_screen.dart';
-import 'habits_screen.dart';
-import 'tasks_screen.dart';
-import 'reminders_screen.dart';
-import 'alarm_screen.dart';
-import 'main_tabs.dart';
 
 class _Msg {
   final String text;
@@ -102,45 +95,9 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     // Gemini is only used inside the engine for truly ambiguous input.
     String reply = await _engine.handleText(text);
     if (!mounted) return;
-    // NAVIGATE:destination — intercept and navigate instead of showing text.
-    if (reply.startsWith('NAVIGATE:')) {
-      final dest = reply.substring('NAVIGATE:'.length).trim().toLowerCase();
-      final route = _destinationRoute(dest);
-      if (route != null) {
-        setState(() => _messages.add(_Msg('Opening $dest...', false)));
-        _scrollDown();
-        Navigator.pushNamed(context, route);
-      } else {
-        setState(() => _messages.add(_Msg('Sorry, I could not find "$dest".', false)));
-        _scrollDown();
-      }
-      return;
-    }
     setState(() => _messages.add(_Msg(reply, false)));
     _scrollDown();
     if (_speakReplies) _speak(reply);
-  }
-
-  /// Maps navigation destination to route name.
-  String? _destinationRoute(String dest) {
-    switch (dest) {
-      case 'settings':
-        return SettingsScreen.route;
-      case 'profile':
-        return ProfileScreen.route;
-      case 'habits':
-        return HabitsScreen.route;
-      case 'tasks':
-        return TasksScreen.route;
-      case 'reminders':
-        return RemindersScreen.route;
-      case 'alarms':
-        return AlarmScreen.route;
-      case 'home':
-        return MainTabs.route;
-      default:
-        return null;
-    }
   }
 
   @override
