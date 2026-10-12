@@ -55,8 +55,10 @@ class _AiInputBarState extends State<AiInputBar> {
           if (mounted) setState(() => _listening = false);
         },
         onStatus: (status) {
-          if ((status == 'done' || status == 'notListening') && mounted) {
-            setState(() => _listening = false);
+          // Only stop UI on 'done' after we've been listening.
+          // Ignore transient 'notListening' during startup.
+          if (status == 'done' && mounted && _listening) {
+            // Keep listening state until onResult final or user stops.
           }
         },
       );
@@ -143,19 +145,22 @@ class _AiInputBarState extends State<AiInputBar> {
       setState(() => _listening = true);
       _startWatchdog();
       await _stt.listen(
-        localeId: 'en_US',
         listenOptions: SpeechListenOptions(
-          pauseFor: const Duration(milliseconds: 1200),
-          listenFor: const Duration(seconds: 30),
+          pauseFor: const Duration(seconds: 3),
+          listenFor: const Duration(seconds: 60),
           partialResults: true,
           onDevice: false,
+          cancelOnError: true,
+          autoPunctuation: true,
         ),
         onResult: (result) {
           if (!mounted) return;
-          _controller.text = result.recognizedWords;
-          _controller.selection = TextSelection.fromPosition(
-            TextPosition(offset: _controller.text.length),
-          );
+          if (result.recognizedWords.isNotEmpty) {
+            _controller.text = result.recognizedWords;
+            _controller.selection = TextSelection.fromPosition(
+              TextPosition(offset: _controller.text.length),
+            );
+          }
           // Auto-submit when the speaker pauses and the result is final.
           if (result.finalResult && _controller.text.trim().isNotEmpty) {
             _submit();
