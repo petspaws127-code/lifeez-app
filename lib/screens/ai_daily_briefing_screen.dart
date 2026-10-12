@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 import '../widgets/v2_kit.dart';
 import '../services/app_state.dart';
 import '../services/eastern_time.dart';
-import '../services/smart_ai_service.dart';
 import 'tasks_screen.dart';
 import 'habits_screen.dart';
 import 'trip_planner_screen.dart';
@@ -145,14 +144,12 @@ class _AiDailyBriefingScreenState extends State<AiDailyBriefingScreen> {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
-    final ai = context.watch<SmartAiService>();
     final counts = _heroCounts(app);
     final first = _firstUp(app);
     final high =
         app.todayTasks.where((t) => t.priority == 'high').length;
     final atRisk =
         app.habits.where((h) => !h.isDoneToday && h.streak > 0).toList();
-    final suggestions = ai.getSmartSuggestions();
 
     return Scaffold(
       backgroundColor: V2.bg,
@@ -278,33 +275,6 @@ class _AiDailyBriefingScreenState extends State<AiDailyBriefingScreen> {
                   onTap: () => Navigator.pushNamed(
                       context, TripPlannerScreen.route),
                 ),
-                if (suggestions.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  const V2SectionLabel('AI Insights'),
-                  ...suggestions.map((s) => Padding(
-                        padding:
-                            const EdgeInsets.only(bottom: 10),
-                        child: V2Card(
-                          child: Row(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
-                            children: [
-                              const V2IconTile(
-                                  Icons.auto_awesome_outlined,
-                                  size: 40),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(s,
-                                    style:
-                                        GoogleFonts.poppins(
-                                            fontSize: 13.5,
-                                            height: 1.4)),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )),
-                ],
               ],
             ),
           ),
