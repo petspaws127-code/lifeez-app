@@ -98,11 +98,15 @@ class _AiInputBarState extends State<AiInputBar> {
     });
   }
 
+  Future<void> _stopListening() async {
+    try { await _stt.stop(); } catch (_) {}
+    if (mounted) setState(() { _listening = false; _soundLevel = 0.0; });
+  }
+
   Future<void> _toggleMic() async {
     // 1. Already listening -> stop and return.
     if (_listening) {
-      await _stt.stop();
-      if (mounted) setState(() => _listening = false);
+      await _stopListening();
       return;
     }
 
@@ -145,6 +149,7 @@ class _AiInputBarState extends State<AiInputBar> {
       setState(() => _listening = true);
       _startWatchdog();
       await _stt.listen(
+        localeId: _sttLocale,
         listenOptions: SpeechListenOptions(
           pauseFor: const Duration(seconds: 3),
           listenFor: const Duration(seconds: 60),
@@ -155,7 +160,10 @@ class _AiInputBarState extends State<AiInputBar> {
         ),
         onResult: (result) {
           if (!mounted) return;
-          if (result.recognizedWords.isNotEmpty) {
+          // Stream words accurately: only update on non-empty results
+          // to avoid wiping partial transcription.
+          final words = result.recognizedWords.trim();
+          if (words.isNotEmpty) {
             _controller.text = result.recognizedWords;
             _controller.selection = TextSelection.fromPosition(
               TextPosition(offset: _controller.text.length),
@@ -163,7 +171,13 @@ class _AiInputBarState extends State<AiInputBar> {
           }
           // Auto-submit when the speaker pauses and the result is final.
           if (result.finalResult && _controller.text.trim().isNotEmpty) {
+            _stopListening();
             _submit();
+          }
+        },
+        onSoundLevelChange: (level) {
+          if (mounted && _listening) {
+            setState(() => _soundLevel = level);
           }
         },
       );
@@ -256,13 +270,9 @@ class _AiInputBarState extends State<AiInputBar> {
             ),
           ),
           if (_listening)
-            const Padding(
-              padding: EdgeInsets.only(right: 4),
-              child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: _MicWave(level: _soundLevel),
             ),
           Container(
             decoration: AppTheme.tile3D(
@@ -287,6 +297,66 @@ class _AiInputBarState extends State<AiInputBar> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Clean pulsing audio wave indicator shown during active listening.
+/// Replaces the old progress spinner with a responsive sound-level wave.
+class _MicWave extends StatefulWidget {
+  final double level;
+  const _MicWave({required this.level});
+
+  @override
+  State<_MicWave> createState() => _MicWaveState();
+}
+
+class _MicWaveState extends State<_MicWave> with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Normalize sound level (typically -2..10) to 0..1
+    final norm = (widget.level + 2).clamp(0.0, 12.0) / 12.0;
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, _) {
+        final pulse = 0.6 + 0.4 * _ctrl.value;
+        final size = 8.0 + norm * 10.0 * pulse;
+        return Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: const Color(0xFF1A9C63).withOpacity(0.15 + norm * 0.25),
+          ),
+          child: Center(
+            child: Container(
+              width: size,
+              height: size,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFF1A9C63),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
