@@ -333,7 +333,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     constraints: const BoxConstraints(),
                   ),
                   const SizedBox(width: 4),
-                  Text('Settings', style: V2.display(40)),
+                  Text('Settings', style: V2.pageHeading()),
                 ],
               ),
               const SizedBox(height: 16),

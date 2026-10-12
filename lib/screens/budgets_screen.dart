@@ -286,7 +286,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                     constraints: const BoxConstraints(),
                   ),
                   const SizedBox(width: 8),
-                  Text('Budgets', style: V2.display(40)),
+                  Text('Budgets', style: V2.pageHeading()),
                 ],
               ),
               const SizedBox(height: 4),

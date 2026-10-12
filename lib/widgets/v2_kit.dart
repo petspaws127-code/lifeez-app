@@ -23,6 +23,14 @@ class V2 {
         height: 1.15,
       );
 
+  /// Standard top page heading: 15px bold (user request).
+  static TextStyle pageHeading() => GoogleFonts.poppins(
+        fontSize: 15,
+        fontWeight: FontWeight.w700,
+        color: ink,
+        height: 1.2,
+      );
+
   static TextStyle title([double size = 17]) => GoogleFonts.poppins(
         fontSize: size,
         fontWeight: FontWeight.w700,
@@ -307,7 +315,7 @@ class V2PrimaryButton extends StatelessWidget {
 }
 
 /// Large screen title row with optional trailing action.
-/// Mockups use a ~40pt extra-bold hero title.
+/// Standard top page heading: 15px bold (user request).
 class V2TitleRow extends StatelessWidget {
   final String title;
   final Widget? trailing;
@@ -316,10 +324,6 @@ class V2TitleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Responsive: scale down on narrow screens to prevent overflow.
-    // User feedback: headings were too big — kept compact on all sizes.
-    final width = MediaQuery.of(context).size.width;
-    final fontSize = width < 360 ? 26.0 : (width < 400 ? 28.0 : 30.0);
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 8, 4, 16),
       child: Row(
@@ -327,7 +331,7 @@ class V2TitleRow extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: V2.display(fontSize),
+              style: V2.pageHeading(),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),

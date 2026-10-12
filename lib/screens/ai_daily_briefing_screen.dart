@@ -207,7 +207,7 @@ class _AiDailyBriefingScreenState extends State<AiDailyBriefingScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Daily Briefing', style: V2.display(40)),
+                Text('Daily Briefing', style: V2.pageHeading()),
                 const SizedBox(height: 4),
                 Padding(
                   padding: const EdgeInsets.only(left: 4),
