@@ -426,7 +426,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
               Text('\$${spentToday.toStringAsFixed(2)}',
                   style: GoogleFonts.poppins(
                       color: Colors.white,
-                      fontSize: 44,
+                      fontSize: 32,
                       fontWeight: FontWeight.w800,
                       height: 1.1)),
               const SizedBox(height: 6),

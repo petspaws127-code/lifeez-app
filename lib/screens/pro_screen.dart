@@ -120,7 +120,7 @@ class _ProScreenState extends State<ProScreen> {
                     Text('Lifeez Pro',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.poppins(
-                            fontSize: 40,
+                            fontSize: 28,
                             fontWeight: FontWeight.w800,
                             color: Colors.white,
                             height: 1.1)),
