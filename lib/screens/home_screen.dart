@@ -167,7 +167,7 @@ class HomeScreen extends StatelessWidget {
                           child: Text(
                             _greeting(),
                             style: GoogleFonts.playfairDisplay(
-                              fontSize: 13,
+                              fontSize: 20,
                               fontWeight: FontWeight.w400,
                               color: V2.ink,
                               height: 1.15,
@@ -177,19 +177,16 @@ class HomeScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Flexible(
-                          child: Text(
-                            name,
-                            style: GoogleFonts.playfairDisplay(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: V2.ink,
-                              height: 1.15,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.right,
+                        // First name only, always shown in full, right-aligned.
+                        Text(
+                          name,
+                          style: GoogleFonts.playfairDisplay(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: V2.ink,
+                            height: 1.15,
                           ),
+                          textAlign: TextAlign.right,
                         ),
                       ],
                     ),
