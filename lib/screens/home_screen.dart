@@ -35,9 +35,9 @@ class HomeScreen extends StatelessWidget {
 
   String _greeting() {
     final hour = DateTime.now().hour;
-    if (hour >= 5 && hour < 12) return 'Good morning,';
-    if (hour >= 12 && hour < 17) return 'Good afternoon,';
-    return 'Good evening,';
+    if (hour >= 5 && hour < 12) return 'Good morning';
+    if (hour >= 12 && hour < 17) return 'Good afternoon';
+    return 'Good evening';
   }
 
   String _todayLabel() {
@@ -153,7 +153,7 @@ class HomeScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Greeting header + streak pill
+          // Greeting header: greeting on the left, name on the right + streak pill
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -161,27 +161,37 @@ class HomeScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      name,
-                      style: GoogleFonts.playfairDisplay(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: V2.ink,
-                        height: 1.15,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      _greeting(),
-                      style: GoogleFonts.playfairDisplay(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w400,
-                        color: V2.ink,
-                        height: 1.15,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _greeting(),
+                            style: GoogleFonts.playfairDisplay(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w400,
+                              color: V2.ink,
+                              height: 1.15,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Flexible(
+                          child: Text(
+                            name,
+                            style: GoogleFonts.playfairDisplay(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: V2.ink,
+                              height: 1.15,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.right,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 6),
                     Text(_todayLabel(), style: V2.sub(15)),

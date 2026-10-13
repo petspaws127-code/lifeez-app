@@ -303,6 +303,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          const V2TitleRow(title: 'Profile', showTitle: true),
           // Avatar card.
           V2Card(
             child: Row(

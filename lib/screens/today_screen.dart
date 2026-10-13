@@ -104,6 +104,7 @@ class TodayScreen extends StatelessWidget {
         children: [
           V2TitleRow(
             title: 'Today',
+            showTitle: true,
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [

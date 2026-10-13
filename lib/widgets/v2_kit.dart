@@ -306,23 +306,43 @@ class V2PrimaryButton extends StatelessWidget {
   }
 }
 
-/// Page top row — user asked for NO page headings.
-/// Renders only the trailing action (e.g. add buttons), right-aligned.
-/// When there is no trailing action it renders nothing.
+/// Page top row — Todoist-style modest heading (~20px bold) on the left,
+/// trailing action (e.g. add buttons) right-aligned.
+/// Set [showTitle] to render the heading; screens that should stay
+/// heading-free leave it false (the default).
 class V2TitleRow extends StatelessWidget {
   final String title;
   final Widget? trailing;
+  final bool showTitle;
 
-  const V2TitleRow({super.key, required this.title, this.trailing});
+  const V2TitleRow(
+      {super.key, required this.title, this.trailing, this.showTitle = false});
 
   @override
   Widget build(BuildContext context) {
-    if (trailing == null) return const SizedBox.shrink();
+    if (!showTitle && trailing == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 8, 4, 16),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [trailing!],
+        children: [
+          if (showTitle)
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: V2.ink,
+                  height: 1.2,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            )
+          else
+            const Spacer(),
+          if (trailing != null) trailing!,
+        ],
       ),
     );
   }

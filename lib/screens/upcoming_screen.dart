@@ -117,7 +117,7 @@ class UpcomingScreen extends StatelessWidget {
         children: [
           // Mockup has no + button on this screen — adding happens from
           // Home quick-add, Today, or the Quick Add sheet.
-          const V2TitleRow(title: 'Upcoming'),
+          const V2TitleRow(title: 'Upcoming', showTitle: true),
           if (groups.isEmpty)
             V2Card(
               child: Row(
