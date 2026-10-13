@@ -167,7 +167,7 @@ class HomeScreen extends StatelessWidget {
                           child: Text(
                             _greeting(),
                             style: GoogleFonts.playfairDisplay(
-                              fontSize: 20,
+                              fontSize: 35,
                               fontWeight: FontWeight.w400,
                               color: V2.ink,
                               height: 1.15,
@@ -181,9 +181,9 @@ class HomeScreen extends StatelessWidget {
                         Text(
                           name,
                           style: GoogleFonts.playfairDisplay(
-                            fontSize: 20,
+                            fontSize: 35,
                             fontWeight: FontWeight.w700,
-                            color: V2.ink,
+                            color: V2.greenDark,
                             height: 1.15,
                           ),
                           textAlign: TextAlign.right,
@@ -211,7 +211,22 @@ class HomeScreen extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 2),
-                    Text(_todayLabel(), style: V2.sub(15)),
+                    // Date with a small green dot — part of the
+                    // beautified header.
+                    Row(
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: V2.green,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(_todayLabel(), style: V2.sub(13)),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -472,8 +487,8 @@ class _UpNext {
   });
 }
 
-/// White rounded-square quick-add chip (Task / Reminder / Habit / Event /
-/// Alarm) matching the V2 home mockup.
+/// Light-green rounded-square quick-add chip (Task / Reminder / Habit /
+/// Event / Alarm) — pale green background like the approved mockup.
 class _HintChip extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -496,15 +511,13 @@ class _HintChip extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 14),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: V2.chip,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-              boxShadow: V2.softShadow,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, color: const Color(0xFF4B5563), size: 26),
+                Icon(icon, color: V2.green, size: 26),
                 const SizedBox(height: 6),
                 Text(
                   label,
