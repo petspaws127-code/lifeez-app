@@ -189,14 +189,23 @@ class HomeScreen extends StatelessWidget {
                           textAlign: TextAlign.right,
                         ),
                         const SizedBox(width: 10),
-                        // Notification bell — opens the Notifications screen.
+                        // Notification bell in a soft green circle —
+                        // opens the Notifications screen.
                         GestureDetector(
                           onTap: () => Navigator.pushNamed(
                               context, '/notifications'),
-                          child: const Icon(
-                            Icons.notifications_outlined,
-                            color: V2.ink,
-                            size: 24,
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: const BoxDecoration(
+                              color: V2.chip,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.notifications_outlined,
+                              color: V2.green,
+                              size: 22,
+                            ),
                           ),
                         ),
                       ],
