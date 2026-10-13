@@ -136,7 +136,13 @@ class _MainTabsState extends State<MainTabs> with WidgetsBindingObserver {
       const ProfileScreen(),
     ];
     return Scaffold(
-      body: IndexedStack(index: _index, children: screens),
+      // SafeArea (top only): keeps tab content below the status bar.
+      // Bottom is handled by V2BottomNav's own SafeArea.
+      body: SafeArea(
+        top: true,
+        bottom: false,
+        child: IndexedStack(index: _index, children: screens),
+      ),
       bottomNavigationBar: V2BottomNav(
         activeIndex: _index,
         onTab: (i) => setState(() => _index = i),
