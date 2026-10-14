@@ -16,3 +16,9 @@ create table if not exists pet_vet_visits (
 
 create index if not exists idx_pet_vet_visits_pet_id on pet_vet_visits(pet_id);
 create index if not exists idx_pet_vet_visits_user_id on pet_vet_visits(user_id);
+
+-- Row Level Security: users can only access their own rows.
+alter table pet_vet_visits enable row level security;
+drop policy if exists "own rows" on pet_vet_visits;
+create policy "own rows" on pet_vet_visits for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);

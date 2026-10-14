@@ -76,20 +76,51 @@ class V2Budgets {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(prefsKey);
     final out = Map<String, double>.from(defaultValues);
-    if (raw == null) return out;
+    if (raw != null) {
+      try {
+        final json = jsonDecode(raw) as Map<String, dynamic>;
+        // Load canonical categories first.
+        for (final c in categories) {
+          final v = json[c];
+          if (v is num) out[c] = v.toDouble();
+        }
+        // Also load custom categories (any extra keys the user added).
+        for (final entry in json.entries) {
+          final key = entry.key;
+          final v = entry.value;
+          if (!out.containsKey(key) && v is num) {
+            out[key] = v.toDouble();
+          }
+        }
+        return out;
+      } catch (_) {}
+    }
+    // Local empty (fresh install) — try cloud.
     try {
-      final json = jsonDecode(raw) as Map<String, dynamic>;
-      // Load canonical categories first.
-      for (final c in categories) {
-        final v = json[c];
-        if (v is num) out[c] = v.toDouble();
-      }
-      // Also load custom categories (any extra keys the user added).
-      for (final entry in json.entries) {
-        final key = entry.key;
-        final v = entry.value;
-        if (!out.containsKey(key) && v is num) {
-          out[key] = v.toDouble();
+      final uid = SupabaseService.currentUserId;
+      if (uid != null) {
+        final row = await SupabaseService.client
+            .from('user_settings')
+            .select('value')
+            .eq('user_id', uid)
+            .eq('key', 'budgets')
+            .maybeSingle()
+            .timeout(const Duration(seconds: 10));
+        final val = row?['value'];
+        if (val is Map) {
+          for (final c in categories) {
+            final v = val[c];
+            if (v is num) out[c] = v.toDouble();
+          }
+          for (final entry in (val as Map).entries) {
+            final key = entry.key.toString();
+            final v = entry.value;
+            if (!out.containsKey(key) && v is num) {
+              out[key] = v.toDouble();
+            }
+          }
+          // Cache locally for next time.
+          await prefs.setString(prefsKey, jsonEncode(out));
         }
       }
     } catch (_) {}
@@ -99,6 +130,25 @@ class V2Budgets {
   static Future<void> save(Map<String, double> budgets) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(prefsKey, jsonEncode(budgets));
+    // Cloud backup — fire and forget (local is source of truth).
+    try {
+      final uid = SupabaseService.currentUserId;
+      if (uid != null) {
+        await SupabaseService.client
+            .from('user_settings')
+            .upsert(
+              {
+                'user_id': uid,
+                'key': 'budgets',
+                'value': budgets,
+                'updated_at':
+                    DateTime.now().toUtc().toIso8601String(),
+              },
+              onConflict: 'user_id,key',
+            )
+            .timeout(const Duration(seconds: 10));
+      }
+    } catch (_) {}
   }
 }
 
