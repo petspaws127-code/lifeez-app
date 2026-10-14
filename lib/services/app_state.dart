@@ -1053,6 +1053,14 @@ class AppState extends ChangeNotifier {
     refreshNotifications();
   }
 
+  Future<void> updateVaccination(PetVaccination v) async {
+    final i = vaccinations.indexWhere((e) => e.id == v.id);
+    if (i != -1) vaccinations[i] = v;
+    notifyListeners();
+    await _save('pet_vaccinations', v.toJson());
+    refreshNotifications();
+  }
+
   Future<void> deleteVaccination(String id) async {
     vaccinations.removeWhere((v) => v.id == id);
     notifyListeners();

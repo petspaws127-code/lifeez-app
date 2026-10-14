@@ -16,6 +16,7 @@ import '../models/pet.dart';
 import '../models/reminder.dart';
 import 'pet_health_ai_screen.dart';
 import 'pet_ai_chat_screen.dart';
+import 'pet_vaccinations_screen.dart';
 
 /// Per-pet daily care tracking (Feed / Walk / Medicine).
 /// Stored per-user per-day in SharedPreferences.
@@ -694,6 +695,19 @@ class _PetsScreenState extends State<PetsScreen> {
                 MaterialPageRoute(
                   builder: (_) => PetAiChatScreen(pet: pet),
                 ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: _outlineBtn(
+              Icons.vaccines_outlined,
+              'Vaccinations & medicine',
+              () => Navigator.pushNamed(
+                context,
+                PetVaccinationsScreen.route,
+                arguments: pet,
               ),
             ),
           ),
