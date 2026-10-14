@@ -166,11 +166,11 @@ class HomeScreen extends StatelessWidget {
                         Expanded(
                           child: Text(
                             _greeting(),
-                            style: GoogleFonts.playfairDisplay(
-                              fontSize: 35,
-                              fontWeight: FontWeight.w400,
+                            style: GoogleFonts.poppins(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
                               color: V2.ink,
-                              height: 1.15,
+                              height: 1.2,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -180,11 +180,11 @@ class HomeScreen extends StatelessWidget {
                         // First name only, always shown in full, right-aligned.
                         Text(
                           name,
-                          style: GoogleFonts.playfairDisplay(
-                            fontSize: 35,
+                          style: GoogleFonts.poppins(
+                            fontSize: 20,
                             fontWeight: FontWeight.w700,
-                            color: V2.greenDark,
-                            height: 1.15,
+                            color: V2.ink,
+                            height: 1.2,
                           ),
                           textAlign: TextAlign.right,
                         ),
@@ -210,22 +210,16 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 2),
-                    // Date with a small green dot — part of the
-                    // beautified header.
-                    Row(
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: V2.green,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(_todayLabel(), style: V2.sub(13)),
-                      ],
+                    const SizedBox(height: 4),
+                    // Date in the same heading style as other pages.
+                    Text(
+                      _todayLabel(),
+                      style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: V2.ink,
+                        height: 1.2,
+                      ),
                     ),
                   ],
                 ),
