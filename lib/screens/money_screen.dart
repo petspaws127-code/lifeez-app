@@ -808,21 +808,58 @@ class _MoneyScreenState extends State<MoneyScreen> {
     final total = totals.values.fold(0.0, (s, v) => s + v);
     final sorted = totals.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
+    final budget = app.profile?.monthlyBudget ?? 0;
+    final isOverBudget = total > budget && budget > 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        V2Card(
+        Container(
+          decoration: BoxDecoration(
+            color: isOverBudget ? const Color(0xFFFEE2E2) : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isOverBudget
+                  ? const Color(0xFFDC2626)
+                  : const Color(0xFFE8E8E8),
+              width: isOverBudget ? 2 : 1,
+            ),
+          ),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('This month', style: V2.title(19)),
               Text('\$${total.toStringAsFixed(2)}',
-                  style: V2.display(34)),
+                  style: V2.display(34).copyWith(
+                    color: isOverBudget ? const Color(0xFFDC2626) : null,
+                  )),
               const SizedBox(height: 4),
               Text(
                   'Budget left ${_fmtMoney(app.leftToSpend)} of \$${(app.profile?.monthlyBudget ?? 0).toStringAsFixed(0)}',
-                  style: V2.sub(14)),
+                  style: V2.sub(14).copyWith(
+                    color: isOverBudget ? const Color(0xFFDC2626) : null,
+                    fontWeight:
+                        isOverBudget ? FontWeight.w700 : null,
+                  )),
+              if (isOverBudget) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDC2626),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '⚠️ You have used your monthly budget!',
+                    style: V2.sub(14).copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ),
