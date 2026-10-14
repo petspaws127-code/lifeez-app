@@ -155,23 +155,59 @@ class _SplashScreenState extends State<SplashScreen>
               ElevatedButton(
                 onPressed: () async {
                   Navigator.pop(ctx);
+                  // Download with visible progress and Cancel.
+                  bool cancelled = false;
+                  bool dialogOpen = false;
+                  final progressNotifier = ValueNotifier<double>(0);
                   showDialog(
                     context: context,
                     barrierDismissible: false,
-                    builder: (ctx2) => const AlertDialog(
-                      content: Row(
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(width: 16),
-                          Text('Downloading...'),
+                    builder: (ctx2) => PopScope(
+                      canPop: false,
+                      child: AlertDialog(
+                        title: const Text('Downloading update'),
+                        content: ValueListenableBuilder<double>(
+                          valueListenable: progressNotifier,
+                          builder: (_, p, __) => Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              LinearProgressIndicator(
+                                  value: p <= 0 ? null : p),
+                              const SizedBox(height: 12),
+                              Text(p <= 0
+                                  ? 'Starting…'
+                                  : '${(p * 100).toStringAsFixed(0)}%'),
+                            ],
+                          ),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () {
+                              cancelled = true;
+                              if (dialogOpen && Navigator.canPop(ctx2)) {
+                                dialogOpen = false;
+                                Navigator.pop(ctx2);
+                              }
+                            },
+                            child: const Text('Cancel'),
+                          ),
                         ],
                       ),
                     ),
                   );
+                  dialogOpen = true;
                   try {
-                    await updateService.downloadAndInstall(info, (p) {});
+                    await updateService.downloadAndInstall(
+                      info,
+                      (p) => progressNotifier.value = p,
+                      isCancelled: () => cancelled,
+                    );
                   } catch (_) {}
-                  if (mounted) Navigator.pop(context);
+                  progressNotifier.dispose();
+                  if (dialogOpen && mounted) {
+                    dialogOpen = false;
+                    Navigator.pop(context);
+                  }
                 },
                 child: const Text('Update'),
               ),

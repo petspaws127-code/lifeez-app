@@ -87,22 +87,29 @@ class UpdateService {
   /// Downloads the APK to temp storage and opens it for install.
   /// Returns true if the install intent was launched.
   /// Robust: retries up to 3 times with resume support for large files.
+  /// [isCancelled] is polled so the UI Cancel button can abort cleanly.
   Future<bool> downloadAndInstall(
     UpdateInfo info,
-    void Function(double progress) onProgress,
-  ) async {
+    void Function(double progress) onProgress, {
+    bool Function()? isCancelled,
+  }) async {
     final apkUrl = await apkUrlForDevice(info);
     if (apkUrl.isEmpty) return false;
 
     final dir = await getTemporaryDirectory();
-    final file = File('${dir.path}/lifeez-update.apk');
+    // Version-specific filename: never resume one version's partial
+    // file with another version's bytes (would corrupt the APK).
+    final file = File('${dir.path}/lifeez-update-${info.versionCode}.apk');
 
     // Try up to 3 times with resume
     for (var attempt = 0; attempt < 3; attempt++) {
+      if (isCancelled?.call() == true) return false;
+      http.Client? client;
+      IOSink? fileSink;
       try {
         final existingLength = await file.exists() ? await file.length() : 0;
 
-        final client = http.Client();
+        client = http.Client();
         final req = http.Request('GET', Uri.parse(apkUrl));
         // Resume from where we left off
         if (existingLength > 0) {
@@ -114,7 +121,6 @@ class UpdateService {
         );
 
         if (res.statusCode != 200 && res.statusCode != 206) {
-          client.close();
           continue; // Retry
         }
 
@@ -126,22 +132,26 @@ class UpdateService {
         }
 
         var received = existingLength;
-        final sink = file.openWrite(mode: existingLength > 0 ? FileMode.append : FileMode.write);
+        fileSink = file.openWrite(
+            mode: existingLength > 0 ? FileMode.append : FileMode.write);
 
         await for (final chunk in res.stream.timeout(
           const Duration(seconds: 60),
-          onTimeout: (sink) {
-            sink.close();
+          onTimeout: (eventSink) {
+            eventSink.close();
             throw TimeoutException('Download stalled');
           },
         )) {
-          sink.add(chunk);
+          if (isCancelled?.call() == true) {
+            return false;
+          }
+          fileSink?.add(chunk);
           received += chunk.length;
           if (total > 0) onProgress(received / total);
         }
 
-        await sink.close();
-        client.close();
+        await fileSink?.close();
+        fileSink = null;
 
         // Verify download completed
         final finalSize = await file.length();
@@ -157,6 +167,13 @@ class UpdateService {
         if (attempt < 2) {
           await Future.delayed(Duration(seconds: (attempt + 1) * 2));
         }
+      } finally {
+        try {
+          await fileSink?.close();
+        } catch (_) {}
+        try {
+          client?.close();
+        } catch (_) {}
       }
     }
 
