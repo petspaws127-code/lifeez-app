@@ -211,13 +211,13 @@ class HomeScreen extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    // Date in the same heading style as other pages.
+                    // Date: 13px, not bold.
                     Text(
                       _todayLabel(),
                       style: GoogleFonts.poppins(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: V2.ink,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
+                        color: V2.muted,
                         height: 1.2,
                       ),
                     ),
