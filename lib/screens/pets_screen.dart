@@ -102,12 +102,29 @@ class _PetsScreenState extends State<PetsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              V2TitleRow(
-                title: 'Pets',
-                trailing: V2AddButton(
-                  onTap: () => _showEditPet(context, app, null),
+              if (pets.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 8, 4, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Pets',
+                          style: GoogleFonts.poppins(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w800,
+                              color: V2.ink)),
+                      const SizedBox(height: 2),
+                      Text('Your furry family', style: V2.sub(14)),
+                    ],
+                  ),
+                )
+              else
+                V2TitleRow(
+                  title: 'Pets',
+                  trailing: V2AddButton(
+                    onTap: () => _showEditPet(context, app, null),
+                  ),
                 ),
-              ),
               if (pets.isEmpty)
                 _noPetState(context, app)
               else ...[
@@ -459,11 +476,34 @@ class _PetsScreenState extends State<PetsScreen> {
               textAlign: TextAlign.center,
               style: V2.sub(14),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
+            _emptyFeatureRow(Icons.monitor_heart_outlined, 'Health records'),
+            _emptyFeatureRow(Icons.notifications_outlined, 'Care reminders'),
+            _emptyFeatureRow(Icons.photo_library_outlined, 'Memories'),
+            const SizedBox(height: 8),
             V2PrimaryButton(
               label: 'Add a pet',
               onTap: () => _showEditPet(context, app, null),
             ),
+          ],
+        ),
+      );
+
+  Widget _emptyFeatureRow(IconData icon, String label) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: V2.chip,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(icon, color: V2.green, size: 26),
+            ),
+            const SizedBox(width: 14),
+            Text(label, style: V2.body(15)),
           ],
         ),
       );
