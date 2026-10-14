@@ -707,6 +707,7 @@ class AppState extends ChangeNotifier {
     tasks.add(t);
     notifyListeners();
     await _save('tasks', t.toJson());
+    await _saveLocal();
   }
 
   Future<void> updateTask(TaskItem t) async {
@@ -745,6 +746,8 @@ class AppState extends ChangeNotifier {
     expenses.add(e);
     notifyListeners();
     await _save('expenses', e.toJson());
+    // Always persist locally too — survives app kills even if Supabase sync fails.
+    await _saveLocal();
   }
 
   Future<void> deleteExpense(String id) async {

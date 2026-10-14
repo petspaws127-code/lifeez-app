@@ -175,12 +175,25 @@ class AuthService extends ChangeNotifier {
     // https://mxoejkweedxhndzwpxmj.supabase.co/auth/v1/callback
     // and the app receives the result at io.supabase.lifeez://login-callback.
     try {
-      await SupabaseService.client.auth.signInWithOAuth(
+      // Defensive: ensure Supabase client is initialized before OAuth.
+      try {
+        SupabaseService.client;
+      } catch (_) {
+        throw const AuthSetupException(
+          'Connection not ready. Please check your internet and try again.');
+      }
+      final result = await SupabaseService.client.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: 'io.supabase.lifeez://login-callback',
         queryParams: {'prompt': 'select_account'},
       );
+      // If the OAuth flow was cancelled or failed silently, result is false.
+      if (result == false) {
+        throw const AuthSetupException(
+          'Google sign-in was cancelled. Please try again.');
+      }
     } catch (e) {
+      if (e is AuthSetupException) rethrow;
       final msg = e.toString().toLowerCase();
       if (msg.contains('disabled_client') || msg.contains('401')) {
         throw const AuthSetupException(
@@ -193,7 +206,9 @@ class AuthService extends ChangeNotifier {
           'the OAuth consent screen in Google Cloud Console, or add your '
           'email as a test user.');
       }
-      rethrow;
+      // Unknown error — don't crash, show friendly message.
+      throw AuthSetupException(
+        'Google sign-in failed: ${e.toString().replaceFirst('Exception: ', '')}');
     }
     notifyListeners();
   }

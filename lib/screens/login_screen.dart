@@ -33,11 +33,25 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _afterSignIn() async {
-    final app = context.read<AppState>();
-    final whatsapp = context.read<WhatsAppService>();
-    await app.loadAll();
-    await whatsapp.restore();
+    try {
+      final app = context.read<AppState>();
+      // Load data with timeout so a hanging network call can't black-screen.
+      await app.loadAll().timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          // Continue with whatever local data is available.
+        },
+      );
+    } catch (_) {
+      // Never let a load failure block navigation — local data is enough.
+    }
+    try {
+      final whatsapp = context.read<WhatsAppService>();
+      await whatsapp.restore().timeout(const Duration(seconds: 5),
+          onTimeout: () {});
+    } catch (_) {}
     if (!mounted) return;
+    // Navigate even if data loading had issues — never leave a black screen.
     Navigator.pushReplacementNamed(
       context,
       MainTabs.route, // Onboarding hidden for now - direct to dashboard
