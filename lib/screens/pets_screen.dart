@@ -477,9 +477,12 @@ class _PetsScreenState extends State<PetsScreen> {
               style: V2.sub(14),
             ),
             const SizedBox(height: 20),
-            _emptyFeatureRow(Icons.monitor_heart_outlined, 'Health records'),
-            _emptyFeatureRow(Icons.notifications_outlined, 'Care reminders'),
-            _emptyFeatureRow(Icons.photo_library_outlined, 'Memories'),
+            _emptyFeatureRow(
+                Icons.smart_toy_outlined, 'AI Health Assistant', true),
+            _emptyFeatureRow(
+                Icons.account_balance_wallet_outlined, 'Expense insights', true),
+            _emptyFeatureRow(
+                Icons.qr_code_rounded, 'Digital Pet ID', true),
             const SizedBox(height: 8),
             V2PrimaryButton(
               label: 'Add a pet',
@@ -489,7 +492,8 @@ class _PetsScreenState extends State<PetsScreen> {
         ),
       );
 
-  Widget _emptyFeatureRow(IconData icon, String label) => Padding(
+  Widget _emptyFeatureRow(IconData icon, String label, [bool isPro = false]) =>
+      Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: Row(
           children: [
@@ -503,7 +507,21 @@ class _PetsScreenState extends State<PetsScreen> {
               child: Icon(icon, color: V2.green, size: 26),
             ),
             const SizedBox(width: 14),
-            Text(label, style: V2.body(15)),
+            Expanded(child: Text(label, style: V2.body(15))),
+            if (isPro)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: V2.green,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text('PRO',
+                    style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white)),
+              ),
           ],
         ),
       );
