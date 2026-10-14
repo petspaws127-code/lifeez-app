@@ -293,10 +293,14 @@ class _MoneyScreenState extends State<MoneyScreen> {
     }
   }
 
-  void _showAddDialog() {
+  Future<void> _showAddDialog() async {
     final amountCtrl = TextEditingController();
     final noteCtrl = TextEditingController();
     String category = 'Other';
+    // Load fresh budgets every time the dialog opens, so custom
+    // categories added via Budgets > Add category always appear.
+    final freshBudgets = await V2Budgets.load();
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -347,7 +351,14 @@ class _MoneyScreenState extends State<MoneyScreen> {
                       borderSide: BorderSide.none,
                     ),
                   ),
-                  items: V2Budgets.categories
+                  // Include custom categories the user added via
+                  // Budgets > Add category (e.g. "House Rent"), so the
+                  // list stays in sync.
+                  items: <String>[
+                    ...V2Budgets.categories,
+                    ...freshBudgets.keys.where(
+                        (k) => !V2Budgets.categories.contains(k)),
+                  ]
                       .map((c) => DropdownMenuItem(
                           value: c, child: Text(c)))
                       .toList(),
