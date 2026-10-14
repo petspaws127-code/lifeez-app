@@ -29,13 +29,13 @@ class V2Budgets {
   ];
 
   static const Map<String, double> defaultValues = {
-    'Food': 300,
-    'Grocery': 200,
-    'Transport': 150,
-    'Shopping': 200,
-    'Bills': 250,
-    'Health': 120,
-    'Other': 100,
+    'Food': 0,
+    'Grocery': 0,
+    'Transport': 0,
+    'Shopping': 0,
+    'Bills': 0,
+    'Health': 0,
+    'Other': 0,
   };
 
   /// Maps any raw category string to one of [categories].
@@ -134,6 +134,15 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
 
   String _fmt(double v) =>
       v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(2);
+
+  /// Formats currency with minus sign BEFORE the dollar sign: -$5020.00
+  String _fmtCurrency(double v) {
+    final abs = v.abs();
+    final formatted = abs == abs.roundToDouble()
+        ? abs.toStringAsFixed(0)
+        : abs.toStringAsFixed(2);
+    return v < 0 ? '-\$$formatted' : '\$$formatted';
+  }
 
   void _startEditing(String category) {
     _editCtrl.text = _fmt(_draft[category] ?? 0);
@@ -267,6 +276,8 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
     final total = app.profile?.monthlyBudget ?? 0;
+    final spent = app.spentThisMonth;
+    final isOverBudget = spent > total && total > 0;
 
     return Scaffold(
       backgroundColor: V2.bg,
@@ -296,8 +307,19 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Total monthly budget card.
-              V2Card(
+              // Total monthly budget card — turns RED when over budget.
+              Container(
+                decoration: BoxDecoration(
+                  color: isOverBudget ? const Color(0xFFFEE2E2) : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isOverBudget
+                        ? const Color(0xFFDC2626)
+                        : const Color(0xFFE8E8E8),
+                    width: isOverBudget ? 2 : 1,
+                  ),
+                ),
+                padding: const EdgeInsets.all(20),
                 child: Row(
                   children: [
                     Expanded(
@@ -310,7 +332,23 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                           const SizedBox(height: 4),
                           Text(
                             '\$${NumberFormat('#,##0').format(total)}',
-                            style: V2.display(42),
+                            style: V2.display(42).copyWith(
+                              color: isOverBudget
+                                  ? const Color(0xFFDC2626)
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Spent ${_fmtCurrency(spent)}',
+                            style: V2.sub(15).copyWith(
+                              color: isOverBudget
+                                  ? const Color(0xFFDC2626)
+                                  : null,
+                              fontWeight: isOverBudget
+                                  ? FontWeight.w700
+                                  : null,
+                            ),
                           ),
                         ],
                       ),

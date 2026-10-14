@@ -39,6 +39,13 @@ class _MoneyScreenState extends State<MoneyScreen> {
 
   // ------------------------------------------------------------- aggregations
 
+  /// Formats currency with minus sign BEFORE the dollar sign: -$5020.00
+  String _fmtMoney(double v) {
+    final abs = v.abs();
+    final formatted = abs.toStringAsFixed(2);
+    return v < 0 ? '-\$$formatted' : '\$$formatted';
+  }
+
   bool _isToday(DateTime d) {
     final n = easternNow();
     return d.year == n.year && d.month == n.month && d.day == n.day;
@@ -192,6 +199,100 @@ class _MoneyScreenState extends State<MoneyScreen> {
     );
   }
 
+  /// After an expense is saved: prompt to set a budget for the category
+  /// if none is set, or warn if the category is over budget.
+  Future<void> _checkBudgetAfterExpense(
+      BuildContext ctx, String category, Map<String, double> budgets) async {
+    final app = context.read<AppState>();
+    final budget = budgets[category] ?? 0;
+
+    // Calculate total spent in this category this month.
+    final now = easternNow();
+    final spentInCat = app.expenses
+        .where((e) =>
+            V2Budgets.normalize(e.category) ==
+                V2Budgets.normalize(category) &&
+            e.spentAt.year == now.year &&
+            e.spentAt.month == now.month)
+        .fold(0.0, (s, e) => s + e.amount);
+
+    // Case 1: No budget set — prompt to set one.
+    if (budget <= 0) {
+      final ctrl = TextEditingController();
+      final result = await showDialog<double>(
+        context: ctx,
+        builder: (dctx) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text('Set budget for $category', style: V2.title(18)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('You added an expense in $category. Set a monthly budget for it?',
+                  style: V2.sub(14)),
+              const SizedBox(height: 12),
+              TextField(
+                controller: ctrl,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Monthly budget (USD)',
+                  prefixText: '\$ ',
+                  filled: true,
+                  fillColor: V2.chip,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dctx),
+              child: Text('Skip', style: V2.sub().copyWith(fontSize: 14)),
+            ),
+            TextButton(
+              onPressed: () {
+                final v = double.tryParse(ctrl.text.trim());
+                Navigator.pop(dctx, v != null && v >= 0 ? v : null);
+              },
+              child: Text('Save',
+                  style: V2.greenLabel(14)
+                      .copyWith(fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
+      );
+      if (result != null) {
+        budgets[category] = result;
+        await V2Budgets.save(budgets);
+        if (mounted) setState(() => _budgets = Map.from(budgets));
+      }
+      return;
+    }
+
+    // Case 2: Over budget — show warning.
+    if (spentInCat > budget) {
+      final over = spentInCat - budget;
+      if (ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          SnackBar(
+            content: Text(
+              '⚠️ Over budget in $category by ${_fmtMoney(over)}!',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            backgroundColor: const Color(0xFFDC2626),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
+
   void _showAddDialog() {
     final amountCtrl = TextEditingController();
     final noteCtrl = TextEditingController();
@@ -296,12 +397,26 @@ class _MoneyScreenState extends State<MoneyScreen> {
                   spentAt: easternNow(),
                   source: 'app',
                 ));
+                // Auto-create the category in budgets if it's new.
+                final budgets = await V2Budgets.load();
+                final isNewCategory = !budgets.containsKey(category);
+                if (isNewCategory) {
+                  budgets[category] = 0;
+                  await V2Budgets.save(budgets);
+                  if (mounted) {
+                    setState(() => _budgets = budgets);
+                  }
+                }
                 try {
                   context
                       .read<SmartAiService>()
                       .recordSpending(amt);
                 } catch (_) {}
                 if (ctx.mounted) Navigator.pop(ctx);
+                // Prompt to set budget for new category, or warn if over budget.
+                if (ctx.mounted) {
+                  _checkBudgetAfterExpense(ctx, category, budgets);
+                }
               },
               child: Text('Save',
                   style: V2.greenLabel(14)
@@ -431,7 +546,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
                       height: 1.1)),
               const SizedBox(height: 6),
               Text(
-                'Budget left \$${left.toStringAsFixed(2)} of \$${budget.toStringAsFixed(0)}',
+                'Budget left ${_fmtMoney(left)} of \$${budget.toStringAsFixed(0)}',
                 style: GoogleFonts.poppins(
                     color: Colors.white.withOpacity(0.88),
                     fontSize: 14.5,
@@ -706,7 +821,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
                   style: V2.display(34)),
               const SizedBox(height: 4),
               Text(
-                  'Budget left \$${app.leftToSpend.toStringAsFixed(2)} of \$${(app.profile?.monthlyBudget ?? 0).toStringAsFixed(0)}',
+                  'Budget left ${_fmtMoney(app.leftToSpend)} of \$${(app.profile?.monthlyBudget ?? 0).toStringAsFixed(0)}',
                   style: V2.sub(14)),
             ],
           ),
