@@ -14,9 +14,11 @@ import '../services/eastern_time.dart';
 import '../services/supabase_client.dart';
 import '../models/pet.dart';
 import '../models/reminder.dart';
+import '../models/expense.dart';
 import 'pet_health_ai_screen.dart';
 import 'pet_ai_chat_screen.dart';
 import 'pet_vaccinations_screen.dart';
+import 'pet_expense_report_screen.dart';
 
 /// Per-pet daily care tracking (Feed / Walk / Medicine).
 /// Stored per-user per-day in SharedPreferences.
@@ -711,6 +713,32 @@ class _PetsScreenState extends State<PetsScreen> {
               ),
             ),
           ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _outlineBtn(
+                  Icons.add_card_outlined,
+                  'Log expense',
+                  () => _showAddPetExpense(context, app, pet),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _outlineBtn(
+                  Icons.bar_chart_outlined,
+                  'Expense report',
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          PetExpenseReportScreen(pet: pet),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -1294,6 +1322,83 @@ class _PetsScreenState extends State<PetsScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+
+  void _showAddPetExpense(
+      BuildContext context, AppState app, PetProfile pet) {
+    final amountCtrl = TextEditingController();
+    final noteCtrl = TextEditingController();
+    String category = 'Health';
+    const cats = ['Health', 'Food', 'Grooming', 'Toys', 'Other'];
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20)),
+          title: Text('Expense for ${pet.name}',
+              style: V2.title(18)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: amountCtrl,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                    labelText: 'Amount (\$)'),
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<String>(
+                value: category,
+                items: cats
+                    .map((c) =>
+                        DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (v) =>
+                    setDlg(() => category = v ?? 'Health'),
+                decoration:
+                    const InputDecoration(labelText: 'Category'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: noteCtrl,
+                decoration: const InputDecoration(
+                    labelText: 'Note (optional)'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text('Cancel',
+                    style: V2.sub().copyWith(fontSize: 14))),
+            TextButton(
+              onPressed: () async {
+                final amt =
+                    double.tryParse(amountCtrl.text.trim());
+                if (amt == null || amt <= 0) return;
+                await app.addExpense(Expense(
+                  id: const Uuid().v4(),
+                  userId: app.profile?.id ?? 'local',
+                  amount: amt,
+                  category: category,
+                  note: noteCtrl.text.trim(),
+                  spentAt: easternNow(),
+                  source: 'app',
+                  petId: pet.id,
+                ));
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: Text('Save',
+                  style: GoogleFonts.poppins(
+                      color: V2.green,
+                      fontWeight: FontWeight.w700)),
+            ),
+          ],
+        ),
       ),
     );
   }

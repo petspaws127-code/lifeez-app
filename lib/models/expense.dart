@@ -9,6 +9,7 @@ class Expense {
   final DateTime spentAt;
   final String source;
   final String? receiptPath; // local photo of the receipt
+  final String? petId; // set when this expense is for a pet
 
   const Expense({
     required this.id,
@@ -19,6 +20,7 @@ class Expense {
     required this.spentAt,
     this.source = 'app',
     this.receiptPath,
+    this.petId,
   });
 
   factory Expense.fromJson(Map<String, dynamic> json) => Expense(
@@ -32,16 +34,23 @@ class Expense {
             easternNow(),
         source: (json['source'] as String?) ?? 'app',
         receiptPath: json['receipt_path'] as String?,
+        petId: json['pet_id'] as String?,
       );
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'user_id': userId,
-        'amount': amount,
-        'category': category,
-        'note': note,
-        'spent_at': spentAt.toIso8601String(),
-        'source': source,
-        'receipt_path': receiptPath,
-      };
+  Map<String, dynamic> toJson() {
+    final m = {
+      'id': id,
+      'user_id': userId,
+      'amount': amount,
+      'category': category,
+      'note': note,
+      'spent_at': spentAt.toIso8601String(),
+      'source': source,
+      'receipt_path': receiptPath,
+    };
+    // Only send pet_id when set — the column is added by migration
+    // 20261015000000; omitting it keeps old rows compatible.
+    if (petId != null) m['pet_id'] = petId;
+    return m;
+  }
 }
