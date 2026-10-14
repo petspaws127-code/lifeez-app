@@ -19,7 +19,7 @@ import 'pet_health_ai_screen.dart';
 import 'pet_ai_chat_screen.dart';
 import 'pet_vaccinations_screen.dart';
 import 'pet_expense_report_screen.dart';
-// import 'pet_digital_id_screen.dart'; // TEMP DISABLED v1.4.72
+import 'pet_digital_id_screen.dart';
 import 'pet_vet_history_screen.dart';
 
 /// Per-pet daily care tracking (Feed / Walk / Medicine).
@@ -715,20 +715,19 @@ class _PetsScreenState extends State<PetsScreen> {
               ),
             ),
           ),
-          // TEMP DISABLED (v1.4.72): needs qr_flutter/share_plus - re-enable next build
-          // const SizedBox(height: 10),
-          // SizedBox(
-          //   width: double.infinity,
-          //   child: _outlineBtn(
-          //     Icons.qr_code_rounded,
-          //     'Digital Pet ID',
-          //     () => Navigator.pushNamed(
-          //       context,
-          //       PetDigitalIdScreen.route,
-          //       arguments: pet,
-          //     ),
-          //   ),
-          // ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: _outlineBtn(
+              Icons.qr_code_rounded,
+              'Digital Pet ID',
+              () => Navigator.pushNamed(
+                context,
+                PetDigitalIdScreen.route,
+                arguments: pet,
+              ),
+            ),
+          ),
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
