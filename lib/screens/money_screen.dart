@@ -62,14 +62,31 @@ class _MoneyScreenState extends State<MoneyScreen> {
     return list;
   }
 
-  /// This month's spend per canonical category.
+  /// All categories: canonical first, then the user's custom ones
+  /// (from Budgets > Add category) — keeps the lists in sync everywhere.
+  List<String> _allCategories() => <String>[
+        ...V2Budgets.categories,
+        ..._budgets.keys.where((k) => !V2Budgets.categories.contains(k)),
+      ];
+
+  /// Resolves an expense's raw category: keeps canonical and custom
+  /// categories as-is; fuzzy-normalizes anything else (e.g. AI input).
+  String _resolveCat(String raw) {
+    final r = raw.trim().toLowerCase();
+    for (final c in _allCategories()) {
+      if (r == c.toLowerCase()) return c;
+    }
+    return V2Budgets.normalize(raw);
+  }
+
+  /// This month's spend per category (canonical + custom).
   Map<String, double> _monthTotalsByCat(AppState app) {
     final now = easternNow();
-    final map = {for (final c in V2Budgets.categories) c: 0.0};
+    final map = {for (final c in _allCategories()) c: 0.0};
     for (final e in app.expenses) {
       if (e.spentAt.year == now.year &&
           e.spentAt.month == now.month) {
-        final c = V2Budgets.normalize(e.category);
+        final c = _resolveCat(e.category);
         map[c] = (map[c] ?? 0) + e.amount;
       }
     }
@@ -102,7 +119,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
     for (final e in app.expenses) {
       if (!e.spentAt.isBefore(monday) &&
           e.spentAt.isBefore(sundayEnd)) {
-        final c = V2Budgets.normalize(e.category);
+        final c = _resolveCat(e.category);
         map[c] = (map[c] ?? 0) + e.amount;
       }
     }
@@ -156,7 +173,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                  '${V2Budgets.normalize(e.category)} • ${DateFormat('MM/dd/yyyy').format(e.spentAt)}',
+                  '${_resolveCat(e.category)} • ${DateFormat('MM/dd/yyyy').format(e.spentAt)}',
                   style: V2.sub()),
               if (e.note.isNotEmpty) ...[
                 const SizedBox(height: 6),
@@ -210,8 +227,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
     final now = easternNow();
     final spentInCat = app.expenses
         .where((e) =>
-            V2Budgets.normalize(e.category) ==
-                V2Budgets.normalize(category) &&
+            _resolveCat(e.category) == _resolveCat(category) &&
             e.spentAt.year == now.year &&
             e.spentAt.month == now.month)
         .fold(0.0, (s, e) => s + e.amount);
@@ -571,20 +587,23 @@ class _MoneyScreenState extends State<MoneyScreen> {
         Text('Categories', style: V2.title(19)),
         const SizedBox(height: 10),
         V2Card(
-          child: Column(
-            children: [
-              for (var i = 0;
-                  i < V2Budgets.categories.length;
-                  i++) ...[
-                _categoryRow(
-                  V2Budgets.categories[i],
-                  totals[V2Budgets.categories[i]] ?? 0,
-                  _budgets[V2Budgets.categories[i]] ?? 0,
-                ),
-                if (i < V2Budgets.categories.length - 1)
-                  const SizedBox(height: 14),
-              ],
-            ],
+          child: Builder(
+            builder: (_) {
+              final cats = _allCategories();
+              return Column(
+                children: [
+                  for (var i = 0; i < cats.length; i++) ...[
+                    _categoryRow(
+                      cats[i],
+                      totals[cats[i]] ?? 0,
+                      _budgets[cats[i]] ?? 0,
+                    ),
+                    if (i < cats.length - 1)
+                      const SizedBox(height: 14),
+                  ],
+                ],
+              );
+            },
           ),
         ),
         const SizedBox(height: 20),
@@ -660,9 +679,7 @@ class _MoneyScreenState extends State<MoneyScreen> {
   }
 
   Widget _transactionRow(Expense e) {
-    final title = e.note.isEmpty
-        ? V2Budgets.normalize(e.category)
-        : e.note;
+    final title = e.note.isEmpty ? _resolveCat(e.category) : e.note;
     return InkWell(
       onTap: () => _showExpenseDetail(e),
       borderRadius: BorderRadius.circular(16),
