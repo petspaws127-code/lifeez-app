@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
@@ -88,8 +90,20 @@ Future<void> main() async {
       );
   // TODO: paste your Supabase URL + anon key in
   // lib/services/supabase_client.dart before running.
-  await SupabaseService.init();
-  await NotificationService.instance.init();
+  // BOOT GUARD (robustness): never let a slow/hanging network freeze the
+  // launch on a black screen. Backend init gets max 15s; on timeout or
+  // failure the app still starts and runs on local data. Login will show
+  // a friendly "check connection" message if the backend is unreachable.
+  try {
+    await SupabaseService.init().timeout(const Duration(seconds: 15));
+  } catch (_) {
+    // Continue offline — local data keeps the app fully usable.
+  }
+  try {
+    await NotificationService.instance
+        .init()
+        .timeout(const Duration(seconds: 10));
+  } catch (_) {}
   runApp(const AiLifeAssistantApp());
 }
 

@@ -27,8 +27,14 @@ class AuthService extends ChangeNotifier {
   bool _adminSignedIn = false;
   String _adminPlan = 'demo';
 
-  bool get isSignedIn =>
-      SupabaseService.client.auth.currentUser != null || _adminSignedIn;
+  bool get isSignedIn {
+    try {
+      return SupabaseService.client.auth.currentUser != null || _adminSignedIn;
+    } catch (_) {
+      // Backend not initialized (offline boot) — never crash the splash.
+      return _adminSignedIn;
+    }
+  }
 
   bool get isAdmin => _adminSignedIn;
   String get adminPlan => _adminPlan;

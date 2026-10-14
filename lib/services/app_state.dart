@@ -355,9 +355,16 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Offline-first write: persist to local storage BEFORE attempting cloud
+  /// sync, so a slow or hanging network can never delay or lose the entry.
+  /// Cloud sync gets a 15s timeout; failures are queued for later retry.
   Future<void> _save(String table, Map<String, dynamic> row) async {
+    await _saveLocal();
     try {
-      await SupabaseService.client.from(table).upsert(row);
+      await SupabaseService.client
+          .from(table)
+          .upsert(row)
+          .timeout(const Duration(seconds: 15));
       // Opportunistic flush: a successful write means we're online,
       // so drain any queued ops too.
       _flushPendingSync();
@@ -369,13 +376,16 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// Offline-first delete: local state is already updated by the caller;
+  /// persist it locally first, then attempt the cloud delete (15s timeout).
   Future<void> _delete(String table, String id) async {
+    await _saveLocal();
     try {
       // Defense-in-depth: filter by user_id too, not just RLS.
       var q = SupabaseService.client.from(table).delete().eq('id', id);
       final uid = SupabaseService.currentUserId;
       if (uid != null) q = q.eq('user_id', uid);
-      await q;
+      await q.timeout(const Duration(seconds: 15));
       _flushPendingSync();
     } catch (e) {
       _queueOp('delete', table, id, null);
@@ -707,7 +717,6 @@ class AppState extends ChangeNotifier {
     tasks.add(t);
     notifyListeners();
     await _save('tasks', t.toJson());
-    await _saveLocal();
   }
 
   Future<void> updateTask(TaskItem t) async {
@@ -746,8 +755,6 @@ class AppState extends ChangeNotifier {
     expenses.add(e);
     notifyListeners();
     await _save('expenses', e.toJson());
-    // Always persist locally too — survives app kills even if Supabase sync fails.
-    await _saveLocal();
   }
 
   Future<void> deleteExpense(String id) async {
@@ -824,7 +831,6 @@ class AppState extends ChangeNotifier {
     reminders.add(r);
     notifyListeners();
     await _save('reminders', r.toJson());
-    await _saveLocal();
     await _scheduleReminder(r);
   }
 
@@ -966,7 +972,6 @@ class AppState extends ChangeNotifier {
     habits.add(h);
     notifyListeners();
     await _save('habits', h.toJson());
-    await _saveLocal();
   }
 
   Future<void> toggleHabitToday(String id) async {
