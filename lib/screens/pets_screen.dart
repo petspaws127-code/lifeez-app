@@ -486,19 +486,19 @@ class _PetsScreenState extends State<PetsScreen> {
             _emptyFeatureRow(
               Icons.smart_toy_outlined,
               'AI Health Assistant',
-              true,
+              isPro: true,
               onTap: () =>
                   Navigator.pushNamed(context, PetAiChatScreen.route),
             ),
             _emptyFeatureRow(
               Icons.account_balance_wallet_outlined,
               'Expense insights',
-              true,
+              isPro: true,
             ),
             _emptyFeatureRow(
               Icons.qr_code_rounded,
               'Digital Pet ID',
-              true,
+              isPro: true,
             ),
             const SizedBox(height: 8),
             V2PrimaryButton(
@@ -510,7 +510,7 @@ class _PetsScreenState extends State<PetsScreen> {
       );
 
   Widget _emptyFeatureRow(IconData icon, String label,
-          [bool isPro = false, VoidCallback? onTap]) =>
+          {bool isPro = false, VoidCallback? onTap}) =>
       InkWell(
         onTap: onTap ??
             () => ScaffoldMessenger.of(context).showSnackBar(
