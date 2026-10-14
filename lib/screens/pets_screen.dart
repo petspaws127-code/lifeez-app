@@ -633,9 +633,13 @@ class _PetsScreenState extends State<PetsScreen> {
   Widget _petCard(BuildContext context, AppState app, PetProfile pet) {
     // Stats for the quick-stats card
     final now = DateTime.now();
-    final vaccinesDue = app.vaccinations
-        .where((v) => v.petId == pet.id && !v.isDone && !v.nextDue.isAfter(now.add(const Duration(days: 30))))
-        .length;
+    final _today = DateTime(now.year, now.month, now.day);
+    final vaccinesDue = app.vaccinations.where((v) {
+      if (v.petId != pet.id) return false;
+      final due = v.nextDueDate;
+      if (due == null) return false;
+      return !due.isAfter(_today.add(const Duration(days: 30)));
+    }).length;
     final spentThisMonth = app.expenses
         .where((e) => e.petId == pet.id && e.spentAt.year == now.year && e.spentAt.month == now.month)
         .fold(0.0, (s, e) => s + e.amount);
