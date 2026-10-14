@@ -15,6 +15,7 @@ import '../services/supabase_client.dart';
 import '../models/pet.dart';
 import '../models/reminder.dart';
 import 'pet_health_ai_screen.dart';
+import 'pet_ai_chat_screen.dart';
 
 /// Per-pet daily care tracking (Feed / Walk / Medicine).
 /// Stored per-user per-day in SharedPreferences.
@@ -478,11 +479,22 @@ class _PetsScreenState extends State<PetsScreen> {
             ),
             const SizedBox(height: 20),
             _emptyFeatureRow(
-                Icons.smart_toy_outlined, 'AI Health Assistant', true),
+              Icons.smart_toy_outlined,
+              'AI Health Assistant',
+              true,
+              onTap: () =>
+                  Navigator.pushNamed(context, PetAiChatScreen.route),
+            ),
             _emptyFeatureRow(
-                Icons.account_balance_wallet_outlined, 'Expense insights', true),
+              Icons.account_balance_wallet_outlined,
+              'Expense insights',
+              true,
+            ),
             _emptyFeatureRow(
-                Icons.qr_code_rounded, 'Digital Pet ID', true),
+              Icons.qr_code_rounded,
+              'Digital Pet ID',
+              true,
+            ),
             const SizedBox(height: 8),
             V2PrimaryButton(
               label: 'Add a pet',
@@ -492,37 +504,46 @@ class _PetsScreenState extends State<PetsScreen> {
         ),
       );
 
-  Widget _emptyFeatureRow(IconData icon, String label, [bool isPro = false]) =>
-      Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: V2.chip,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(icon, color: V2.green, size: 26),
-            ),
-            const SizedBox(width: 14),
-            Expanded(child: Text(label, style: V2.body(15))),
-            if (isPro)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: V2.green,
-                  borderRadius: BorderRadius.circular(20),
+  Widget _emptyFeatureRow(IconData icon, String label,
+          [bool isPro = false, VoidCallback? onTap]) =>
+      InkWell(
+        onTap: onTap ??
+            () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('Coming soon in Pro!')),
                 ),
-                child: Text('PRO',
-                    style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white)),
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: V2.chip,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: V2.green, size: 26),
               ),
-          ],
+              const SizedBox(width: 14),
+              Expanded(child: Text(label, style: V2.body(15))),
+              if (isPro)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: V2.green,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text('PRO',
+                      style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white)),
+                ),
+            ],
+          ),
         ),
       );
 
@@ -661,6 +682,20 @@ class _PetsScreenState extends State<PetsScreen> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: _outlineBtn(
+              Icons.smart_toy_outlined,
+              'Ask AI about ${pet.name}',
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PetAiChatScreen(pet: pet),
+                ),
+              ),
+            ),
           ),
         ],
       ),
