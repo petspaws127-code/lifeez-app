@@ -633,11 +633,11 @@ class _PetsScreenState extends State<PetsScreen> {
   Widget _petCard(BuildContext context, AppState app, PetProfile pet) {
     // Stats for the quick-stats card
     final now = DateTime.now();
-    final vaccinesDue = app.petVaccinations
+    final vaccinesDue = app.vaccinations
         .where((v) => v.petId == pet.id && !v.isDone && !v.nextDue.isAfter(now.add(const Duration(days: 30))))
         .length;
     final spentThisMonth = app.expenses
-        .where((e) => e.petId == pet.id && e.date.year == now.year && e.date.month == now.month)
+        .where((e) => e.petId == pet.id && e.spentAt.year == now.year && e.spentAt.month == now.month)
         .fold(0.0, (s, e) => s + e.amount);
     final remindersCount = app.reminders.where((r) => r.petId == pet.id).length;
 
@@ -783,6 +783,63 @@ class _PetsScreenState extends State<PetsScreen> {
         ),
       ),
     );
+  }
+
+List<Widget> _petReminderRows(BuildContext context, AppState app) {
+    final rows = <Widget>[];
+    for (final pet in app.pets) {
+      for (final r in app.petRemindersFor(pet.id)) {
+        rows.add(Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: V2Card(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              children: [
+                const V2IconTile(Icons.pets_rounded, size: 44),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(r.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.poppins(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14.5)),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${pet.name} • ${DateFormat('EEE, MMM d • h:mm a').format(r.remindAt)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: V2.sub(12),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Mark done',
+                  icon: const Icon(Icons.check_circle_outline,
+                      color: V2.green),
+                  onPressed: () => app.toggleReminder(r.id),
+                ),
+              ],
+            ),
+          ),
+        ));
+      }
+    }
+    if (rows.isEmpty) {
+      rows.add(Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Text(
+          'No pet reminders yet — add feeding, vet, grooming, walk or medicine reminders.',
+          style: V2.sub(13),
+        ),
+      ));
+    }
+    return rows;
   }
 
   Widget _addReminderButton(BuildContext context, AppState app) {
