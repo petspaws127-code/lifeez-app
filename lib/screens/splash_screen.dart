@@ -56,14 +56,24 @@ class _SplashScreenState extends State<SplashScreen>
         if (user != null) {
           // Lightweight validation: fetch the user from the server.
           // Throws if the token is expired/invalid.
-          await SupabaseService.client.auth.getUser();
+          // 15-sec timeout guard: never freeze on splash.
+          await SupabaseService.client.auth.getUser().timeout(
+            const Duration(seconds: 15),
+            onTimeout: () {
+              // Treat as invalid — user can retry login.
+              throw Exception('Session validation timed out');
+            },
+          );
           sessionValid = true;
         }
       } catch (_) {
         sessionValid = false;
         // Clear the dead session so login starts clean.
         try {
-          await SupabaseService.client.auth.signOut();
+          await SupabaseService.client.auth.signOut().timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {},
+          );
         } catch (_) {}
       }
     }

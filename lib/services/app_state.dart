@@ -824,6 +824,7 @@ class AppState extends ChangeNotifier {
     reminders.add(r);
     notifyListeners();
     await _save('reminders', r.toJson());
+    await _saveLocal();
     await _scheduleReminder(r);
   }
 
@@ -965,6 +966,7 @@ class AppState extends ChangeNotifier {
     habits.add(h);
     notifyListeners();
     await _save('habits', h.toJson());
+    await _saveLocal();
   }
 
   Future<void> toggleHabitToday(String id) async {
