@@ -20,6 +20,7 @@ import 'pet_ai_chat_screen.dart';
 import 'pet_vaccinations_screen.dart';
 import 'pet_expense_report_screen.dart';
 import 'pet_digital_id_screen.dart';
+import 'pet_vet_history_screen.dart';
 
 /// Per-pet daily care tracking (Feed / Walk / Medicine).
 /// Stored per-user per-day in SharedPreferences.
@@ -723,6 +724,19 @@ class _PetsScreenState extends State<PetsScreen> {
               () => Navigator.pushNamed(
                 context,
                 PetDigitalIdScreen.route,
+                arguments: pet,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: _outlineBtn(
+              Icons.history_rounded,
+              'Vet history (PDF)',
+              () => Navigator.pushNamed(
+                context,
+                PetVetHistoryScreen.route,
                 arguments: pet,
               ),
             ),

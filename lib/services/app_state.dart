@@ -51,6 +51,7 @@ class AppState extends ChangeNotifier {
   List<Habit> habits = [];
   List<PetProfile> pets = [];
   List<PetVaccination> vaccinations = [];
+  List<PetVetVisit> vetVisits = [];
   List<PetMemory> petMemories = [];
   List<BrainDump> brainDumps = [];
   List<SavingsEntry> savingsEntries = [];
@@ -130,6 +131,7 @@ class AppState extends ChangeNotifier {
         'habits': habits.map((e) => e.toJson()).toList(),
         'pets': pets.map((e) => e.toJson()).toList(),
         'vaccinations': vaccinations.map((e) => e.toJson()).toList(),
+        'vetVisits': vetVisits.map((e) => e.toJson()).toList(),
         'petMemories': petMemories.map((e) => e.toJson()).toList(),
         'brainDumps': brainDumps.map((e) => e.toJson()).toList(),
         'savingsEntries':
@@ -183,6 +185,8 @@ class AppState extends ChangeNotifier {
       vaccinations = list(data['vaccinations'])
           .map(PetVaccination.fromJson)
           .toList();
+      vetVisits =
+          list(data['vetVisits']).map(PetVetVisit.fromJson).toList();
       petMemories =
           list(data['petMemories']).map(PetMemory.fromJson).toList();
       brainDumps =
@@ -249,6 +253,7 @@ class AppState extends ChangeNotifier {
             .select()
             .eq('user_id', uid)
             .order('date', ascending: false),
+        c.from('pet_vet_visits').select().eq('user_id', uid),
       ]);
       List<Map<String, dynamic>> list(dynamic r) =>
           r == null ? [] : List<Map<String, dynamic>>.from(r as List);
@@ -291,6 +296,8 @@ class AppState extends ChangeNotifier {
           list(results[16]).map(SavingsEntry.fromJson).toList();
       lentBorrowed =
           list(results[17]).map(LentBorrowed.fromJson).toList();
+      vetVisits =
+          list(results[18]).map(PetVetVisit.fromJson).toList();
       _pinUnlocked = false;
       refreshNotifications();
       // Sync Google/Apple OAuth profile (name + photo) into the local
@@ -328,6 +335,7 @@ class AppState extends ChangeNotifier {
     habits = [];
     pets = [];
     vaccinations = [];
+    vetVisits = [];
     petMemories = [];
     brainDumps = [];
     savingsEntries = [];
@@ -1069,6 +1077,23 @@ class AppState extends ChangeNotifier {
 
   List<PetVaccination> vaccinationsFor(String petId) =>
       vaccinations.where((v) => v.petId == petId).toList();
+
+  Future<void> addVetVisit(PetVetVisit v) async {
+    vetVisits.add(v);
+    notifyListeners();
+    await _save('pet_vet_visits', v.toJson());
+    refreshNotifications();
+  }
+
+  Future<void> deleteVetVisit(String id) async {
+    vetVisits.removeWhere((v) => v.id == id);
+    notifyListeners();
+    await _delete('pet_vet_visits', id);
+  }
+
+  List<PetVetVisit> vetVisitsFor(String petId) =>
+      vetVisits.where((v) => v.petId == petId).toList()
+        ..sort((a, b) => b.visitDate.compareTo(a.visitDate));
 
   Future<void> addPetMemory(PetMemory m) async {
     petMemories.add(m);

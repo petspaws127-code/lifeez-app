@@ -163,3 +163,49 @@ class PetMemory {
         'photo_path': photoPath,
       };
 }
+
+class PetVetVisit {
+  final String id;
+  final String userId;
+  final String petId;
+  final DateTime visitDate;
+  final String reason;
+  final String? vetName;
+  final String? notes;
+  final double? cost;
+
+  const PetVetVisit({
+    required this.id,
+    required this.userId,
+    required this.petId,
+    required this.visitDate,
+    required this.reason,
+    this.vetName,
+    this.notes,
+    this.cost,
+  });
+
+  factory PetVetVisit.fromJson(Map<String, dynamic> json) => PetVetVisit(
+        id: json['id'] as String,
+        userId: json['user_id'] as String,
+        petId: (json['pet_id'] as String?) ?? '',
+        visitDate: DateTime.tryParse(
+                (json['visit_date'] as String?) ?? '') ??
+            easternNow(),
+        reason: (json['reason'] as String?) ?? '',
+        vetName: json['vet_name'] as String?,
+        notes: json['notes'] as String?,
+        cost: (json['cost'] as num?)?.toDouble(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'user_id': userId,
+        'pet_id': petId,
+        'visit_date': visitDate.toIso8601String().substring(0, 10),
+        'reason': reason,
+        'vet_name': vetName,
+        'notes': notes,
+        'cost': cost,
+      };
+}

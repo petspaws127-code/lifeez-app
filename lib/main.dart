@@ -55,6 +55,7 @@ import 'screens/pet_ai_chat_screen.dart';
 import 'screens/pet_vaccinations_screen.dart';
 import 'screens/pet_expense_report_screen.dart';
 import 'screens/pet_digital_id_screen.dart';
+import 'screens/pet_vet_history_screen.dart';
 import 'models/pet.dart';
 import 'screens/location_reminders_screen.dart';
 import 'services/smart_ai_service.dart';
@@ -220,6 +221,10 @@ class AiLifeAssistantApp extends StatelessWidget {
           PetDigitalIdScreen.route: (ctx) {
             final pet = ModalRoute.of(ctx)!.settings.arguments as PetProfile;
             return PetDigitalIdScreen(pet: pet);
+          },
+          PetVetHistoryScreen.route: (ctx) {
+            final pet = ModalRoute.of(ctx)!.settings.arguments as PetProfile;
+            return PetVetHistoryScreen(pet: pet);
           },
           LocationRemindersScreen.route: (_) =>
               const LocationRemindersScreen(),
