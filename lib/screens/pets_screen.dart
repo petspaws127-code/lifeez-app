@@ -631,202 +631,158 @@ class _PetsScreenState extends State<PetsScreen> {
   }
 
   Widget _petCard(BuildContext context, AppState app, PetProfile pet) {
-    return V2Card(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _petPhoto(pet),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 12, 0, 0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(pet.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: V2.title(21)),
-                      const SizedBox(height: 2),
-                      Text(_petSubtitle(pet),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: V2.sub(13.5)),
-                    ],
+    // Stats for the quick-stats card
+    final now = DateTime.now();
+    final vaccinesDue = app.petVaccinations
+        .where((v) => v.petId == pet.id && !v.isDone && !v.nextDue.isAfter(now.add(const Duration(days: 30))))
+        .length;
+    final spentThisMonth = app.expenses
+        .where((e) => e.petId == pet.id && e.date.year == now.year && e.date.month == now.month)
+        .fold(0.0, (s, e) => s + e.amount);
+    final remindersCount = app.reminders.where((r) => r.petId == pet.id).length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // ---- HERO: full photo with name overlay ----
+        Stack(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: _petPhoto(pet, height: 220),
+            ),
+            Positioned(
+              left: 0, right: 0, bottom: 0,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 40, 16, 14),
+                decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                    colors: [Colors.transparent, Colors.black.withOpacity(0.72)],
                   ),
                 ),
-                IconButton(
-                  tooltip: 'Edit pet',
-                  icon:
-                      const Icon(Icons.edit_outlined, color: V2.muted),
-                  onPressed: () =>
-                      _showEditPet(context, app, pet),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _outlineBtn(
-                  Icons.add_rounded,
-                  'Log health',
-                  () => _showAddVaccine(context, app, petId: pet.id),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _outlineBtn(
-                  Icons.add_photo_alternate_outlined,
-                  'Add memory',
-                  () => _showAddMemory(context, app, petId: pet.id),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: _outlineBtn(
-              Icons.smart_toy_outlined,
-              'Ask AI about ${pet.name}',
-              () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => PetAiChatScreen(pet: pet),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: _outlineBtn(
-              Icons.vaccines_outlined,
-              'Vaccinations & medicine',
-              () => Navigator.pushNamed(
-                context,
-                PetVaccinationsScreen.route,
-                arguments: pet,
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: _outlineBtn(
-              Icons.qr_code_rounded,
-              'Digital Pet ID',
-              () => Navigator.pushNamed(
-                context,
-                PetDigitalIdScreen.route,
-                arguments: pet,
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: _outlineBtn(
-              Icons.history_rounded,
-              'Vet history (PDF)',
-              () => Navigator.pushNamed(
-                context,
-                PetVetHistoryScreen.route,
-                arguments: pet,
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _outlineBtn(
-                  Icons.add_card_outlined,
-                  'Log expense',
-                  () => _showAddPetExpense(context, app, pet),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _outlineBtn(
-                  Icons.bar_chart_outlined,
-                  'Expense report',
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          PetExpenseReportScreen(pet: pet),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(pet.name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: Colors.white)),
+                          const SizedBox(height: 2),
+                          Text(_petSubtitle(pet), maxLines: 1, overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 14, color: Colors.white70)),
+                        ],
+                      ),
                     ),
-                  ),
+                    Container(
+                      decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                      child: IconButton(
+                        tooltip: 'Edit pet',
+                        icon: const Icon(Icons.edit_outlined, color: V2.muted, size: 20),
+                        onPressed: () => _showEditPet(context, app, pet),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        // ---- QUICK STATS ----
+        V2Card(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+          child: Row(
+            children: [
+              Expanded(child: _quickStat(Icons.vaccines_outlined, '$vaccinesDue due', 'Vaccines', const Color(0xFF3B82F6))),
+              Expanded(child: _quickStat(Icons.attach_money_rounded, '\$${spentThisMonth.toStringAsFixed(0)} spent', 'This month', const Color(0xFF22C55E))),
+              Expanded(child: _quickStat(Icons.notifications_outlined, '$remindersCount reminder${remindersCount == 1 ? '' : 's'}', 'Today', const Color(0xFFF59E0B))),
             ],
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 16),
+        Text('Quick Actions', style: V2.title(18)),
+        const SizedBox(height: 10),
+        // ---- COLORFUL ACTION GRID ----
+        GridView.count(
+          crossAxisCount: 3,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 10, crossAxisSpacing: 10,
+          childAspectRatio: 0.92,
+          children: [
+            _actionTile(context, Icons.auto_awesome_rounded, 'AI Assistant', const Color(0xFF8B5CF6),
+                () => Navigator.push(context, MaterialPageRoute(builder: (_) => PetAiChatScreen(pet: pet)))),
+            _actionTile(context, Icons.vaccines_outlined, 'Vaccinations', const Color(0xFF3B82F6),
+                () => Navigator.pushNamed(context, PetVaccinationsScreen.route, arguments: pet)),
+            _actionTile(context, Icons.qr_code_rounded, 'Pet ID', const Color(0xFFF59E0B),
+                () => Navigator.pushNamed(context, PetDigitalIdScreen.route, arguments: pet)),
+            _actionTile(context, Icons.history_rounded, 'Vet History', const Color(0xFF14B8A6),
+                () => Navigator.pushNamed(context, PetVetHistoryScreen.route, arguments: pet)),
+            _actionTile(context, Icons.account_balance_wallet_outlined, 'Expenses', const Color(0xFF22C55E),
+                () => Navigator.pushNamed(context, PetExpenseReportScreen.route, arguments: pet)),
+            _actionTile(context, Icons.bar_chart_rounded, 'Reports', const Color(0xFFEC4899),
+                () => Navigator.pushNamed(context, PetExpenseReportScreen.route, arguments: pet)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        // ---- secondary row: health log + memory ----
+        Row(
+          children: [
+            Expanded(child: _outlineBtn(Icons.add_rounded, 'Log health', () => _showAddVaccine(context, app, petId: pet.id))),
+            const SizedBox(width: 10),
+            Expanded(child: _outlineBtn(Icons.add_photo_alternate_outlined, 'Add memory', () => _showAddMemory(context, app, petId: pet.id))),
+          ],
+        ),
+      ],
     );
   }
 
-  List<Widget> _petReminderRows(BuildContext context, AppState app) {
-    final rows = <Widget>[];
-    for (final pet in app.pets) {
-      for (final r in app.petRemindersFor(pet.id)) {
-        rows.add(Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: V2Card(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              children: [
-                const V2IconTile(Icons.pets_rounded, size: 44),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(r.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.poppins(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14.5)),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${pet.name} • ${DateFormat('EEE, MMM d • h:mm a').format(r.remindAt)}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: V2.sub(12),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Mark done',
-                  icon: const Icon(Icons.check_circle_outline,
-                      color: V2.green),
-                  onPressed: () => app.toggleReminder(r.id),
-                ),
-              ],
-            ),
-          ),
-        ));
-      }
-    }
-    if (rows.isEmpty) {
-      rows.add(Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Text(
-          'No pet reminders yet — add feeding, vet, grooming, walk or medicine reminders.',
-          style: V2.sub(13),
+  Widget _quickStat(IconData icon, String value, String label, Color color) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 46, height: 46,
+          decoration: BoxDecoration(color: color.withOpacity(0.14), shape: BoxShape.circle),
+          child: Icon(icon, color: color, size: 24),
         ),
-      ));
-    }
-    return rows;
+        const SizedBox(height: 6),
+        Text(value, style: V2.title(14)),
+        Text(label, style: V2.sub(12)),
+      ],
+    );
+  }
+
+  Widget _actionTile(BuildContext context, IconData icon, String label, Color color, VoidCallback onTap) {
+    return Material(
+      color: color,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 48, height: 48,
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.22), shape: BoxShape.circle),
+                child: Icon(icon, color: Colors.white, size: 26),
+              ),
+              const SizedBox(height: 8),
+              Text(label, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: Colors.white)),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _addReminderButton(BuildContext context, AppState app) {
