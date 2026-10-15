@@ -276,36 +276,69 @@ class AppState extends ChangeNotifier {
 
   /// Attach orphaned local records (empty userId) to the current user.
   /// Called after _loadLocal() and after cloud merge in loadAll().
+  /// Uses fromJson/toJson round-trip so it works for EVERY model
+  /// without requiring copyWith.
   void _healOrphanedRecords() {
     final uid = effectiveUid;
     if (uid.isEmpty) return;
     var changed = false;
-    void heal<T>(List<T> items, String Function(T) getId, T Function(T, String) setId) {
+
+    /// Heal one list: for each item whose 'user_id' is empty in its
+    /// JSON, rebuild it with the current uid.
+    void heal<T>(
+      List<T> items,
+      Map<String, dynamic> Function(T) toJson,
+      T Function(Map<String, dynamic>) fromJson,
+    ) {
       for (var i = 0; i < items.length; i++) {
-        if (getId(items[i]).isEmpty) {
-          items[i] = setId(items[i], uid);
-          changed = true;
-        }
+        try {
+          final map = toJson(items[i]);
+          final current = (map['user_id'] as String?) ?? '';
+          if (current.isEmpty) {
+            map['user_id'] = uid;
+            items[i] = fromJson(map);
+            changed = true;
+          }
+        } catch (_) {}
       }
     }
-    heal<TaskItem>(tasks, (t) => t.userId, (t, id) => t.copyWith(userId: id));
-    heal<Expense>(expenses, (e) => e.userId, (e, id) => e.copyWith(userId: id));
-    heal<Bill>(bills, (b) => b.userId, (b, id) => b.copyWith(userId: id));
-    heal<Subscription>(subscriptions, (x) => x.userId, (x, id) => x.copyWith(userId: id));
-    heal<ShoppingItem>(shoppingItems, (x) => x.userId, (x, id) => x.copyWith(userId: id));
-    heal<Reminder>(reminders, (r) => r.userId, (r, id) => r.copyWith(userId: id));
-    heal<DocumentItem>(documents, (d) => d.userId, (d, id) => d.copyWith(userId: id));
-    heal<Vehicle>(vehicles, (v) => v.userId, (v, id) => v.copyWith(userId: id));
-    heal<MaintenanceItem>(maintenanceItems, (m) => m.userId, (m, id) => m.copyWith(userId: id));
-    heal<FamilyMember>(familyMembers, (f) => f.userId, (f, id) => f.copyWith(userId: id));
-    heal<Habit>(habits, (h) => h.userId, (h, id) => h.copyWith(userId: id));
-    heal<PetProfile>(pets, (p) => p.userId, (p, id) => p.copyWith(userId: id));
-    heal<PetVaccination>(vaccinations, (v) => v.userId, (v, id) => v.copyWith(userId: id));
-    heal<PetMemory>(petMemories, (m) => m.userId, (m, id) => m.copyWith(userId: id));
-    heal<BrainDump>(brainDumps, (b) => b.userId, (b, id) => b.copyWith(userId: id));
-    heal<SavingsEntry>(savingsEntries, (x) => x.userId, (x, id) => x.copyWith(userId: id));
-    heal<LentBorrowed>(lentBorrowed, (x) => x.userId, (x, id) => x.copyWith(userId: id));
-    heal<PetVetVisit>(vetVisits, (v) => v.userId, (v, id) => v.copyWith(userId: id));
+
+    heal<TaskItem>(tasks, (t) => t.toJson(),
+        (m) => TaskItem.fromJson(Map<String, dynamic>.from(m)));
+    heal<Expense>(expenses, (e) => e.toJson(),
+        (m) => Expense.fromJson(Map<String, dynamic>.from(m)));
+    heal<Bill>(bills, (b) => b.toJson(),
+        (m) => Bill.fromJson(Map<String, dynamic>.from(m)));
+    heal<Subscription>(subscriptions, (x) => x.toJson(),
+        (m) => Subscription.fromJson(Map<String, dynamic>.from(m)));
+    heal<ShoppingItem>(shoppingItems, (x) => x.toJson(),
+        (m) => ShoppingItem.fromJson(Map<String, dynamic>.from(m)));
+    heal<Reminder>(reminders, (r) => r.toJson(),
+        (m) => Reminder.fromJson(Map<String, dynamic>.from(m)));
+    heal<DocumentItem>(documents, (d) => d.toJson(),
+        (m) => DocumentItem.fromJson(Map<String, dynamic>.from(m)));
+    heal<Vehicle>(vehicles, (v) => v.toJson(),
+        (m) => Vehicle.fromJson(Map<String, dynamic>.from(m)));
+    heal<MaintenanceItem>(maintenanceItems, (m) => m.toJson(),
+        (m) => MaintenanceItem.fromJson(Map<String, dynamic>.from(m)));
+    heal<FamilyMember>(familyMembers, (f) => f.toJson(),
+        (m) => FamilyMember.fromJson(Map<String, dynamic>.from(m)));
+    heal<Habit>(habits, (h) => h.toJson(),
+        (m) => Habit.fromJson(Map<String, dynamic>.from(m)));
+    heal<PetProfile>(pets, (p) => p.toJson(),
+        (m) => PetProfile.fromJson(Map<String, dynamic>.from(m)));
+    heal<PetVaccination>(vaccinations, (v) => v.toJson(),
+        (m) => PetVaccination.fromJson(Map<String, dynamic>.from(m)));
+    heal<PetMemory>(petMemories, (m) => m.toJson(),
+        (m) => PetMemory.fromJson(Map<String, dynamic>.from(m)));
+    heal<BrainDump>(brainDumps, (b) => b.toJson(),
+        (m) => BrainDump.fromJson(Map<String, dynamic>.from(m)));
+    heal<SavingsEntry>(savingsEntries, (x) => x.toJson(),
+        (m) => SavingsEntry.fromJson(Map<String, dynamic>.from(m)));
+    heal<LentBorrowed>(lentBorrowed, (x) => x.toJson(),
+        (m) => LentBorrowed.fromJson(Map<String, dynamic>.from(m)));
+    heal<PetVetVisit>(vetVisits, (v) => v.toJson(),
+        (m) => PetVetVisit.fromJson(Map<String, dynamic>.from(m)));
     if (changed) {
       // Persist the healed IDs locally so they survive restarts.
       _saveLocal();
