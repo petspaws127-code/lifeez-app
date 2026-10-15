@@ -258,6 +258,17 @@ class AppState extends ChangeNotifier {
       List<Map<String, dynamic>> list(dynamic r) =>
           r == null ? [] : List<Map<String, dynamic>>.from(r as List);
 
+      // DATA-SAFETY FIX (Oct 15, 2026): Never let an empty cloud response
+      // wipe local data. Merge cloud + local by ID: cloud wins on conflict,
+      // local-only items are always preserved. This prevents data loss when
+      // the user_id differs between login methods or sync hasn't completed.
+      List<T> mergeById<T>(List<T> local, List<T> cloud, String Function(T) idOf) {
+        if (cloud.isEmpty) return local;
+        if (local.isEmpty) return cloud;
+        final cloudIds = <String>{for (final c in cloud) idOf(c)};
+        return [...cloud, ...local.where((l) => !cloudIds.contains(idOf(l)))];
+      }
+
       final p = results[0];
       // SIMPLE RULE: Local profile is the source of truth for user edits.
       // Only use Supabase data if there is NO local profile (fresh login
@@ -269,35 +280,24 @@ class AppState extends ChangeNotifier {
             : Profile.fromJson(Map<String, dynamic>.from(p as Map));
       }
       // If we have a local profile, keep it. Supabase is backup only.
-      tasks = list(results[1]).map(TaskItem.fromJson).toList();
-      expenses = list(results[2]).map(Expense.fromJson).toList();
-      bills = list(results[3]).map(Bill.fromJson).toList();
-      subscriptions =
-          list(results[4]).map(Subscription.fromJson).toList();
-      shoppingItems =
-          list(results[5]).map(ShoppingItem.fromJson).toList();
-      reminders = list(results[6]).map(Reminder.fromJson).toList();
-      documents =
-          list(results[7]).map(DocumentItem.fromJson).toList();
-      vehicles = list(results[8]).map(Vehicle.fromJson).toList();
-      maintenanceItems =
-          list(results[9]).map(MaintenanceItem.fromJson).toList();
-      familyMembers =
-          list(results[10]).map(FamilyMember.fromJson).toList();
-      habits = list(results[11]).map(Habit.fromJson).toList();
-      pets = list(results[12]).map(PetProfile.fromJson).toList();
-      vaccinations =
-          list(results[13]).map(PetVaccination.fromJson).toList();
-      petMemories =
-          list(results[14]).map(PetMemory.fromJson).toList();
-      brainDumps =
-          list(results[15]).map(BrainDump.fromJson).toList();
-      savingsEntries =
-          list(results[16]).map(SavingsEntry.fromJson).toList();
-      lentBorrowed =
-          list(results[17]).map(LentBorrowed.fromJson).toList();
-      vetVisits =
-          list(results[18]).map(PetVetVisit.fromJson).toList();
+      tasks = mergeById(tasks, list(results[1]).map(TaskItem.fromJson).toList(), (t) => t.id);
+      expenses = mergeById(expenses, list(results[2]).map(Expense.fromJson).toList(), (e) => e.id);
+      bills = mergeById(bills, list(results[3]).map(Bill.fromJson).toList(), (b) => b.id);
+      subscriptions = mergeById(subscriptions, list(results[4]).map(Subscription.fromJson).toList(), (x) => x.id);
+      shoppingItems = mergeById(shoppingItems, list(results[5]).map(ShoppingItem.fromJson).toList(), (x) => x.id);
+      reminders = mergeById(reminders, list(results[6]).map(Reminder.fromJson).toList(), (r) => r.id);
+      documents = mergeById(documents, list(results[7]).map(DocumentItem.fromJson).toList(), (d) => d.id);
+      vehicles = mergeById(vehicles, list(results[8]).map(Vehicle.fromJson).toList(), (v) => v.id);
+      maintenanceItems = mergeById(maintenanceItems, list(results[9]).map(MaintenanceItem.fromJson).toList(), (m) => m.id);
+      familyMembers = mergeById(familyMembers, list(results[10]).map(FamilyMember.fromJson).toList(), (f) => f.id);
+      habits = mergeById(habits, list(results[11]).map(Habit.fromJson).toList(), (h) => h.id);
+      pets = mergeById(pets, list(results[12]).map(PetProfile.fromJson).toList(), (p) => p.id);
+      vaccinations = mergeById(vaccinations, list(results[13]).map(PetVaccination.fromJson).toList(), (v) => v.id);
+      petMemories = mergeById(petMemories, list(results[14]).map(PetMemory.fromJson).toList(), (m) => m.id);
+      brainDumps = mergeById(brainDumps, list(results[15]).map(BrainDump.fromJson).toList(), (b) => b.id);
+      savingsEntries = mergeById(savingsEntries, list(results[16]).map(SavingsEntry.fromJson).toList(), (x) => x.id);
+      lentBorrowed = mergeById(lentBorrowed, list(results[17]).map(LentBorrowed.fromJson).toList(), (x) => x.id);
+      vetVisits = mergeById(vetVisits, list(results[18]).map(PetVetVisit.fromJson).toList(), (v) => v.id);
       _pinUnlocked = false;
       refreshNotifications();
       // Sync Google/Apple OAuth profile (name + photo) into the local
