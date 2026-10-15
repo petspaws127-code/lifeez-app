@@ -228,32 +228,36 @@ class AppState extends ChangeNotifier {
         return;
       }
       final c = SupabaseService.client;
+      // FAULT-TOLERANT FETCH (Oct 15, 2026): Each table query is wrapped
+      // so one missing table (e.g. pending migration) can NEVER break
+      // the entire data load. A failed table returns null = empty list.
+      Future<dynamic> safeQuery(Future<dynamic> Function() q) async {
+        try {
+          return await q().timeout(const Duration(seconds: 20));
+        } catch (_) {
+          return null;
+        }
+      }
       final results = await Future.wait([
-        c.from('profiles').select().eq('id', uid).maybeSingle(),
-        c.from('tasks').select().eq('user_id', uid).order('created_at'),
-        c.from('expenses').select().eq('user_id', uid).order('spent_at'),
-        c.from('bills').select().eq('user_id', uid).order('due_day'),
-        c.from('subscriptions').select().eq('user_id', uid),
-        c.from('shopping_items').select().eq('user_id', uid),
-        c.from('reminders').select().eq('user_id', uid).order('remind_at'),
-        c.from('documents').select().eq('user_id', uid),
-        c.from('vehicles').select().eq('user_id', uid),
-        c.from('maintenance_items').select().eq('user_id', uid),
-        c.from('family_members').select().eq('user_id', uid),
-        c.from('habits').select().eq('user_id', uid),
-        c.from('pet_profiles').select().eq('user_id', uid),
-        c.from('pet_vaccinations').select().eq('user_id', uid),
-        c.from('pet_memories').select().eq('user_id', uid),
-        c.from('brain_dumps').select().eq('user_id', uid).order('created_at'),
-        c.from('savings_entries')
-            .select()
-            .eq('user_id', uid)
-            .order('saved_at'),
-        c.from('lent_borrowed')
-            .select()
-            .eq('user_id', uid)
-            .order('date', ascending: false),
-        c.from('pet_vet_visits').select().eq('user_id', uid),
+        safeQuery(() => c.from('profiles').select().eq('id', uid).maybeSingle()),
+        safeQuery(() => c.from('tasks').select().eq('user_id', uid).order('created_at')),
+        safeQuery(() => c.from('expenses').select().eq('user_id', uid).order('spent_at')),
+        safeQuery(() => c.from('bills').select().eq('user_id', uid).order('due_day')),
+        safeQuery(() => c.from('subscriptions').select().eq('user_id', uid)),
+        safeQuery(() => c.from('shopping_items').select().eq('user_id', uid)),
+        safeQuery(() => c.from('reminders').select().eq('user_id', uid).order('remind_at')),
+        safeQuery(() => c.from('documents').select().eq('user_id', uid)),
+        safeQuery(() => c.from('vehicles').select().eq('user_id', uid)),
+        safeQuery(() => c.from('maintenance_items').select().eq('user_id', uid)),
+        safeQuery(() => c.from('family_members').select().eq('user_id', uid)),
+        safeQuery(() => c.from('habits').select().eq('user_id', uid)),
+        safeQuery(() => c.from('pet_profiles').select().eq('user_id', uid)),
+        safeQuery(() => c.from('pet_vaccinations').select().eq('user_id', uid)),
+        safeQuery(() => c.from('pet_memories').select().eq('user_id', uid)),
+        safeQuery(() => c.from('brain_dumps').select().eq('user_id', uid).order('created_at')),
+        safeQuery(() => c.from('savings_entries').select().eq('user_id', uid).order('saved_at')),
+        safeQuery(() => c.from('lent_borrowed').select().eq('user_id', uid).order('date', ascending: false)),
+        safeQuery(() => c.from('pet_vet_visits').select().eq('user_id', uid)),
       ]);
       List<Map<String, dynamic>> list(dynamic r) =>
           r == null ? [] : List<Map<String, dynamic>>.from(r as List);
