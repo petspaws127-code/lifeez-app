@@ -606,6 +606,22 @@ class _PetsScreenState extends State<PetsScreen> {
     );
   }
 
+  Widget _petPhotoFull(PetProfile pet) {
+    final path = pet.photoPath;
+    return Container(
+      decoration: const BoxDecoration(color: V2.chip),
+      clipBehavior: Clip.antiAlias,
+      child: _photoOk(path)
+          ? Image.file(
+              File(path!),
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+              errorBuilder: (_, __, ___) => _pawPlaceholder(),
+            )
+          : _pawPlaceholder(),
+    );
+  }
+
   Widget _outlineBtn(IconData icon, String label, VoidCallback onTap) {
     return OutlinedButton.icon(
       onPressed: onTap,
@@ -653,7 +669,10 @@ class _PetsScreenState extends State<PetsScreen> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(20),
-              child: _petPhoto(pet, height: 220),
+              child: AspectRatio(
+                aspectRatio: 16 / 10,
+                child: _petPhotoFull(pet),
+              ),
             ),
             Positioned(
               left: 0, right: 0, bottom: 0,
@@ -702,9 +721,9 @@ class _PetsScreenState extends State<PetsScreen> {
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
           child: Row(
             children: [
-              Expanded(child: _quickStat(Icons.vaccines_outlined, '$vaccinesDue due', 'Vaccines', const Color(0xFF3B82F6))),
-              Expanded(child: _quickStat(Icons.attach_money_rounded, '\$${spentThisMonth.toStringAsFixed(0)} spent', 'This month', const Color(0xFF22C55E))),
-              Expanded(child: _quickStat(Icons.notifications_outlined, '$remindersCount reminder${remindersCount == 1 ? '' : 's'}', 'Today', const Color(0xFFF59E0B))),
+              Expanded(child: _quickStat(Icons.vaccines_outlined, '$vaccinesDue due', 'Vaccines', V2.green)),
+              Expanded(child: _quickStat(Icons.attach_money_rounded, '\$${spentThisMonth.toStringAsFixed(0)} spent', 'This month', V2.green)),
+              Expanded(child: _quickStat(Icons.notifications_outlined, '$remindersCount reminder${remindersCount == 1 ? '' : 's'}', 'Today', V2.green)),
             ],
           ),
         ),
