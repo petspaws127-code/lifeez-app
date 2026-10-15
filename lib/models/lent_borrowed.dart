@@ -2,6 +2,7 @@ import '../services/eastern_time.dart';
 /// A lent or borrowed item/money entry (table: lent_borrowed).
 class LentBorrowed {
   final String id;
+  final String userId;
   final String person;
   final String item; // what was lent/borrowed ("\$50", "Lawn mower")
   final double? amount; // set when it is money
@@ -13,6 +14,7 @@ class LentBorrowed {
 
   const LentBorrowed({
     required this.id,
+    this.userId = '',
     required this.person,
     required this.item,
     this.amount,
@@ -26,6 +28,7 @@ class LentBorrowed {
   factory LentBorrowed.fromJson(Map<String, dynamic> json) =>
       LentBorrowed(
         id: json['id'] as String,
+        userId: (json['user_id'] as String?) ?? '',
         person: (json['person'] as String?) ?? '',
         item: (json['item'] as String?) ?? '',
         amount: (json['amount'] as num?)?.toDouble(),
@@ -41,6 +44,7 @@ class LentBorrowed {
 
   Map<String, dynamic> toJson() => {
         'id': id,
+        'user_id': userId,
         'person': person,
         'item': item,
         'amount': amount,
@@ -52,6 +56,7 @@ class LentBorrowed {
       };
 
   LentBorrowed copyWith({
+    String? userId,
     String? person,
     String? item,
     double? amount,
@@ -65,6 +70,7 @@ class LentBorrowed {
   }) =>
       LentBorrowed(
         id: id,
+        userId: userId ?? this.userId,
         person: person ?? this.person,
         item: item ?? this.item,
         amount: clearAmount ? null : (amount ?? this.amount),

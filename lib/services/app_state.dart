@@ -88,8 +88,18 @@ class AppState extends ChangeNotifier {
   Timer? _saveTimer;
   /// User-scoped storage key - each user sees only their own data.
   static String get _localKey {
+    // Use auth UID; persistent map fallback is handled by instance code
+    // via _localKeyFor(). This static version is for contexts without
+    // an AppState instance.
     final uid = SupabaseService.currentUserId;
     return 'lifeez_local_data_v1_${uid ?? "guest"}';
+  }
+
+  /// Instance version: prefers persistent UID mapping when auth is null
+  /// (e.g. right after reinstall, before session restore).
+  String get _localKeyFor {
+    final uid = effectiveUid;
+    return 'lifeez_local_data_v1_${uid.isNotEmpty ? uid : "guest"}';
   }
 
   /// User-scoped pending-sync queue key. Survives restarts so offline
@@ -97,6 +107,64 @@ class AppState extends ChangeNotifier {
   static String get _pendingKey {
     final uid = SupabaseService.currentUserId;
     return 'lifeez_pending_sync_v1_${uid ?? "guest"}';
+  }
+
+  /// PERSISTENT UID (Oct 15, 2026): Maps email -> Supabase UID permanently.
+  /// Survives logout/login. Ensures the SAME user always gets the SAME uid,
+  /// even if the auth session returns a different token. Key is global
+  /// (not per-uid) so it can be read before login completes.
+  static const String _kUidMap = 'lifeez_uid_map_v1';
+  static const String _kLastEmail = 'lifeez_last_email_v1';
+
+  /// The effective UID: Supabase auth first, then persistent map fallback.
+  /// NEVER returns a random/temporary ID.
+  String get effectiveUid {
+    final authUid = SupabaseService.currentUserId;
+    if (authUid != null && authUid.isNotEmpty) return authUid;
+    return _persistentUid ?? '';
+  }
+
+  String? _persistentUid;
+
+  /// Load the persistent UID for the given email (if previously saved).
+  Future<void> _loadPersistentUid(String? email) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (email != null && email.isNotEmpty) {
+        final mapRaw = prefs.getString(_kUidMap);
+        if (mapRaw != null && mapRaw.isNotEmpty) {
+          final map = Map<String, dynamic>.from(jsonDecode(mapRaw));
+          _persistentUid = map[email.toLowerCase()] as String?;
+        }
+        await prefs.setString(_kLastEmail, email.toLowerCase());
+      } else {
+        // No email: try last known email's mapping.
+        final lastEmail = prefs.getString(_kLastEmail);
+        if (lastEmail != null && lastEmail.isNotEmpty) {
+          final mapRaw = prefs.getString(_kUidMap);
+          if (mapRaw != null && mapRaw.isNotEmpty) {
+            final map = Map<String, dynamic>.from(jsonDecode(mapRaw));
+            _persistentUid = map[lastEmail] as String?;
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
+  /// Permanently bind email -> UID. Called on every successful login.
+  Future<void> persistUidMapping(String email, String uid) async {
+    if (email.isEmpty || uid.isEmpty) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final mapRaw = prefs.getString(_kUidMap);
+      final map = (mapRaw != null && mapRaw.isNotEmpty)
+          ? Map<String, dynamic>.from(jsonDecode(mapRaw))
+          : <String, dynamic>{};
+      map[email.toLowerCase()] = uid;
+      await prefs.setString(_kUidMap, jsonEncode(map));
+      await prefs.setString(_kLastEmail, email.toLowerCase());
+      _persistentUid = uid;
+    } catch (_) {}
   }
 
   /// In-memory pending operations: {op: 'upsert'|'delete', table, id, row}
@@ -196,9 +264,52 @@ class AppState extends ChangeNotifier {
           .toList();
       lentBorrowed =
           list(data['lentBorrowed']).map(LentBorrowed.fromJson).toList();
+      // ORPHAN MIGRATION (Oct 15, 2026): Attach any records with
+      // empty/null userId to the current user. This heals data created
+      // before the user_id stamping fix.
+      _healOrphanedRecords();
       return true;
     } catch (_) {
       return false;
+    }
+  }
+
+  /// Attach orphaned local records (empty userId) to the current user.
+  /// Called after _loadLocal() and after cloud merge in loadAll().
+  void _healOrphanedRecords() {
+    final uid = effectiveUid;
+    if (uid.isEmpty) return;
+    var changed = false;
+    void heal<T>(List<T> items, String Function(T) getId, T Function(T, String) setId) {
+      for (var i = 0; i < items.length; i++) {
+        if (getId(items[i]).isEmpty) {
+          items[i] = setId(items[i], uid);
+          changed = true;
+        }
+      }
+    }
+    heal<TaskItem>(tasks, (t) => t.userId, (t, id) => t.copyWith(userId: id));
+    heal<Expense>(expenses, (e) => e.userId, (e, id) => e.copyWith(userId: id));
+    heal<Bill>(bills, (b) => b.userId, (b, id) => b.copyWith(userId: id));
+    heal<Subscription>(subscriptions, (x) => x.userId, (x, id) => x.copyWith(userId: id));
+    heal<ShoppingItem>(shoppingItems, (x) => x.userId, (x, id) => x.copyWith(userId: id));
+    heal<Reminder>(reminders, (r) => r.userId, (r, id) => r.copyWith(userId: id));
+    heal<DocumentItem>(documents, (d) => d.userId, (d, id) => d.copyWith(userId: id));
+    heal<Vehicle>(vehicles, (v) => v.userId, (v, id) => v.copyWith(userId: id));
+    heal<MaintenanceItem>(maintenanceItems, (m) => m.userId, (m, id) => m.copyWith(userId: id));
+    heal<FamilyMember>(familyMembers, (f) => f.userId, (f, id) => f.copyWith(userId: id));
+    heal<Habit>(habits, (h) => h.userId, (h, id) => h.copyWith(userId: id));
+    heal<PetProfile>(pets, (p) => p.userId, (p, id) => p.copyWith(userId: id));
+    heal<PetVaccination>(vaccinations, (v) => v.userId, (v, id) => v.copyWith(userId: id));
+    heal<PetMemory>(petMemories, (m) => m.userId, (m, id) => m.copyWith(userId: id));
+    heal<BrainDump>(brainDumps, (b) => b.userId, (b, id) => b.copyWith(userId: id));
+    heal<SavingsEntry>(savingsEntries, (x) => x.userId, (x, id) => x.copyWith(userId: id));
+    heal<LentBorrowed>(lentBorrowed, (x) => x.userId, (x, id) => x.copyWith(userId: id));
+    heal<PetVetVisit>(vetVisits, (v) => v.userId, (v, id) => v.copyWith(userId: id));
+    if (changed) {
+      // Persist the healed IDs locally so they survive restarts.
+      _saveLocal();
+      notifyListeners();
     }
   }
 
@@ -206,6 +317,10 @@ class AppState extends ChangeNotifier {
   Future<void> loadAll() async {
     loading = true;
     error = null;
+    // PERSISTENT UID (Oct 15, 2026): Load email->UID mapping before anything
+    // else, so orphan healing and local keys use the stable UID.
+    final _authUser = SupabaseService.client.auth.currentUser;
+    await _loadPersistentUid(_authUser?.email);
     // Load local data first so the UI shows instantly, then refresh
     // from Supabase when available.
     await _loadLocal();
@@ -219,6 +334,12 @@ class AppState extends ChangeNotifier {
     // skips everything after it — and Edit/Profile must never see a null
     // profile while someone is signed in.
     await ensureProfile();
+    // Permanently bind this email -> UID so re-login always maps back
+    // to the same user_id, never a temporary/random one.
+    final _cu = SupabaseService.client.auth.currentUser;
+    if (_cu != null && _cu.email != null && _cu.email!.isNotEmpty) {
+      await persistUidMapping(_cu.email!, _cu.id);
+    }
     notifyListeners();
     try {
       final uid = _uid;
@@ -302,6 +423,8 @@ class AppState extends ChangeNotifier {
       savingsEntries = mergeById(savingsEntries, list(results[16]).map(SavingsEntry.fromJson).toList(), (x) => x.id);
       lentBorrowed = mergeById(lentBorrowed, list(results[17]).map(LentBorrowed.fromJson).toList(), (x) => x.id);
       vetVisits = mergeById(vetVisits, list(results[18]).map(PetVetVisit.fromJson).toList(), (v) => v.id);
+      // Heal any orphaned records after cloud merge too.
+      _healOrphanedRecords();
       _pinUnlocked = false;
       refreshNotifications();
       // Sync Google/Apple OAuth profile (name + photo) into the local

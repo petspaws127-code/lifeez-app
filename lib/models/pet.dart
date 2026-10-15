@@ -50,6 +50,7 @@ class PetProfile {
       };
 
   PetProfile copyWith({
+    String? userId,
     String? name,
     String? species,
     String? breed,
@@ -61,7 +62,7 @@ class PetProfile {
   }) =>
       PetProfile(
         id: id,
-        userId: userId,
+        userId: userId ?? this.userId,
         name: name ?? this.name,
         species: species ?? this.species,
         breed: breed ?? this.breed,
@@ -115,6 +116,24 @@ class PetVaccination {
             nextDueDate?.toIso8601String().substring(0, 10),
       };
 
+  PetVaccination copyWith({
+    String? userId,
+    String? petId,
+    String? vaccineName,
+    DateTime? givenDate,
+    DateTime? nextDueDate,
+    bool clearNextDueDate = false,
+  }) =>
+      PetVaccination(
+        id: id,
+        userId: userId ?? this.userId,
+        petId: petId ?? this.petId,
+        vaccineName: vaccineName ?? this.vaccineName,
+        givenDate: givenDate ?? this.givenDate,
+        nextDueDate:
+            clearNextDueDate ? null : (nextDueDate ?? this.nextDueDate),
+      );
+
   bool get isOverdue =>
       nextDueDate != null &&
       nextDueDate!.isBefore(easternNow());
@@ -162,6 +181,24 @@ class PetMemory {
         'memory_date': memoryDate.toIso8601String().substring(0, 10),
         'photo_path': photoPath,
       };
+
+  PetMemory copyWith({
+    String? userId,
+    String? petId,
+    String? caption,
+    DateTime? memoryDate,
+    String? photoPath,
+    bool clearPhotoPath = false,
+  }) =>
+      PetMemory(
+        id: id,
+        userId: userId ?? this.userId,
+        petId: petId ?? this.petId,
+        caption: caption ?? this.caption,
+        memoryDate: memoryDate ?? this.memoryDate,
+        photoPath:
+            clearPhotoPath ? null : (photoPath ?? this.photoPath),
+      );
 }
 
 class PetVetVisit {
@@ -208,4 +245,27 @@ class PetVetVisit {
         'notes': notes,
         'cost': cost,
       };
+
+  PetVetVisit copyWith({
+    String? userId,
+    String? petId,
+    DateTime? visitDate,
+    String? reason,
+    String? vetName,
+    String? notes,
+    double? cost,
+    bool clearVetName = false,
+    bool clearNotes = false,
+    bool clearCost = false,
+  }) =>
+      PetVetVisit(
+        id: id,
+        userId: userId ?? this.userId,
+        petId: petId ?? this.petId,
+        visitDate: visitDate ?? this.visitDate,
+        reason: reason ?? this.reason,
+        vetName: clearVetName ? null : (vetName ?? this.vetName),
+        notes: clearNotes ? null : (notes ?? this.notes),
+        cost: clearCost ? null : (cost ?? this.cost),
+      );
 }
