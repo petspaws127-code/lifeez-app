@@ -137,30 +137,6 @@ class _PetsScreenState extends State<PetsScreen> {
                 // Pet selector — horizontal avatars.
                 _petSelector(context, app, pets, selectedId),
                 const SizedBox(height: 20),
-                // Today's care — one-tap Feed / Walk / Medicine.
-                _todaysCare(context, app, selectedId!),
-                const SizedBox(height: 20),
-                // Upcoming — vet visits & vaccinations.
-                _upcomingSection(context, app, selectedId),
-                const SizedBox(height: 16),
-                // Health quick-log.
-                OutlinedButton.icon(
-                  onPressed: () =>
-                      _showAddVaccine(context, app, petId: selectedId),
-                  icon: const Icon(Icons.add_rounded, color: V2.green),
-                  label: Text('+ Health quick-log',
-                      style: GoogleFonts.poppins(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: V2.green)),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: V2.green, width: 1.5),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
-                ),
-                const SizedBox(height: 20),
                 // Details tabs (existing functionality).
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -452,13 +428,14 @@ class _PetsScreenState extends State<PetsScreen> {
   Widget _petsTab(BuildContext context, AppState app) {
     final pets = app.pets;
     if (pets.isEmpty) return _noPetState(context, app);
+    // Show ONLY the selected pet's card — not all pets stacked.
+    final selectedId = _selectedPetId(app);
+    final pet = pets.firstWhere((p) => p.id == selectedId, orElse: () => pets.first);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ...pets.map((p) => Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: _petCard(context, app, p),
-            )),
+        _petCard(context, app, pet),
+        const SizedBox(height: 16),
         const V2SectionLabel('Pet reminders'),
         ..._petReminderRows(context, app),
         const SizedBox(height: 4),
