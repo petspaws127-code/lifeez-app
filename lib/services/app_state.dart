@@ -372,6 +372,17 @@ class AppState extends ChangeNotifier {
   /// Cloud sync gets a 15s timeout; failures are queued for later retry.
   Future<void> _save(String table, Map<String, dynamic> row) async {
     await _saveLocal();
+    // CRITICAL FIX (Oct 15, 2026): Always stamp the row with the REAL
+    // Supabase auth user_id before cloud upsert. Models sometimes carry
+    // an empty/wrong userId (e.g. profile not loaded yet at creation time),
+    // which meant rows were saved under user_id='' and could NEVER be
+    // found again on fresh login. This guarantees cloud rows are always
+    // queryable by the logged-in user.
+    final uid = SupabaseService.currentUserId;
+    if (uid != null && uid.isNotEmpty) {
+      row = Map<String, dynamic>.from(row);
+      row['user_id'] = uid;
+    }
     try {
       await SupabaseService.client
           .from(table)
@@ -467,6 +478,9 @@ class AppState extends ChangeNotifier {
             await dq;
           } else {
             final row = Map<String, dynamic>.from(p['row'] as Map);
+            // Same user_id guarantee for retried queued writes.
+            final quid = SupabaseService.currentUserId;
+            if (quid != null && quid.isNotEmpty) row['user_id'] = quid;
             await SupabaseService.client.from(table).upsert(row);
           }
           // Success: don't re-add to remaining.
